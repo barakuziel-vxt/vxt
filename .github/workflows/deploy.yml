@@ -1,0 +1,25 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build dashboard
+        run: |
+          cd boat-dashboard
+          npm ci
+          npm run build
+
+      - name: Deploy to Azure Static Web Apps (placeholder)
+        run: echo "Configure Azure secrets and add deployment step here."

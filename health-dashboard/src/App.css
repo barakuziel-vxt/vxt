@@ -1,0 +1,10 @@
+body { font-family: Inter, Arial, sans-serif; background:#071029; color:#cbd5e1; margin:0; }
+.header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid #0b1220 }
+.header h1 { margin:0; color:#38bdf8 }
+.controls { display:flex; gap:12px; align-items:center }
+select { padding:6px 10px; border-radius:6px; background:#0b1220; color:#38bdf8; border:1px solid #334155 }
+.metrics { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:8px; padding:12px }
+.metric-card { background:#0f172a; padding:10px; border-radius:8px; border:1px solid #334155 }
+.metric-key { font-size:0.75rem; color:#94a3b8 }
+.metric-val { font-size:1.1rem; font-weight:700; /* color now set inline to match chart; keep bold */ font-variant-numeric: tabular-nums }
+.chart { padding:12px }

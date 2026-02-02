@@ -1,0 +1,36 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform fmt
+        run: terraform fmt -check
+        working-directory: infra
+
+      - name: Terraform init
+        run: terraform init
+        working-directory: infra
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+        working-directory: infra
+
+      - name: Terraform apply (manual for now)
+        if: github.ref == 'refs/heads/main'
+        run: echo "Terraform apply requires configuring secrets and manual approval in CI."

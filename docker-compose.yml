@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # 1. Database: Azure SQL Edge (גרסה אופטימלית ל-IoT)
+  sql-edge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: yacht-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql # שמירת הנתונים גם אם הקונטיינר נסגר
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: yacht-broker
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --overprovisioned
+      - --kafka-addr
+      - 0.0.0.0:9092
+      - --advertise-kafka-addr
+      - 127.0.0.1:9092
+    ports:
+      - "9092:9092"
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: yacht-console
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "kafka:
+          brokers: [\"redpanda:9092\"]" > /tmp/config.yml
+        /app/console --config.filepath /tmp/config.yml
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redpanda
+
+volumes:
+  sql_data:
