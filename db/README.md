@@ -8,3 +8,6 @@ How to run SQL scripts
 Notes and future improvements
 - When the project grows, move SQL to `db/migrations/` and adopt a migration tool (Flyway, Alembic, Liquibase).
 - Keep seed and test data in a `db/seeds/` folder later.
+
+Deprecated / removed files
+- `db/sql/changes_to_be_done.sql` — removed as it contained ad-hoc notes and TODOs. The removal is documented in the commit message `chore(db): remove obsolete changes_to_be_done.sql`. If you need the file contents, retrieve it from the repository history (or ask the maintainer).
