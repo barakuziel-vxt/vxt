@@ -5,7 +5,7 @@ Boat telemetry demo project
 Overview
 - Python services (anomaly_detector, API, producers/consumers)
 - React dashboard in `boat-dashboard`
-- Uses a local SQLite / SQL scripts in `tables/boat-telemetry-db`
+- Uses a local SQLite / SQL scripts in `db/sql/` (SQL moved from `tables/boat-telemetry-db`)
 
 Goals
 - Host on Azure (Event Hubs with Kafka API, Azure Functions for Python, Azure SQL)
