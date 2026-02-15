@@ -83,7 +83,7 @@ def get_health(patient_id):
         query = """
             SELECT TOP (?)
                 c.customerName AS CustomerName,
-                et.entityTypeName AS Gender,
+                et.entityTypeName AS EntityType,
                 e.entityName AS PatientName,
                 e.entityId AS ID,
                 hv.Timestamp AS Timestamp,
@@ -98,7 +98,7 @@ def get_health(patient_id):
               JOIN dbo.CustomerSubscriptions cs ON hv.userId = cs.entityId
               JOIN dbo.Entity e ON cs.entityId = e.entityId
               JOIN dbo.Customers c ON c.customerId = cs.customerId
-              JOIN dbo.EntityType et ON e.entityTypeId = et.entityTypeId
+              JOIN dbo.EntityType et ON e.entityTypeCode = et.entityTypeCode
             WHERE e.entityId = ?
             ORDER BY hv.Timestamp DESC
         """
