@@ -1,4 +1,4 @@
-
+DROP TABLE IF EXISTS HealthVitals;
 -- יצירת הטבלה עם עמודות מחושבות דטרמיניסטיות
 CREATE TABLE HealthVitals (
     HealthVitalsId INT IDENTITY(1,1) PRIMARY KEY,
@@ -7,7 +7,7 @@ CREATE TABLE HealthVitals (
     -- Identity & Reference
     UserId AS CAST(JSON_VALUE(RawJson, '$.user_id') AS NVARCHAR(100)) PERSISTED,
     ReferenceId AS CAST(JSON_VALUE(RawJson, '$.reference') AS NVARCHAR(100)) PERSISTED,
-    Timestamp AS CONVERT(DATETIMEOFFSET, JSON_VALUE(RawJson, '$.metadata.timestamp'), 127) PERSISTED,
+    Timestamp AS CONVERT(DATETIMEOFFSET, JSON_VALUE(RawJson, '$.timestamp'), 127) PERSISTED,
     -- Time (תיקון דטרמיניסטי עם Style 127)
     StartTime AS CONVERT(DATETIMEOFFSET, JSON_VALUE(RawJson, '$.start_timestamp'), 127) PERSISTED,
     EndTime AS CONVERT(DATETIMEOFFSET, JSON_VALUE(RawJson, '$.metadata.end_timestamp'), 127) PERSISTED,

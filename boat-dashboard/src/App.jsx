@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// helper: format timestamp for charts (local HH:MM:SS, strips ms)
+// helper: format timestamp for charts (local date+time)
 function formatTs(raw) {
   if (raw === null || raw === undefined || raw === '') return '';
   let dt;
@@ -13,11 +13,14 @@ function formatTs(raw) {
     const ms = raw < 1e12 ? raw * 1000 : raw;
     dt = new Date(ms);
   } else {
-    dt = new Date(String(raw));
+    // If string timestamp from database (UTC), add 'Z' if missing so JavaScript parses as UTC
+    const str = String(raw);
+    const utcStr = (str.includes('T') && !str.endsWith('Z')) ? str + 'Z' : str;
+    dt = new Date(utcStr);
   }
   if (!isNaN(dt)) {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+    // Convert UTC to local time
+    return dt.toLocaleString();
   }
   return String(raw).replace(/\.\d+(?=Z|$)/, '');
 }
@@ -39,7 +42,7 @@ export default function App() {
   useEffect(() => {
     async function loadCustomerProperties() {
       try {
-        const res = await fetch(`http://192.168.1.32:8000/customers/${encodeURIComponent(CUSTOMER_NAME)}/properties`);
+        const res = await fetch(`http://192.168.1.29:8000/customers/${encodeURIComponent(CUSTOMER_NAME)}/properties`);
         if (!res.ok) {
           console.error('Failed to load properties:', await res.text());
           return;
@@ -239,12 +242,14 @@ export default function App() {
       const ms = raw < 1e12 ? raw * 1000 : raw;
       dt = new Date(ms);
     } else {
-      dt = new Date(String(raw));
+      // If string timestamp from database (UTC), add 'Z' if missing so JavaScript parses as UTC
+      const str = String(raw);
+      const utcStr = (str.includes('T') && !str.endsWith('Z')) ? str + 'Z' : str;
+      dt = new Date(utcStr);
     }
     if (!isNaN(dt)) {
-      // return local time HH:MM:SS (user's local timezone)
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+      // Convert UTC to local time
+      return dt.toLocaleString();
     }
     // fallback: strip milliseconds from ISO-like strings
     return String(raw).replace(/\.\d+(?=Z|$)/, '');

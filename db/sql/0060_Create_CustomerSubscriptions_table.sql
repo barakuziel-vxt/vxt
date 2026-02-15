@@ -17,6 +17,11 @@ CREATE TABLE CustomerSubscriptions (
     lastUpdateUser VARCHAR(128) NOT NULL CONSTRAINT DF_CustomerSubscriptions_lastUpdateUser DEFAULT (SUSER_SNAME())
 );
 
+-- Add unique constraint to prevent duplicate subscriptions
+ALTER TABLE CustomerSubscriptions 
+ADD CONSTRAINT UQ_CustomerSubscriptions_CustomerId_EntityId_EventId 
+UNIQUE (customerId, entityId, eventId);
+
 -- Add foreign keys if referenced tables exist
 IF OBJECT_ID('Customers','U') IS NOT NULL
 BEGIN
@@ -59,49 +64,46 @@ END;
 GO
 
 -- Seed: Create sample subscriptions (idempotent)
-IF OBJECT_ID('Customers','U') IS NOT NULL AND OBJECT_ID('Entity','U') IS NOT NULL AND OBJECT_ID('Events','U') IS NOT NULL
+-- Subscribe SLMEDICAL customer to all events for all Person entities
+
+IF OBJECT_ID('Customers','U') IS NOT NULL 
+   AND OBJECT_ID('Entity','U') IS NOT NULL 
+   AND OBJECT_ID('Event','U') IS NOT NULL
+   AND OBJECT_ID('EntityType','U') IS NOT NULL
 BEGIN
-    DECLARE @custId INT, @eventPerson NVARCHAR(50), @sailorId INT, @eventYacht NVARCHAR(50), @ent NVARCHAR(50);
+    DECLARE @custId INT;
+    DECLARE @PersonEntityTypeId INT;
+    
+    SELECT @custId = customerId FROM Customers WHERE customerName = 'SLMEDICAL';
+    SELECT @PersonEntityTypeId = entityTypeId FROM EntityType WHERE entityTypeName = 'Person';
 
-    -- si-medical -> PERSON_HEALTH on entities 033114869 and 033114870
-    SET @custId = (SELECT TOP 1 customerId FROM Customers WHERE customerName IN ('si-medical','sl-medical'));
-    SET @eventPerson = (SELECT TOP 1 eventId FROM Events WHERE eventId = 'PERSON_HEALTH');
-    IF @custId IS NOT NULL AND @eventPerson IS NOT NULL
+    IF @custId IS NOT NULL AND @PersonEntityTypeId IS NOT NULL
     BEGIN
-        SET @ent = '033114869';
-        IF EXISTS (SELECT 1 FROM Entity WHERE entityId = @ent)
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM CustomerSubscriptions WHERE customerId = @custId AND entityId = @ent AND eventId = @eventPerson)
-                INSERT INTO CustomerSubscriptions (customerId, entityId, eventId) VALUES (@custId, @ent, @eventPerson);
-        END
-
-        SET @ent = '033114870';
-        IF EXISTS (SELECT 1 FROM Entity WHERE entityId = @ent)
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM CustomerSubscriptions WHERE customerId = @custId AND entityId = @ent AND eventId = @eventPerson)
-                INSERT INTO CustomerSubscriptions (customerId, entityId, eventId) VALUES (@custId, @ent, @eventPerson);
-        END
+        INSERT INTO CustomerSubscriptions (customerId, entityId, eventId)
+        SELECT 
+            @custId,
+            e.entityId,
+            ev.eventId
+        FROM dbo.Entity e
+        CROSS JOIN dbo.Event ev
+        WHERE e.entityTypeId = @PersonEntityTypeId
+          AND ev.entityTypeId = @PersonEntityTypeId
+          AND NOT EXISTS (
+              SELECT 1 FROM CustomerSubscriptions cs
+              WHERE cs.customerId = @custId
+                AND cs.entityId = e.entityId
+                AND cs.eventId = ev.eventId
+          );
     END
-
-    -- Sailor -> YACHT_HEALTH on entities 234567891 and 234567890
-    SET @sailorId = (SELECT TOP 1 customerId FROM Customers WHERE customerName = 'Sailor');
-    SET @eventYacht = (SELECT TOP 1 eventId FROM Events WHERE eventId = 'YACHT_HEALTH');
-    IF @sailorId IS NOT NULL AND @eventYacht IS NOT NULL
+    ELSE
     BEGIN
-        SET @ent = '234567891';
-        IF EXISTS (SELECT 1 FROM Entity WHERE entityId = @ent)
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM CustomerSubscriptions WHERE customerId = @sailorId AND entityId = @ent AND eventId = @eventYacht)
-                INSERT INTO CustomerSubscriptions (customerId, entityId, eventId) VALUES (@sailorId, @ent, @eventYacht);
-        END
-
-        SET @ent = '234567890';
-        IF EXISTS (SELECT 1 FROM Entity WHERE entityId = @ent)
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM CustomerSubscriptions WHERE customerId = @sailorId AND entityId = @ent AND eventId = @eventYacht)
-                INSERT INTO CustomerSubscriptions (customerId, entityId, eventId) VALUES (@sailorId, @ent, @eventYacht);
-        END
+        IF @custId IS NULL
+            RAISERROR('Customer "SLMEDICAL" not found', 16, 1);
+        IF @PersonEntityTypeId IS NULL
+            RAISERROR('EntityType "Person" not found', 16, 1);
     END
-END
+END;
 GO
+
+
 

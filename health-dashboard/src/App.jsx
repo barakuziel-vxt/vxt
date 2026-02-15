@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://192.168.1.32:8000'; // use Vite's import.meta.env (set VITE_API_BASE in .env)
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://192.168.1.29:8000'; // use Vite's import.meta.env (set VITE_API_BASE in .env)
 const CUSTOMER_NAME = 'SLMEDICAL';
 
 function formatTs(raw) {
@@ -11,10 +11,15 @@ function formatTs(raw) {
   if (typeof raw === 'number') {
     const ms = raw < 1e12 ? raw * 1000 : raw;
     dt = new Date(ms);
-  } else dt = new Date(String(raw));
+  } else {
+    // If string timestamp from database (UTC), add 'Z' if missing so JavaScript parses as UTC
+    const str = String(raw);
+    const utcStr = (str.includes('T') && !str.endsWith('Z')) ? str + 'Z' : str;
+    dt = new Date(utcStr);
+  }
   if (!isNaN(dt)) {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+    // Convert UTC to local time
+    return dt.toLocaleString();
   }
   return String(raw).replace(/\.\d+(?=Z|$)/, '');
 }
@@ -35,31 +40,62 @@ export default function App() {
         setCustomerProps(list);
         if (list.length) {
           setSelectedId('ALL');
-          fetchHealth('ALL', 50, list);
+          fetchHealth('ALL', 500, list);
         }
       } catch (e) { console.error(e); }
     }
     loadProps();
   }, []);
 
-  async function fetchHealth(id, limit = 50, propsList = null) {
+  async function fetchHealth(id, limit = 500, propsList = null) {
     try {
       if (id === 'ALL') {
         const props = Array.isArray(propsList) ? propsList : customerProps;
         const result = {};
         await Promise.all(props.map(async (p) => {
-          const uid = p.mmsi ?? '';
+          const uid = p.entityId ?? '';
           if (!uid) return;
-          try { const r = await fetch(`${API_BASE}/health/${encodeURIComponent(uid)}?limit=${limit}`); result[uid] = r.ok ? await r.json() : []; } catch { result[uid] = []; }
+          try {
+            const r = await fetch(`${API_BASE}/health/new/${encodeURIComponent(uid)}?limit=${limit}`);
+            if (!r.ok) {
+              // fallback to previously cached values for this uid if present
+              result[uid] = dataById[uid] || [];
+              return;
+            }
+            const json = await r.json();
+            let arr = [];
+            // handle APIs or proxies that wrap arrays in { value: [...] }
+            if (Array.isArray(json)) arr = json;
+            else if (json && Array.isArray(json.value)) arr = json.value;
+            else arr = [];
+            result[uid] = arr;
+          } catch (e) {
+            result[uid] = dataById[uid] || [];
+          }
         }));
         setDataById(result);
-        setData(Object.values(result)[0] || []);
+        // Combine all patients' arrays, sort by timestamp (parseable values) and keep the latest `limit` records overall
+        const combined = Object.values(result).flat().filter(Boolean);
+        combined.sort((a, b) => {
+          const ta = Date.parse(String(a.timestamp ?? a.Timestamp ?? '')) || 0;
+          const tb = Date.parse(String(b.timestamp ?? b.Timestamp ?? '')) || 0;
+          return ta - tb;
+        });
+        // Avoid overwriting existing UI with empty results caused by transient fetch failures
+        if (combined.length) setData(combined.slice(-limit));
       } else {
-        const r = await fetch(`${API_BASE}/health/${encodeURIComponent(id)}?limit=${limit}`);
+        const r = await fetch(`${API_BASE}/health/new/${encodeURIComponent(id)}?limit=${limit * 2}`);
         if (!r.ok) { setData([]); setDataById(prev => ({ ...prev, [id]: [] })); return; }
         const json = await r.json();
-        setData(json);
-        setDataById(prev => ({ ...prev, [id]: json }));
+        // Sort single patient data by timestamp in ascending order
+        const arr = Array.isArray(json) ? json : (json && Array.isArray(json.value) ? json.value : []);
+        arr.sort((a, b) => {
+          const ta = Date.parse(String(a.timestamp ?? a.Timestamp ?? '')) || 0;
+          const tb = Date.parse(String(b.timestamp ?? b.Timestamp ?? '')) || 0;
+          return ta - tb;
+        });
+        setData(arr);
+        setDataById(prev => ({ ...prev, [id]: arr }));
       }
     } catch (e) { console.error(e); }
   }
@@ -67,9 +103,13 @@ export default function App() {
   useEffect(() => {
     if (!selectedId) return;
     const poll = async () => {
-      if (selectedId === 'ALL') return;
+      if (selectedId === 'ALL') {
+        // refresh all patients when viewing 'All' to keep dashboard updated
+        try { await fetchHealth('ALL', 500); } catch (e) { /* ignore */ }
+        return;
+      }
       try {
-        const r = await fetch(`${API_BASE}/health/${encodeURIComponent(selectedId)}?limit=1`);
+        const r = await fetch(`${API_BASE}/health/new/${encodeURIComponent(selectedId)}?limit=1`);
         if (!r.ok) return;
         const arr = await r.json();
         if (!Array.isArray(arr) || !arr.length) return;
@@ -84,34 +124,21 @@ export default function App() {
     };
     if (!live) return;
     poll();
-    const id = setInterval(poll, 2000);
+    // use a slightly longer interval to reduce transient flicker when any per-patient fetch fails
+    const id = setInterval(poll, 3000);
     return () => clearInterval(id);
   }, [selectedId, live]);
 
   const latest = data.length ? data[data.length - 1] : {};
   const position = (typeof latest.latitude === 'number' && typeof latest.longitude === 'number') ? [latest.latitude, latest.longitude] : null;
 
-  // color map used to style metric values. Prefer the chart palette when the key appears in numericKeys.
+  // color map used to style metric values. Use color palette based on position in numericKeys
   const metricColorForKey = (k) => {
-    const key = (k || '').toLowerCase();
     const palette = ["#ff7300","#38a3b8","#41b922","#bb4c99","#ff4d4d","#8884d8"];
-    // If numericKeys contains this metric, use the same color index as the chart
     if (Array.isArray(numericKeys)) {
-      const normalizedKey = key.replace(/[^a-z0-9]/g, '');
-      const idx = numericKeys.findIndex(nk => {
-        const nkNorm = String(nk).toLowerCase().replace(/[^a-z0-9]/g, '');
-        return nkNorm === normalizedKey || nk.toLowerCase().includes(normalizedKey) || normalizedKey.includes(nkNorm);
-      });
+      const idx = numericKeys.findIndex(nk => nk.toLowerCase() === k.toLowerCase());
       if (idx >= 0) return palette[idx % palette.length];
     }
-
-    // fallback explicit map for common keys
-    const map = {
-      'avghr': '#ff7300', 'avg_hr': '#ff7300', 'maxhr': '#ff7300', 'minhr': '#ff7300', 'restinghr': '#ff7300',
-      'hrv_rmssd': '#bb4c99', 'bodytemp': '#ff4d4d', 'systolic': '#38a3b8', 'diastolic': '#41b922',
-      'oxygensat': '#8884d8', 'avgglucose': '#8884d8', 'breathspermin': '#41b922'
-    };
-    for (const pattern in map) if (key.includes(pattern)) return map[pattern];
     return '#ffffff';
   };
 
@@ -133,19 +160,11 @@ export default function App() {
   const chartData = data.map(d => ({ ...d, chartTs: formatTs(d.Timestamp ?? d.timestamp ?? '') }));
   const chartDataRounded = chartData.map(d => {
     const nd = { ...d };
-    // round specific metrics to one decimal if present
-    ['avghr','maxhr','minhr','restinghr','hrv_rmssd','bodytemp','systolic','diastolic'].forEach(keyLow => {
-      const matchingKey = Object.keys(nd).find(k => k.toLowerCase() === keyLow);
-      if (matchingKey) {
-        const val = Number(nd[matchingKey]);
-        if (!Number.isNaN(val)) nd[matchingKey] = Number(val.toFixed(1));
-      }
-    });
-    // coerce numeric-looking fields to numbers so charts render correctly
+    // round all numeric metrics to one decimal and coerce to numbers for chart rendering
     Object.keys(nd).forEach(k => {
       if (k === 'chartTs') return;
       const num = Number(nd[k]);
-      if (!Number.isNaN(num)) nd[k] = num;
+      if (!Number.isNaN(num)) nd[k] = Number(num.toFixed(1));
     });
     return nd;
   });
@@ -155,9 +174,9 @@ export default function App() {
       <header className="header">
         <h1>{latest.customerName ?? CUSTOMER_NAME} <small>Health dashboard</small></h1>
         <div className="controls">
-          <select value={selectedId} onChange={(e) => { const v = e.target.value; setSelectedId(v); if (v === 'ALL') fetchHealth('ALL', 50); else fetchHealth(v, 50); }}>
+          <select value={selectedId} onChange={(e) => { const v = e.target.value; setSelectedId(v); if (v === 'ALL') fetchHealth('ALL', 500); else fetchHealth(v, 500); }}>
             <option value="ALL">All patients</option>
-            {customerProps.map(p => <option key={p.mmsi} value={p.mmsi}>{p.customerPropertyName}</option>)}
+            {customerProps.map(p => <option key={p.entityId} value={p.entityId}>{p.customerPropertyName}</option>)}
           </select>
           <label><input type="checkbox" checked={live} onChange={e => setLive(e.target.checked)} /> Live</label>
         </div>
@@ -175,8 +194,16 @@ export default function App() {
               const keyLow = key.toLowerCase();
               // timestamp/startTime/endTime: remove milliseconds and show local datetime
               if (keyLow === 'timestamp' || keyLow === 'starttime' || keyLow === 'endtime') {
-                // If val is a Date use it directly; if string convert it to Date so local tz values are used
-                const d = (val instanceof Date) ? val : new Date(String(val));
+                // If val is a Date use it directly; if string convert it to Date
+                let d;
+                if (val instanceof Date) {
+                  d = val;
+                } else {
+                  // If string timestamp from database (UTC), add 'Z' if missing so JavaScript parses as UTC
+                  const str = String(val);
+                  const utcStr = (str.includes('T') && !str.endsWith('Z')) ? str + 'Z' : str;
+                  d = new Date(utcStr);
+                }
                 if (!Number.isNaN(d.getTime())) {
                   const pad = (n) => String(n).padStart(2, '0');
                   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -184,11 +211,10 @@ export default function App() {
                 // fallback: strip fractional seconds from string values
                 return String(val).replace(/\.\d+(?=Z|$)/, '');
               }
-              if (['avghr','maxhr','minhr','restinghr','hrv_rmssd','bodytemp','systolic','diastolic'].includes(keyLow)) {
-                const n = Number(val);
-                return Number.isNaN(n) ? String(val) : n.toFixed(1);
-              }
-              return (typeof val === 'number') ? String(val) : String(val);
+              // For numeric values, format with one decimal place
+              const n = Number(val);
+              if (!Number.isNaN(n)) return n.toFixed(1);
+              return String(val);
             };
             return (
               <div key={k} className="metric-card">
