@@ -225,13 +225,13 @@ export default function ProviderEventPage() {
                 color: 'var(--text-color)',
               }}
             >
-              Event Type
+              Namespace
             </label>
             <input
               type="text"
-              value={filterEventType}
-              onChange={(e) => setFilterEventType(e.target.value)}
-              placeholder="Search type..."
+              value={filterNamespace}
+              onChange={(e) => setFilterNamespace(e.target.value)}
+              placeholder="Search namespace..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -254,13 +254,13 @@ export default function ProviderEventPage() {
                 color: 'var(--text-color)',
               }}
             >
-              Namespace
+              Event Type
             </label>
             <input
               type="text"
-              value={filterNamespace}
-              onChange={(e) => setFilterNamespace(e.target.value)}
-              placeholder="Search namespace..."
+              value={filterEventType}
+              onChange={(e) => setFilterEventType(e.target.value)}
+              placeholder="Search type..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -296,9 +296,9 @@ export default function ProviderEventPage() {
                 <th>ID</th>
                 <th>Provider</th>
                 <th>Event Name</th>
-                <th>Event Type</th>
-                <th>Namespace</th>
                 <th>Description</th>
+                <th>Namespace</th>
+                <th>Event Type</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -316,13 +316,13 @@ export default function ProviderEventPage() {
                       <strong>{event.providerEventName}</strong>
                     </td>
                     <td>
-                      <span>{event.providerEventType || '—'}</span>
+                      <small>{event.providerEventDescription || '—'}</small>
                     </td>
                     <td>
                       <span>{event.providerNamespace || '—'}</span>
                     </td>
                     <td>
-                      <small>{event.providerEventDescription || '—'}</small>
+                      <span>{event.providerEventType || '—'}</span>
                     </td>
                     <td>
                       <span>
