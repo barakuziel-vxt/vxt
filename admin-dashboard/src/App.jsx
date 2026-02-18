@@ -6,9 +6,13 @@ import EntityTypeAttributePage from './pages/EntityTypeAttributePage';
 import EntityPage from './pages/EntityPage';
 import EventPage from './pages/EventPage';
 import EntityTelemetryAnalyticsPage from './pages/EntityTelemetryAnalyticsPage';
+import ProtocolPage from './pages/ProtocolPage';
+import ProtocolAttributePage from './pages/ProtocolAttributePage';
+import ProviderPage from './pages/ProviderPage';
+import ProviderEventPage from './pages/ProviderEventPage';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('entityCategory');
+  const [currentPage, setCurrentPage] = useState('telemetry');
 
   const renderPage = () => {
     switch (currentPage) {
@@ -24,8 +28,16 @@ export default function App() {
         return <EventPage />;
       case 'telemetry':
         return <EntityTelemetryAnalyticsPage />;
+      case 'protocol':
+        return <ProtocolPage />;
+      case 'protocolAttribute':
+        return <ProtocolAttributePage />;
+      case 'provider':
+        return <ProviderPage />;
+      case 'providerEvent':
+        return <ProviderEventPage />;
       default:
-        return <EntityCategoryPage />;
+        return <EntityTelemetryAnalyticsPage />;
     }
   };
 
@@ -33,7 +45,6 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>VXT Admin Dashboard</h1>
-        <p>Configuration Management System</p>
       </header>
 
       <div className="app-container">
@@ -79,6 +90,34 @@ export default function App() {
               onClick={() => setCurrentPage('telemetry')}
             >
               📊 Telemetry & Events
+            </button>
+          </div>
+
+          <div className="nav-section">
+            <h3>Protocol & Provider Management</h3>
+            <button
+              className={`nav-button ${currentPage === 'protocol' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('protocol')}
+            >
+              📡 Protocols
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'protocolAttribute' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('protocolAttribute')}
+            >
+              🔧 Protocol Attributes
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'provider' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('provider')}
+            >
+              🔌 Providers
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'providerEvent' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('providerEvent')}
+            >
+              📪 Provider Events
             </button>
           </div>
 

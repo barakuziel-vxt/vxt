@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3002,
+    port: 3001,
     proxy: {
       '/api/telemetry': {
         target: 'http://localhost:8000',
@@ -35,6 +35,22 @@ export default defineConfig({
         changeOrigin: true
       },
       '/subscriptions': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/protocols': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/protocolattributes': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/providers': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/providerevents': {
         target: 'http://localhost:8000',
         changeOrigin: true
       },

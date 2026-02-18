@@ -87,6 +87,18 @@ export const protocolAPI = {
     const response = await api.get('/protocols');
     return response.data;
   },
+  create: async (data) => {
+    const response = await api.post('/protocols', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/protocols/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/protocols/${id}`);
+    return response.data;
+  },
 };
 
 // ProtocolAttribute APIs
@@ -97,6 +109,66 @@ export const protocolAttributeAPI = {
   },
   getAll: async () => {
     const response = await api.get('/protocolattributes');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/protocolattributes', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/protocolattributes/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/protocolattributes/${id}`);
+    return response.data;
+  },
+};
+
+// Provider APIs
+export const providerAPI = {
+  getAll: async () => {
+    const response = await api.get('/providers');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/providers/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/providers', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/providers/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/providers/${id}`);
+    return response.data;
+  },
+};
+
+// ProviderEvent APIs
+export const providerEventAPI = {
+  getAll: async () => {
+    const response = await api.get('/providerevents');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/providerevents/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/providerevents', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/providerevents/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/providerevents/${id}`);
     return response.data;
   },
 };

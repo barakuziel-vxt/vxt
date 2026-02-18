@@ -288,26 +288,20 @@ export default function EntityTypeAttributePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="action-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Attribute
-        </button>
-      </div>
-
       {/* Filters Section */}
       <div style={{ 
-        backgroundColor: '#f8f9fa', 
+        backgroundColor: '#252525', 
         padding: '15px 20px', 
         borderRadius: '5px', 
         marginBottom: '20px',
         display: 'flex',
-        gap: '20px',
-        alignItems: 'center',
-        flexWrap: 'wrap'
+        gap: '15px',
+        flexWrap: 'wrap',
+        alignItems: 'flex-end'
       }}>
-        <div style={{ display: 'flex', gap: '20px', width: '100%', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+        <div style={{ marginBottom: '0' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
               Entity Type
             </label>
             <select
@@ -320,9 +314,11 @@ export default function EntityTypeAttributePage() {
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)'
               }}
             >
               <option value="">ALL</option>
@@ -333,9 +329,11 @@ export default function EntityTypeAttributePage() {
               ))}
             </select>
           </div>
+        </div>
 
-          <div style={{ flex: '1', minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+        <div style={{ marginBottom: '0' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
               Category (Component)
             </label>
             <select
@@ -345,9 +343,11 @@ export default function EntityTypeAttributePage() {
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)'
               }}
             >
               <option value="">ALL</option>
@@ -359,6 +359,12 @@ export default function EntityTypeAttributePage() {
             </select>
           </div>
         </div>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button className="add-button" onClick={() => handleOpenModal()}>
+          + Add New Attribute
+        </button>
       </div>
 
       {loading ? (
@@ -403,7 +409,7 @@ export default function EntityTypeAttributePage() {
                     {attr.component ? (
                       <span className="badge badge-secondary">{attr.component}</span>
                     ) : (
-                      <span style={{ color: '#999' }}>—</span>
+                      <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
                   </td>
                   <td>
@@ -500,7 +506,7 @@ export default function EntityTypeAttributePage() {
                       </option>
                     ))}
                   </select>
-                  <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                  <small style={{ color: 'var(--text-light)', marginTop: '5px', display: 'block' }}>
                     Selected protocol attributes available for mapping
                   </small>
                 </div>
