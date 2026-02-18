@@ -821,7 +821,7 @@ def get_protocols():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT protocolId, protocolName, protocolVersion, protocolDescription, kafkaTopic, active
+            SELECT protocolId, protocolName, protocolVersion, ISNULL(description, '') AS protocolDescription, kafkaTopic, active
             FROM Protocol
             WHERE active = 'Y'
             ORDER BY protocolName
