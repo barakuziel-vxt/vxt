@@ -6,8 +6,8 @@ Write-Host "[1/7] Starting Docker Containers (SQL Edge & Redpanda)..." -Foregrou
 docker-compose up -d
 
 # 2. Wait for Infrastructure to be ready
-Write-Host "[2/7] Waiting for Redpanda to be fully initialized (30 seconds)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 30
+Write-Host "[2/7] Waiting for Redpanda to be fully initialized (5 seconds)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
 
 # Health check for Redpanda availability
 Write-Host "[2.5/7] Checking Redpanda broker connectivity..." -ForegroundColor Yellow
@@ -42,18 +42,13 @@ Write-Host "[3/7] Configuring Kafka Topics..." -ForegroundColor Yellow
 Write-Host "[4/7] Launching Subscription Analysis Worker..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe subscription_analysis_worker.py" -WindowStyle Normal
 
-Write-Host "[4.5/7] Launching Consumer and Simulator..." -ForegroundColor Yellow
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe consumer_boatTelemetry.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe consumer_HealthVitals.py" -WindowStyle Normal
+Write-Host "[4.5/7] Launching Consumers and Simulators..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_junction_consumer.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Consumes_Junction_events_into_EntityTelemetry.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_signalk_consumer.py" -WindowStyle Normal
 # Launch Simulators
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_boat_234567890.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_boat_234567891.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_cardiac_issue_033114870.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_healthy_person_033114869.py" -WindowStyle Normal
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
 
 # 5. Launch FastAPI Web Server
 Write-Host "[5/7] Starting FastAPI API..." -ForegroundColor Yellow
@@ -91,8 +86,9 @@ Write-Host "All systems are booting up. Check individual windows for logs." -For
 Write-Host "" -ForegroundColor Green
 Write-Host "Running Services:" -ForegroundColor Cyan
 Write-Host "  - Subscription Analysis Worker: Running (processes subscriptions every 5 min)" -ForegroundColor Yellow
-Write-Host "  - Data Consumer: Consuming Junction events into EntityTelemetry" -ForegroundColor Yellow
-Write-Host "  - Simulators: Generating health provider and telemetry data" -ForegroundColor Yellow
+Write-Host "  - Junction Consumer: Consuming health provider events into EntityTelemetry" -ForegroundColor Yellow
+Write-Host "  - SignalK Consumer: Consuming maritime telemetry events into EntityTelemetry" -ForegroundColor Yellow
+Write-Host "  - Simulators: Generating Junction health and SignalK maritime telemetry data" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan
 Write-Host "  - Admin Dashboard: http://localhost:3001" -ForegroundColor Yellow
