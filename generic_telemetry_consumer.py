@@ -318,7 +318,6 @@ class GenericTelemetryConsumer:
                     auto_offset_reset='earliest',
                     enable_auto_commit=False,
                     consumer_timeout_ms=-1,
-                    api_version_auto_discovery_callback=lambda: None,
                     request_timeout_ms=30000,
                     session_timeout_ms=10000
                 )
