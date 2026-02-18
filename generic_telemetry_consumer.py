@@ -50,13 +50,17 @@ class GenericTelemetryConsumer:
       - EntityTypeAttribute.Active = 'Y'
     """
     
-    def __init__(self, provider_id: int, db_server='localhost', db_name='VXT', 
+    def __init__(self, provider_name: str, db_server='localhost', db_name='VXT', 
                  db_user='sa', db_password=''):
-        self.provider_id = provider_id
+        self.provider_name = provider_name
+        self.provider_id = None
         self.db_server = db_server
         self.db_name = db_name
         self.db_user = db_user
         self.db_password = db_password
+        
+        # Load provider ID from provider name
+        self.provider_id = self._lookup_provider_id()
         
         # Load provider configuration and adapter
         self.provider_config = self._load_provider_config()
@@ -82,6 +86,31 @@ class GenericTelemetryConsumer:
         logger.info(f"✓ Consumer initialized: {self.provider_config['ProviderName']}")
         logger.info(f"  Entities cached: {len(self.entity_cache)}")
         logger.info(f"  EntityTypeAttributes cached: {len(self.attribute_cache)}")
+    
+    def _lookup_provider_id(self) -> int:
+        """Lookup provider ID from provider name"""
+        try:
+            connection = self._get_db_connection()
+            cursor = connection.cursor()
+            
+            cursor.execute("""
+                SELECT ProviderId
+                FROM Provider
+                WHERE ProviderName = ? AND Active = 'Y'
+            """, (self.provider_name,))
+            
+            row = cursor.fetchone()
+            connection.close()
+            
+            if not row:
+                raise Exception(f"Provider '{self.provider_name}' not found or inactive")
+            
+            provider_id = row[0]
+            logger.info(f"✓ Resolved provider name '{self.provider_name}' to provider ID {provider_id}")
+            return provider_id
+        except Exception as e:
+            logger.error(f"Failed to lookup provider ID: {e}")
+            raise
     
     def _load_provider_config(self) -> Dict:
         """Load provider configuration from database"""
@@ -429,7 +458,7 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Generic Telemetry Consumer with Adapter Pattern')
-    parser.add_argument('provider_id', type=int, help='Provider ID to consume for')
+    parser.add_argument('provider_name', type=str, help='Provider name to consume for (e.g., Junction, Terra)')
     parser.add_argument('--db-server', default='localhost', help='Database server (default: localhost)')
     parser.add_argument('--db-name', default='VXT', help='Database name (default: VXT)')
     parser.add_argument('--db-user', default='sa', help='Database user (default: sa)')
@@ -445,7 +474,7 @@ if __name__ == '__main__':
     
     try:
         consumer = GenericTelemetryConsumer(
-            provider_id=args.provider_id,
+            provider_name=args.provider_name,
             db_server=args.db_server,
             db_name=args.db_name,
             db_user=args.db_user,
