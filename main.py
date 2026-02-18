@@ -2397,6 +2397,164 @@ def delete_customer_subscription(id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# CUSTOMER ENTITIES ENDPOINTS
+# ============================================
+
+@app.get("/customerentities")
+def get_customer_entities():
+    """Get all customer entities with customer and entity details"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                ce.customerEntityId,
+                ce.customerId,
+                c.customerName,
+                ce.entityId,
+                e.entityFirstName,
+                et.entityTypeName,
+                ce.active
+            FROM CustomerEntities ce
+            JOIN Customers c ON ce.customerId = c.customerId
+            LEFT JOIN Entity e ON ce.entityId = e.entityId
+            LEFT JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+            WHERE ce.active = 'Y'
+            ORDER BY c.customerName, ce.entityId
+        """)
+        rows = cur.fetchall()
+        
+        entities = []
+        for row in rows:
+            entities.append({
+                "customerEntityId": row[0],
+                "customerId": row[1],
+                "customerName": row[2],
+                "entityId": row[3],
+                "entityName": row[4],
+                "entityTypeCode": row[5],
+                "active": row[6]
+            })
+        
+        cur.close()
+        conn.close()
+        return entities
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/customerentities/{id}")
+def get_customer_entity(id: int):
+    """Get a specific customer entity by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                ce.customerEntityId,
+                ce.customerId,
+                c.customerName,
+                ce.entityId,
+                e.entityFirstName,
+                et.entityTypeName,
+                ce.active
+            FROM CustomerEntities ce
+            JOIN Customers c ON ce.customerId = c.customerId
+            LEFT JOIN Entity e ON ce.entityId = e.entityId
+            LEFT JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+            WHERE ce.customerEntityId = ?
+        """, (id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Customer entity not found")
+        
+        entity = {
+            "customerEntityId": row[0],
+            "customerId": row[1],
+            "customerName": row[2],
+            "entityId": row[3],
+            "entityName": row[4],
+            "entityTypeCode": row[5],
+            "active": row[6]
+        }
+        return entity
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/customerentities")
+def create_customer_entity(data: dict):
+    """Create a new customer entity assignment"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO CustomerEntities (customerId, entityId, active)
+            VALUES (?, ?, ?)
+        """, (
+            data.get("customerId"),
+            data.get("entityId"),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Customer entity created successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/customerentities/{id}")
+def update_customer_entity(id: int, data: dict):
+    """Update a customer entity assignment"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE CustomerEntities
+            SET customerId = ?, entityId = ?, active = ?
+            WHERE customerEntityId = ?
+        """, (
+            data.get("customerId"),
+            data.get("entityId"),
+            data.get("active", "Y"),
+            id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Customer entity updated successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/customerentities/{id}")
+def delete_customer_entity(id: int):
+    """Soft delete a customer entity assignment"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE CustomerEntities
+            SET active = 'N'
+            WHERE customerEntityId = ?
+        """, (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Customer entity deleted successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

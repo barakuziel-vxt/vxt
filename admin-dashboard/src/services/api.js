@@ -245,6 +245,30 @@ export const customerSubscriptionAPI = {
   },
 };
 
+// CustomerEntity APIs
+export const customerEntityAPI = {
+  getAll: async () => {
+    const response = await api.get('/customerentities');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/customerentities/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/customerentities', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/customerentities/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/customerentities/${id}`);
+    return response.data;
+  },
+};
+
 // ProviderEvent APIs
 export const providerEventAPI = {
   getAll: async () => {
