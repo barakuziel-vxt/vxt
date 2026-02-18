@@ -10,7 +10,6 @@ export default function ProviderPage() {
   const [filterName, setFilterName] = useState('');
   const [filterDescription, setFilterDescription] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterApiVersion, setFilterApiVersion] = useState('');
   const [formData, setFormData] = useState({
     providerName: '',
     providerDescription: '',
@@ -44,7 +43,6 @@ export default function ProviderPage() {
         providerName: provider.providerName,
         providerDescription: provider.providerDescription || '',
         providerCategory: provider.providerCategory || '',
-        apiVersion: provider.apiVersion || '',
         documentationUrl: provider.documentationUrl || '',
         active: provider.active || 'Y',
       });
@@ -54,7 +52,6 @@ export default function ProviderPage() {
         providerName: '',
         providerDescription: '',
         providerCategory: '',
-        apiVersion: '',
         documentationUrl: '',
         active: 'Y',
       });
@@ -69,7 +66,6 @@ export default function ProviderPage() {
       providerName: '',
       providerDescription: '',
       providerCategory: '',
-      apiVersion: '',
       documentationUrl: '',
       active: 'Y',
     });
@@ -125,11 +121,6 @@ export default function ProviderPage() {
     if (filterCategory) {
       filtered = filtered.filter((p) =>
         p.providerCategory?.toLowerCase().includes(filterCategory.toLowerCase())
-      );
-    }
-    if (filterApiVersion) {
-      filtered = filtered.filter((p) =>
-        p.apiVersion?.toLowerCase().includes(filterApiVersion.toLowerCase())
       );
     }
     
@@ -232,34 +223,7 @@ export default function ProviderPage() {
             />
           </div>
 
-          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                fontSize: '14px',
-                color: 'var(--text-color)',
-              }}
-            >
-              API Version
-            </label>
-            <input
-              type="text"
-              value={filterApiVersion}
-              onChange={(e) => setFilterApiVersion(e.target.value)}
-              placeholder="Search version..."
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                backgroundColor: '#353535',
-                color: 'var(--text-color)',
-              }}
-            />
-          </div>
+
         </div>
 
         <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
@@ -285,7 +249,6 @@ export default function ProviderPage() {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th>API Version</th>
                 <th style={{ maxWidth: '200px' }}>Doc URL</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -304,13 +267,6 @@ export default function ProviderPage() {
                   <td>
                     {provider.providerCategory ? (
                       <span>{provider.providerCategory}</span>
-                    ) : (
-                      <span style={{ color: 'var(--text-light)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    {provider.apiVersion ? (
-                      <span>{provider.apiVersion}</span>
                     ) : (
                       <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
@@ -394,19 +350,7 @@ export default function ProviderPage() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="apiVersion">API Version</label>
-                  <input
-                    type="text"
-                    id="apiVersion"
-                    name="apiVersion"
-                    value={formData.apiVersion}
-                    onChange={handleInputChange}
-                    placeholder="e.g., v1, v2"
-                  />
-                </div>
-              </div>
+
 
               <div className="form-group">
                 <label htmlFor="providerDescription">Description</label>
