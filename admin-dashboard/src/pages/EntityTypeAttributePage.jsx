@@ -5,6 +5,8 @@ import {
   protocolAPI,
   protocolAttributeAPI,
   entityTypeAttributeScoreAPI,
+  providerAPI,
+  providerEventAPI,
 } from '../services/api';
 
 export default function EntityTypeAttributePage() {
@@ -12,6 +14,8 @@ export default function EntityTypeAttributePage() {
   const [entityTypes, setEntityTypes] = useState([]);
   const [protocols, setProtocols] = useState([]);
   const [protocolAttributes, setProtocolAttributes] = useState([]);
+  const [providers, setProviders] = useState([]);
+  const [providerEvents, setProviderEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -28,6 +32,8 @@ export default function EntityTypeAttributePage() {
     entityTypeAttributeName: '',
     entityTypeAttributeTimeAspect: 'Pt',
     entityTypeAttributeUnit: '',
+    providerId: '',
+    providerEventType: '',
     active: 'Y',
   });
   const [criteriaFormData, setCriteriaFormData] = useState({
@@ -44,14 +50,18 @@ export default function EntityTypeAttributePage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [attrData, typeData, protData] = await Promise.all([
+      const [attrData, typeData, protData, provData, eventData] = await Promise.all([
         entityTypeAttributeAPI.getAll(),
         entityTypeAPI.getAll(),
         protocolAPI.getAll(),
+        providerAPI.getAll(),
+        providerEventAPI.getAll(),
       ]);
       setAttributes(attrData);
       setEntityTypes(typeData);
       setProtocols(protData);
+      setProviders(provData);
+      setProviderEvents(eventData);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -73,6 +83,23 @@ export default function EntityTypeAttributePage() {
     }
   };
 
+  const handleProviderChange = (providerId) => {
+    setFormData((prev) => ({
+      ...prev,
+      providerId,
+      providerEventType: '', // Reset event type when provider changes
+    }));
+  };
+
+  const getProviderEventTypes = () => {
+    if (formData.providerId) {
+      return providerEvents.filter(
+        (event) => event.providerId === parseInt(formData.providerId)
+      );
+    }
+    return [];
+  };
+
   const handleOpenModal = (attribute = null) => {
     if (attribute) {
       setEditingId(attribute.entityTypeAttributeId);
@@ -83,6 +110,8 @@ export default function EntityTypeAttributePage() {
         entityTypeAttributeName: attribute.entityTypeAttributeName,
         entityTypeAttributeTimeAspect: attribute.entityTypeAttributeTimeAspect,
         entityTypeAttributeUnit: attribute.entityTypeAttributeUnit,
+        providerId: attribute.providerId || '',
+        providerEventType: attribute.providerEventType || '',
         active: attribute.active,
       });
       if (attribute.protocolId) {
@@ -97,6 +126,8 @@ export default function EntityTypeAttributePage() {
         entityTypeAttributeName: '',
         entityTypeAttributeTimeAspect: 'Pt',
         entityTypeAttributeUnit: '',
+        providerId: '',
+        providerEventType: '',
         active: 'Y',
       });
       setProtocolAttributes([]);
@@ -117,6 +148,9 @@ export default function EntityTypeAttributePage() {
     }));
     if (name === 'protocolId') {
       handleProtocolChange(value);
+    }
+    if (name === 'providerId') {
+      handleProviderChange(value);
     }
     // Auto-populate Unit when protocol attribute code is selected
     if (name === 'entityTypeAttributeCode' && formData.protocolId) {
@@ -247,6 +281,11 @@ export default function EntityTypeAttributePage() {
   const getProtocolName = (protocolId) => {
     const protocol = protocols.find((p) => p.protocolId === protocolId);
     return protocol ? protocol.protocolName : 'None';
+  };
+
+  const getProviderName = (providerId) => {
+    const provider = providers.find((p) => p.providerId === providerId);
+    return provider ? provider.providerName : 'None';
   };
 
   const getUniqueComponents = () => {
@@ -473,61 +512,6 @@ export default function EntityTypeAttributePage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="protocolId">Protocol</label>
-                <select
-                  id="protocolId"
-                  name="protocolId"
-                  value={formData.protocolId}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select a protocol (optional)</option>
-                  {protocols.map((protocol) => (
-                    <option key={protocol.protocolId} value={protocol.protocolId}>
-                      {protocol.protocolName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {formData.protocolId && (
-                <div className="form-group">
-                  <label htmlFor="entityTypeAttributeCode">Protocol Attribute Code *</label>
-                  <select
-                    id="entityTypeAttributeCode"
-                    name="entityTypeAttributeCode"
-                    value={formData.entityTypeAttributeCode}
-                    onChange={handleInputChange}
-                    required={!!formData.protocolId}
-                  >
-                    <option value="">Select attribute code</option>
-                    {protocolAttributes.map((attr) => (
-                      <option key={attr.protocolAttributeId} value={attr.protocolAttributeCode}>
-                        {attr.protocolAttributeCode} - {attr.protocolAttributeName}
-                      </option>
-                    ))}
-                  </select>
-                  <small style={{ color: 'var(--text-light)', marginTop: '5px', display: 'block' }}>
-                    Selected protocol attributes available for mapping
-                  </small>
-                </div>
-              )}
-
-              {!formData.protocolId && (
-                <div className="form-group">
-                  <label htmlFor="entityTypeAttributeCode">Attribute Code *</label>
-                  <input
-                    type="text"
-                    id="entityTypeAttributeCode"
-                    name="entityTypeAttributeCode"
-                    value={formData.entityTypeAttributeCode}
-                    onChange={handleInputChange}
-                    required={!formData.protocolId}
-                    placeholder="e.g., AvgHR, EngineRPM"
-                  />
-                </div>
-              )}
-
-              <div className="form-group">
                 <label htmlFor="entityTypeAttributeName">Attribute Name *</label>
                 <input
                   type="text"
@@ -538,6 +522,104 @@ export default function EntityTypeAttributePage() {
                   required
                   placeholder="e.g., Heart Rate, Engine RPM"
                 />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="providerId">Provider</label>
+                  <select
+                    id="providerId"
+                    name="providerId"
+                    value={formData.providerId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select a provider (optional)</option>
+                    {providers.map((provider) => (
+                      <option key={provider.providerId} value={provider.providerId}>
+                        {provider.providerName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {formData.providerId && (
+                  <div className="form-group">
+                    <label htmlFor="providerEventType">Provider Event Type</label>
+                    <select
+                      id="providerEventType"
+                      name="providerEventType"
+                      value={formData.providerEventType}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select an event type (optional)</option>
+                      {getProviderEventTypes().map((event) => (
+                        <option key={event.providerEventId} value={event.providerEventType}>
+                          {event.providerEventType}
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: 'var(--text-light)', marginTop: '5px', display: 'block' }}>
+                      Event types from selected provider
+                    </small>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="protocolId">Protocol</label>
+                  <select
+                    id="protocolId"
+                    name="protocolId"
+                    value={formData.protocolId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select a protocol (optional)</option>
+                    {protocols.map((protocol) => (
+                      <option key={protocol.protocolId} value={protocol.protocolId}>
+                        {protocol.protocolName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {formData.protocolId && (
+                  <div className="form-group">
+                    <label htmlFor="entityTypeAttributeCode">Protocol Attribute Code *</label>
+                    <select
+                      id="entityTypeAttributeCode"
+                      name="entityTypeAttributeCode"
+                      value={formData.entityTypeAttributeCode}
+                      onChange={handleInputChange}
+                      required={!!formData.protocolId}
+                    >
+                      <option value="">Select attribute code</option>
+                      {protocolAttributes.map((attr) => (
+                        <option key={attr.protocolAttributeId} value={attr.protocolAttributeCode}>
+                          {attr.protocolAttributeCode} - {attr.protocolAttributeName}
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: 'var(--text-light)', marginTop: '5px', display: 'block' }}>
+                      Selected protocol attributes available for mapping
+                    </small>
+                  </div>
+                )}
+
+                {!formData.protocolId && (
+                  <div className="form-group">
+                    <label htmlFor="entityTypeAttributeCode">Attribute Code *</label>
+                    <input
+                      type="text"
+                      id="entityTypeAttributeCode"
+                      name="entityTypeAttributeCode"
+                      value={formData.entityTypeAttributeCode}
+                      onChange={handleInputChange}
+                      required={!formData.protocolId}
+                      placeholder="e.g., AvgHR, EngineRPM"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="form-row">
