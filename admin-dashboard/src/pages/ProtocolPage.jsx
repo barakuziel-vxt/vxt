@@ -190,6 +190,8 @@ export default function ProtocolPage() {
                 backgroundColor: '#353535',
                 color: 'var(--text-color)',
               }}
+            />
+          </div>
           <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
@@ -218,6 +220,9 @@ export default function ProtocolPage() {
               }}
             />
           </div>
+        </div>
+
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
           + Add New
         </button>
       </div>
