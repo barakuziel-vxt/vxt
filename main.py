@@ -853,7 +853,7 @@ def get_protocol_attributes(protocolId: int = None):
         if protocolId:
             cur.execute("""
                 SELECT protocolAttributeId, protocolId, protocolAttributeCode, protocolAttributeName, 
-                       description, component, unit, dataType, jsonPath, rangeMin, rangeMax, active
+                       description, component, unit, dataType, rangeMin, rangeMax, active
                 FROM ProtocolAttribute
                 WHERE protocolId = ? AND active = 'Y'
                 ORDER BY protocolAttributeCode
@@ -861,7 +861,7 @@ def get_protocol_attributes(protocolId: int = None):
         else:
             cur.execute("""
                 SELECT protocolAttributeId, protocolId, protocolAttributeCode, protocolAttributeName, 
-                       description, component, unit, dataType, jsonPath, rangeMin, rangeMax, active
+                       description, component, unit, dataType, rangeMin, rangeMax, active
                 FROM ProtocolAttribute
                 WHERE active = 'Y'
                 ORDER BY protocolAttributeCode
@@ -877,10 +877,9 @@ def get_protocol_attributes(protocolId: int = None):
                 "component": row[5],
                 "unit": row[6],
                 "dataType": row[7],
-                "jsonPath": row[8],
-                "rangeMin": row[9],
-                "rangeMax": row[10],
-                "active": row[11]
+                "rangeMin": row[8],
+                "rangeMax": row[9],
+                "active": row[10]
             })
         cur.close()
         conn.close()
@@ -1068,9 +1067,9 @@ def create_protocol_attribute(data: dict):
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO ProtocolAttribute (protocolId, protocolAttributeCode, protocolAttributeName, 
-                                          description, component, unit, dataType, jsonPath, rangeMin, rangeMax, 
+                                          description, component, unit, dataType, rangeMin, rangeMax, 
                                           active, createDate, lastUpdateTimestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
         """, (
             data.get("protocolId"),
             data.get("protocolAttributeCode"),
@@ -1079,7 +1078,6 @@ def create_protocol_attribute(data: dict):
             data.get("component", ""),
             data.get("unit", ""),
             data.get("dataType", ""),
-            data.get("jsonPath", ""),
             data.get("rangeMin", None),
             data.get("rangeMax", None),
             data.get("active", "Y")
@@ -1101,7 +1099,7 @@ def update_protocol_attribute(attribute_id: int, data: dict):
         cur.execute("""
             UPDATE ProtocolAttribute
             SET protocolId = ?, protocolAttributeCode = ?, protocolAttributeName = ?, 
-                description = ?, component = ?, unit = ?, dataType = ?, jsonPath = ?, 
+                description = ?, component = ?, unit = ?, dataType = ?, 
                 rangeMin = ?, rangeMax = ?, active = ?, lastUpdateTimestamp = GETDATE()
             WHERE protocolAttributeId = ?
         """, (
@@ -1112,7 +1110,6 @@ def update_protocol_attribute(attribute_id: int, data: dict):
             data.get("component", ""),
             data.get("unit", ""),
             data.get("dataType", ""),
-            data.get("jsonPath", ""),
             data.get("rangeMin", None),
             data.get("rangeMax", None),
             data.get("active", "Y"),

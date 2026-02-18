@@ -22,7 +22,6 @@ export default function ProtocolAttributePage() {
     component: '',
     unit: '',
     dataType: '',
-    jsonPath: '',
     rangeMin: '',
     rangeMax: '',
     active: 'Y',
@@ -66,7 +65,6 @@ export default function ProtocolAttributePage() {
         component: attribute.component || '',
         unit: attribute.unit || '',
         dataType: attribute.dataType || '',
-        jsonPath: attribute.jsonPath || '',
         rangeMin: attribute.rangeMin || '',
         rangeMax: attribute.rangeMax || '',
         active: attribute.active || 'Y',
@@ -81,7 +79,6 @@ export default function ProtocolAttributePage() {
         component: '',
         unit: '',
         dataType: '',
-        jsonPath: '',
         rangeMin: '',
         rangeMax: '',
         active: 'Y',
@@ -377,13 +374,12 @@ export default function ProtocolAttributePage() {
               <tr>
                 <th>ID</th>
                 <th>Protocol</th>
-                <th>Code</th>
                 <th>Attribute Name</th>
+                <th>Code</th>
                 <th>Description</th>
                 <th>Component</th>
                 <th>Unit</th>
                 <th>Data Type</th>
-                <th>JSON Path</th>
                 <th>Range</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -399,10 +395,10 @@ export default function ProtocolAttributePage() {
                       <span>{protocol?.protocolName || 'Unknown'}</span>
                     </td>
                     <td>
-                      <small>{attribute.protocolAttributeCode || '—'}</small>
+                      <strong>{attribute.protocolAttributeName}</strong>
                     </td>
                     <td>
-                      <strong>{attribute.protocolAttributeName}</strong>
+                      <small>{attribute.protocolAttributeCode || '—'}</small>
                     </td>
                     <td>
                       <small>{attribute.description || '—'}</small>
@@ -415,11 +411,6 @@ export default function ProtocolAttributePage() {
                     </td>
                     <td>
                       <small>{attribute.dataType || '—'}</small>
-                    </td>
-                    <td>
-                      <small style={{ fontFamily: 'monospace', color: 'var(--text-light)' }}>
-                        {attribute.jsonPath || '—'}
-                      </small>
                     </td>
                     <td>
                       <small>
@@ -555,18 +546,6 @@ export default function ProtocolAttributePage() {
                     value={formData.dataType}
                     onChange={handleInputChange}
                     placeholder="e.g., float, string, integer"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="jsonPath">JSON Path</label>
-                  <input
-                    type="text"
-                    id="jsonPath"
-                    name="jsonPath"
-                    value={formData.jsonPath}
-                    onChange={handleInputChange}
-                    placeholder="e.g., $.data.temperature"
                   />
                 </div>
               </div>
