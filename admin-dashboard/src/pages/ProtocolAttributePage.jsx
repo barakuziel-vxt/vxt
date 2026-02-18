@@ -135,70 +135,70 @@ export default function ProtocolAttributePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="filter-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Attribute
+      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Protocol
+            </label>
+            <input
+              type="text"
+              value={filterProtocol}
+              onChange={(e) => setFilterProtocol(e.target.value)}
+              placeholder="Search protocol..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Attribute Name
+            </label>
+            <input
+              type="text"
+              value={filterAttribute}
+              onChange={(e) => setFilterAttribute(e.target.value)}
+              placeholder="Search attribute..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+        </div>
+
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
         </button>
-      </div>
-
-      <div style={{ marginBottom: '20px', backgroundColor: '#252525', padding: '15px', borderRadius: '6px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ marginBottom: '0' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: '500',
-              fontSize: '14px',
-              color: 'var(--text-color)',
-            }}
-          >
-            Protocol
-          </label>
-          <input
-            type="text"
-            value={filterProtocol}
-            onChange={(e) => setFilterProtocol(e.target.value)}
-            placeholder="Search protocol..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              fontSize: '14px',
-              backgroundColor: '#353535',
-              color: 'var(--text-color)',
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '0' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: '500',
-              fontSize: '14px',
-              color: 'var(--text-color)',
-            }}
-          >
-            Attribute Name
-          </label>
-          <input
-            type="text"
-            value={filterAttribute}
-            onChange={(e) => setFilterAttribute(e.target.value)}
-            placeholder="Search attribute..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              fontSize: '14px',
-              backgroundColor: '#353535',
-              color: 'var(--text-color)',
-            }}
-          />
-        </div>
       </div>
 
       {loading ? (
@@ -230,7 +230,7 @@ export default function ProtocolAttributePage() {
                   <tr key={attribute.protocolAttributeId}>
                     <td>{attribute.protocolAttributeId}</td>
                     <td>
-                      <span className="badge badge-info">{protocol?.protocolName || 'Unknown'}</span>
+                      <span>{protocol?.protocolName || 'Unknown'}</span>
                     </td>
                     <td>
                       <strong>{attribute.attributeName}</strong>
@@ -239,7 +239,7 @@ export default function ProtocolAttributePage() {
                       <small>{attribute.attributeDescription || '—'}</small>
                     </td>
                     <td>
-                      <span className={`badge badge-${attribute.active === 'Y' ? 'active' : 'inactive'}`}>
+                      <span>
                         {attribute.active === 'Y' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -251,7 +251,7 @@ export default function ProtocolAttributePage() {
                         Edit
                       </button>
                       <button
-                        className="btn btn-sm btn-danger"
+                        className="btn btn-sm btn-secondary"
                         onClick={() => handleDelete(attribute.protocolAttributeId)}
                       >
                         Delete

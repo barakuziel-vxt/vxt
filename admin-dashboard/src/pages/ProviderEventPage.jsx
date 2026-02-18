@@ -135,70 +135,70 @@ export default function ProviderEventPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="filter-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Event
+      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Provider
+            </label>
+            <input
+              type="text"
+              value={filterProvider}
+              onChange={(e) => setFilterProvider(e.target.value)}
+              placeholder="Search provider..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Event Name
+            </label>
+            <input
+              type="text"
+              value={filterEvent}
+              onChange={(e) => setFilterEvent(e.target.value)}
+              placeholder="Search event..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+        </div>
+
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
         </button>
-      </div>
-
-      <div style={{ marginBottom: '20px', backgroundColor: '#252525', padding: '15px', borderRadius: '6px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ marginBottom: '0' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: '500',
-              fontSize: '14px',
-              color: 'var(--text-color)',
-            }}
-          >
-            Provider
-          </label>
-          <input
-            type="text"
-            value={filterProvider}
-            onChange={(e) => setFilterProvider(e.target.value)}
-            placeholder="Search provider..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              fontSize: '14px',
-              backgroundColor: '#353535',
-              color: 'var(--text-color)',
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '0' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: '500',
-              fontSize: '14px',
-              color: 'var(--text-color)',
-            }}
-          >
-            Event Name
-          </label>
-          <input
-            type="text"
-            value={filterEvent}
-            onChange={(e) => setFilterEvent(e.target.value)}
-            placeholder="Search event..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              fontSize: '14px',
-              backgroundColor: '#353535',
-              color: 'var(--text-color)',
-            }}
-          />
-        </div>
       </div>
 
       {loading ? (
@@ -230,7 +230,7 @@ export default function ProviderEventPage() {
                   <tr key={event.providerEventId}>
                     <td>{event.providerEventId}</td>
                     <td>
-                      <span className="badge badge-info">{provider?.providerName || 'Unknown'}</span>
+                      <span>{provider?.providerName || 'Unknown'}</span>
                     </td>
                     <td>
                       <strong>{event.eventName}</strong>
@@ -239,7 +239,7 @@ export default function ProviderEventPage() {
                       <small>{event.eventDescription || '—'}</small>
                     </td>
                     <td>
-                      <span className={`badge badge-${event.active === 'Y' ? 'active' : 'inactive'}`}>
+                      <span>
                         {event.active === 'Y' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -251,7 +251,7 @@ export default function ProviderEventPage() {
                         Edit
                       </button>
                       <button
-                        className="btn btn-sm btn-danger"
+                        className="btn btn-sm btn-secondary"
                         onClick={() => handleDelete(event.providerEventId)}
                       >
                         Delete

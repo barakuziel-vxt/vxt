@@ -7,6 +7,8 @@ export default function ProtocolPage() {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [filterName, setFilterName] = useState('');
+  const [filterDescription, setFilterDescription] = useState('');
   const [formData, setFormData] = useState({
     protocolName: '',
     protocolDescription: '',
@@ -93,6 +95,23 @@ export default function ProtocolPage() {
     }
   };
 
+  const getFilteredProtocols = () => {
+    let filtered = protocols;
+    
+    if (filterName) {
+      filtered = filtered.filter((p) =>
+        p.protocolName.toLowerCase().includes(filterName.toLowerCase())
+      );
+    }
+    if (filterDescription) {
+      filtered = filtered.filter((p) =>
+        p.protocolDescription?.toLowerCase().includes(filterDescription.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  };
+
   return (
     <div className="page">
       <h2>Protocol Management</h2>
@@ -100,9 +119,69 @@ export default function ProtocolPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="filter-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Protocol
+      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Name
+            </label>
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              placeholder="Search name..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Description
+            </label>
+            <input
+              type="text"
+              value={filterDescription}
+              onChange={(e) => setFilterDescription(e.target.value)}
+              placeholder="Search description..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+        </div>
+
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
         </button>
       </div>
 
@@ -110,13 +189,13 @@ export default function ProtocolPage() {
         <div className="empty-state">
           <h3>Loading...</h3>
         </div>
-      ) : protocols.length === 0 ? (
+      ) : getFilteredProtocols().length === 0 ? (
         <div className="empty-state">
-          <h3>No protocols found</h3>
-          <p>Create your first protocol to get started</p>
+          <h3>{protocols.length === 0 ? 'No protocols found' : 'No protocols match the selected filter'}</h3>
+          <p>{protocols.length === 0 ? 'Create your first protocol to get started' : 'Try adjusting your filters'}</p>
         </div>
       ) : (
-        <div className="table-container">
+        <div className="table-container" style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
@@ -128,7 +207,7 @@ export default function ProtocolPage() {
               </tr>
             </thead>
             <tbody>
-              {protocols.map((protocol) => (
+              {getFilteredProtocols().map((protocol) => (
                 <tr key={protocol.protocolId}>
                   <td>{protocol.protocolId}</td>
                   <td>
@@ -138,7 +217,7 @@ export default function ProtocolPage() {
                     <small>{protocol.protocolDescription || '—'}</small>
                   </td>
                   <td>
-                    <span className={`badge badge-${protocol.active === 'Y' ? 'active' : 'inactive'}`}>
+                    <span>
                       {protocol.active === 'Y' ? 'Active' : 'Inactive'}
                     </span>
                   </td>
@@ -150,7 +229,7 @@ export default function ProtocolPage() {
                       Edit
                     </button>
                     <button
-                      className="btn btn-sm btn-danger"
+                      className="btn btn-sm btn-secondary"
                       onClick={() => handleDelete(protocol.protocolId)}
                     >
                       Delete
