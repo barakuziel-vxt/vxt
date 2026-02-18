@@ -6,8 +6,8 @@ Write-Host "[1/7] Starting Docker Containers (SQL Edge & Redpanda)..." -Foregrou
 docker-compose up -d
 
 # 2. Wait for Infrastructure to be ready
-Write-Host "[2/7] Waiting for Redpanda to be fully initialized (5 seconds)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+Write-Host "[2/7] Waiting for Redpanda to be fully initialized (10 seconds)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 10
 
 # Health check for Redpanda availability
 Write-Host "[2.5/7] Checking Redpanda broker connectivity..." -ForegroundColor Yellow

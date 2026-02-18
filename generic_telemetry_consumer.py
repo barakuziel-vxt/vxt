@@ -60,21 +60,11 @@ class GenericTelemetryConsumer:
         self.db_user = db_user
         self.db_password = db_password
         
-        # Load provider ID from provider name
-        self.provider_id = self._lookup_provider_id()
+        # Load all caches in consolidated queries (Provider, Entity, Attributes, Customer, etc.)
+        self._load_all_caches()
         
         # Load provider configuration and adapter
-        self.provider_config = self._load_provider_config()
         self.adapter = self._load_adapter()
-        
-        # Load ProviderEvent mappings
-        self.event_mappings = self._load_event_mappings()
-        self.adapter.set_extraction_rules(self.event_mappings)
-        
-        # Pre-load caches for efficient filtering
-        self.entity_cache = self._load_entity_cache()  # {entity_id -> entity_type_id}
-        self.attribute_cache = self._load_attribute_cache()  # set of valid attribute codes for provider
-        self.customer_entities_cache = self._load_customer_entities_cache()  # {entity_id -> customer_id} of active assignments
         
         # Initialize Kafka consumer
         self.consumer = self._init_kafka_consumer()
@@ -89,86 +79,108 @@ class GenericTelemetryConsumer:
         logger.info(f"  Entities cached: {len(self.entity_cache)}")
         logger.info(f"  EntityTypeAttributes cached: {len(self.attribute_cache)}")
         logger.info(f"  Customer entities cached: {len(self.customer_entities_cache)}")
+        logger.info(f"  ProviderEvents cached: {len(self.event_mappings)}")
     
-    def _lookup_provider_id(self) -> int:
-        """Lookup provider ID from provider name"""
+    def _load_all_caches(self):
+        """
+        Ultra-consolidated cache loading - executes only 2 queries with heavy JOINs:
+        
+        QUERY 1: Single JOIN across Provider → Entity → EntityTypeAttribute → CustomerEntities
+        Returns: All entities with their attributes and customer assignment status
+        
+        QUERY 2: Single JOIN across ProviderEvent ← EntityTypeAttribute
+        Returns: All provider events with their attribute mappings
+        
+        This eliminates 5 separate queries and builds all 4 caches from 2 result sets.
+        """
         try:
             connection = self._get_db_connection()
             cursor = connection.cursor()
             
+            # ============================================================================
+            # QUERY 1: CONSOLIDATED Entity + Attribute + CustomerEntities JOIN
+            # Returns one row per (entity, attribute) pair with customer assignment info
+            # ============================================================================
             cursor.execute("""
-                SELECT ProviderId
-                FROM Provider
-                WHERE ProviderName = ? AND Active = 'Y'
+                SELECT 
+                    p.ProviderId,
+                    p.ProviderName,
+                    p.TopicName,
+                    p.BatchSize,
+                    e.EntityId,
+                    e.EntityTypeId,
+                    eta.entityTypeAttributeCode,
+                    CASE WHEN ce.entityId IS NOT NULL AND c.active = 'Y' THEN 1 ELSE 0 END as is_customer_entity
+                FROM Provider p
+                CROSS JOIN Entity e
+                INNER JOIN EntityTypeAttribute eta 
+                    ON eta.EntityTypeId = e.EntityTypeId 
+                    AND eta.providerId = p.ProviderId
+                    AND eta.Active = 'Y'
+                LEFT JOIN CustomerEntities ce 
+                    ON ce.entityId = e.EntityId 
+                    AND ce.active = 'Y'
+                LEFT JOIN Customers c 
+                    ON ce.customerId = c.customerId 
+                    AND c.active = 'Y'
+                WHERE p.ProviderName = ? 
+                    AND p.Active = 'Y'
+                    AND e.Active = 'Y'
             """, (self.provider_name,))
             
-            row = cursor.fetchone()
-            connection.close()
+            rows = cursor.fetchall()
+            if not rows:
+                raise Exception(f"Provider '{self.provider_name}' not found or has no active entities/attributes")
             
-            if not row:
-                raise Exception(f"Provider '{self.provider_name}' not found or inactive")
+            # Initialize caches from Query 1 results
+            self.entity_cache = {}
+            self.attribute_cache = set()
+            self.customer_entities_cache = set()
             
-            provider_id = row[0]
-            logger.info(f"✓ Resolved provider name '{self.provider_name}' to provider ID {provider_id}")
-            return provider_id
-        except Exception as e:
-            logger.error(f"Failed to lookup provider ID: {e}")
-            raise
-    
-    def _load_provider_config(self) -> Dict:
-        """Load provider configuration from database"""
-        try:
-            connection = self._get_db_connection()
-            cursor = connection.cursor()
+            # Set provider config from first row
+            first_row = rows[0]
+            self.provider_id = first_row[0]
+            provider_name = first_row[1]
+            adapter_class_name = f"{provider_name}Adapter"
             
-            cursor.execute("""
-                SELECT ProviderId, ProviderName, TopicName, BatchSize
-                FROM Provider
-                WHERE ProviderId = ? AND Active = 'Y'
-            """, (self.provider_id,))
-            
-            row = cursor.fetchone()
-            connection.close()
-            
-            if not row:
-                raise Exception(f"Provider {self.provider_id} not found or inactive")
-            
-            # Derive adapter class name from provider name (e.g., "Junction" → "JunctionAdapter")
-            adapter_class_name = f"{row[1]}Adapter"
-            
-            return {
-                'ProviderId': row[0],
-                'ProviderName': row[1],
+            self.provider_config = {
+                'ProviderId': first_row[0],
+                'ProviderName': first_row[1],
                 'AdapterClassName': adapter_class_name,
-                'TopicName': row[2],
-                'BatchSize': row[3]
+                'TopicName': first_row[2],
+                'BatchSize': first_row[3]
             }
-        except Exception as e:
-            logger.error(f"Failed to load provider config: {e}")
-            raise
-    
-    def _load_adapter(self):
-        """Dynamically load provider adapter based on naming convention"""
-        try:
-            adapter_class_name = self.provider_config['AdapterClassName']
-            module = import_module('provider_adapters')
-            adapter_class = getattr(module, adapter_class_name)
-            logger.info(f"✓ Loaded adapter: {adapter_class_name}")
-            return adapter_class(self.provider_config)
-        except AttributeError as e:
-            logger.error(f"Adapter class '{adapter_class_name}' not found in provider_adapters module. Expected naming convention: <ProviderName>Adapter (e.g., JunctionAdapter)")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to load adapter: {e}")
-            raise
-    
-    def _load_event_mappings(self) -> Dict:
-        """Load ProviderEvent mappings with extraction rules and EntityTypeAttributeId"""
-        try:
-            connection = self._get_db_connection()
-            cursor = connection.cursor()
+            logger.info(f"✓ Resolved provider '{self.provider_name}' to ID {self.provider_id}")
             
-            # Join with EntityTypeAttribute to get the entityTypeAttributeId
+            # Process all rows: build entity_cache, attribute_cache, customer_entities_cache
+            processed_entities = set()
+            for row in rows:
+                entity_id = row[4]
+                entity_type_id = row[5]
+                attr_code = row[6]
+                is_customer_entity = row[7]
+                
+                # Add to entity cache (only once per entity)
+                if entity_id not in processed_entities:
+                    self.entity_cache[entity_id] = entity_type_id
+                    processed_entities.add(entity_id)
+                
+                # Add attribute code
+                self.attribute_cache.add(attr_code)
+                
+                # Add to customer entities cache if assigned to active customer
+                if is_customer_entity and entity_id not in self.customer_entities_cache:
+                    self.customer_entities_cache.add(entity_id)
+            
+            logger.info(f"✓ Query 1 loaded from 1 consolidated JOIN:")
+            logger.info(f"  - {len(self.entity_cache)} entities")
+            logger.info(f"  - {len(self.attribute_cache)} attribute codes")
+            logger.info(f"  - {len(self.customer_entities_cache)} customer-assigned entities")
+            
+            # ============================================================================
+            # QUERY 2: CONSOLIDATED ProviderEvent + EntityTypeAttribute JOIN
+            # Returns event mappings with their attribute details
+            # ============================================================================
             cursor.execute("""
                 SELECT 
                     pe.providerEventId,
@@ -187,9 +199,9 @@ class GenericTelemetryConsumer:
                 WHERE pe.providerId = ? AND pe.Active = 'Y'
             """, (self.provider_id,))
             
-            rules = {}
+            self.event_mappings = {}
             for row in cursor.fetchall():
-                rules[row[1]] = {  # Key by ProviderEventType
+                self.event_mappings[row[1]] = {  # Key by ProviderEventType
                     'provider_event_id': row[0],
                     'protocol_attribute_code': row[2],
                     'value_json_path': row[3],
@@ -200,122 +212,32 @@ class GenericTelemetryConsumer:
                 }
             
             connection.close()
-            logger.info(f"Loaded {len(rules)} ProviderEvent mappings for provider {self.provider_id}")
-            for event_type, rule in rules.items():
-                if rule['entity_type_attribute_id'] > 0:
-                    logger.debug(f"  {event_type} -> entityTypeAttributeId {rule['entity_type_attribute_id']}")
-            return rules
+            logger.info(f"✓ Query 2 loaded {len(self.event_mappings)} ProviderEvent mappings with attributes")
+            logger.info(f"\n✓ ALL CACHES LOADED from 2 CONSOLIDATED QUERIES (vs 5 separate)")
+            
+            # Set extraction rules for adapter
+            if hasattr(self, 'adapter'):
+                self.adapter.set_extraction_rules(self.event_mappings)
+            
         except Exception as e:
-            logger.error(f"Failed to load event mappings: {e}")
+            logger.error(f"Failed to load caches: {e}")
             raise
     
-    def _load_entity_cache(self) -> Dict[int, int]:
-        """
-        Cache entities that have EntityTypeAttributes for this provider
-        
-        Returns: {entity_id -> entity_type_id}
-        
-        Only includes entities whose EntityTypeId exists in EntityTypeAttribute 
-        where providerId = this provider AND Active = 'Y'
-        """
+    def _load_adapter(self):
+        """Dynamically load provider adapter based on naming convention"""
         try:
-            connection = self._get_db_connection()
-            cursor = connection.cursor()
-            
-            cursor.execute("""
-                SELECT DISTINCT e.EntityId, e.EntityTypeId
-                FROM Entity e
-                WHERE e.Active = 'Y'
-                  AND EXISTS (
-                    SELECT 1 FROM EntityTypeAttribute eta 
-                    WHERE eta.EntityTypeId = e.EntityTypeId 
-                      AND eta.providerId = ? 
-                      AND eta.Active = 'Y'
-                  )
-            """, (self.provider_id,))
-            
-            cache = {}
-            for row in cursor.fetchall():
-                cache[row[0]] = row[1]
-            
-            connection.close()
-            logger.info(f"Cached {len(cache)} active entities with EntityTypeAttributes for provider {self.provider_id}")
-            if cache:
-                sample_keys = list(cache.items())[:5]
-                logger.info(f"  Sample entity cache entries: {sample_keys}")
-            else:
-                logger.warning(f"  WARNING: Entity cache is EMPTY! No entities found for provider {self.provider_id}")
-            return cache
+            adapter_class_name = self.provider_config['AdapterClassName']
+            module = import_module('provider_adapters')
+            adapter_class = getattr(module, adapter_class_name)
+            logger.info(f"✓ Loaded adapter: {adapter_class_name}")
+            return adapter_class(self.provider_config)
+        except AttributeError as e:
+            logger.error(f"Adapter class '{adapter_class_name}' not found in provider_adapters module. Expected naming convention: <ProviderName>Adapter (e.g., JunctionAdapter)")
+            raise
         except Exception as e:
-            logger.error(f"Failed to load entity cache: {e}")
+            logger.error(f"Failed to load adapter: {e}")
             raise
     
-    def _load_attribute_cache(self) -> set:
-        """
-        Cache EntityTypeAttribute codes linked to this provider
-        
-        Returns: set of valid entityTypeAttributeCodes for this provider
-        
-        Only includes codes where:
-        - EntityTypeAttribute.providerId = this provider_id
-        - EntityTypeAttribute.Active = 'Y'
-        """
-        try:
-            connection = self._get_db_connection()
-            cursor = connection.cursor()
-            
-            cursor.execute("""
-                SELECT DISTINCT eta.entityTypeAttributeCode
-                FROM EntityTypeAttribute eta
-                WHERE eta.Active = 'Y'
-                  AND eta.providerId = ?
-            """, (self.provider_id,))
-            
-            cache = set(row[0] for row in cursor.fetchall())
-            
-            connection.close()
-            logger.info(f"Cached {len(cache)} EntityTypeAttribute codes for provider {self.provider_id}: {cache}")
-            return cache
-        except Exception as e:
-            logger.error(f"Failed to load attribute cache: {e}")
-            return set()
-
-    def _load_customer_entities_cache(self) -> set:
-        """
-        Cache CustomerEntities that have active assignments with active customers
-        
-        Returns: set of entity_ids that are assigned to active customers
-        
-        Only includes entities where:
-        - CustomerEntities.active = 'Y'
-        - Customers.active = 'Y'
-        """
-        try:
-            connection = self._get_db_connection()
-            cursor = connection.cursor()
-            
-            cursor.execute("""
-                SELECT DISTINCT ce.entityId
-                FROM CustomerEntities ce
-                JOIN Customers c ON ce.customerId = c.customerId
-                WHERE ce.active = 'Y'
-                  AND c.active = 'Y'
-            """)
-            
-            cache = set(row[0] for row in cursor.fetchall())
-            
-            connection.close()
-            logger.info(f"Cached {len(cache)} active customer entities")
-            if cache:
-                sample_entities = list(cache)[:5]
-                logger.info(f"  Sample customer entities: {sample_entities}")
-            else:
-                logger.warning(f"  WARNING: Customer entities cache is EMPTY! No active customer entities found.")
-            return cache
-        except Exception as e:
-            logger.error(f"Failed to load customer entities cache: {e}")
-            return set()
-
     def _should_insert(self, entity_id: str, protocol_attr_code: str) -> Tuple[bool, str]:
         """
         Determine if we should insert this telemetry record
@@ -333,25 +255,26 @@ class GenericTelemetryConsumer:
         """
         # Check 1: Entity must exist in entity cache (already filtered by provider's EntityTypeIds)
         if entity_id not in self.entity_cache:
-            return False, f"Entity '{entity_id}' not found in Entity cache. Available entities: {list(self.entity_cache.keys())[:10]}"
+            return False, f"✗ Entity '{entity_id}' not in entity_cache. Available: {sorted(self.entity_cache.keys())}"
         
         # Check 2: EntityTypeAttribute code must exist for this provider
         if protocol_attr_code not in self.attribute_cache:
-            return False, f"No EntityTypeAttribute with code '{protocol_attr_code}' for provider {self.provider_id}. Available codes: {list(self.attribute_cache)[:10]}"
+            return False, f"✗ Code '{protocol_attr_code}' not in attribute_cache. Available: {sorted(list(self.attribute_cache))[:5]}"
         
         # Check 3: Entity must be assigned to an active customer (active CustomerEntity with active Customer)
         if entity_id not in self.customer_entities_cache:
-            return False, f"Entity '{entity_id}' not assigned to any active customer or customer is inactive. No data inserted."
+            return False, f"✗ Entity '{entity_id}' not in customer_entities_cache. Allowed: {sorted(self.customer_entities_cache)}"
         
         return True, "OK"
     
     def _init_kafka_consumer(self):
-        """Initialize Kafka consumer for provider topic with retry logic"""
-        max_retries = 10
-        retry_delay = 2  # seconds
+        """Initialize Kafka consumer with retry logic"""
+        max_retries = 15
+        retry_delay = 3  # seconds (increased from 2)
         
         for attempt in range(1, max_retries + 1):
             try:
+                logger.info(f"Attempting Kafka connection (attempt {attempt}/{max_retries})...")
                 consumer = KafkaConsumer(
                     self.provider_config['TopicName'],
                     bootstrap_servers='localhost:9092',
@@ -362,13 +285,14 @@ class GenericTelemetryConsumer:
                     enable_auto_commit=False,
                     consumer_timeout_ms=-1,
                     request_timeout_ms=30000,
-                    session_timeout_ms=10000
+                    session_timeout_ms=10000,
+                    connections_max_idle_ms=540000  # 9 minutes
                 )
                 logger.info(f"✓ Connected to Kafka topic: {self.provider_config['TopicName']}")
                 return consumer
             except Exception as e:
                 if attempt < max_retries:
-                    backoff_delay = retry_delay * (2 ** (attempt - 1))  # exponential backoff
+                    backoff_delay = retry_delay * (2 ** min(attempt - 1, 3))  # Cap exponential backoff at 8x
                     logger.warning(f"Kafka connection failed (attempt {attempt}/{max_retries}): {e}")
                     logger.info(f"Retrying in {backoff_delay} seconds...")
                     time.sleep(backoff_delay)
