@@ -10,13 +10,11 @@ export default function ProviderPage() {
   const [filterName, setFilterName] = useState('');
   const [filterDescription, setFilterDescription] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterApiBaseUrl, setFilterApiBaseUrl] = useState('');
   const [filterApiVersion, setFilterApiVersion] = useState('');
   const [formData, setFormData] = useState({
     providerName: '',
     providerDescription: '',
     providerCategory: '',
-    apiBaseUrl: '',
     apiVersion: '',
     documentationUrl: '',
     active: 'Y',
@@ -46,7 +44,6 @@ export default function ProviderPage() {
         providerName: provider.providerName,
         providerDescription: provider.providerDescription || '',
         providerCategory: provider.providerCategory || '',
-        apiBaseUrl: provider.apiBaseUrl || '',
         apiVersion: provider.apiVersion || '',
         documentationUrl: provider.documentationUrl || '',
         active: provider.active || 'Y',
@@ -57,7 +54,6 @@ export default function ProviderPage() {
         providerName: '',
         providerDescription: '',
         providerCategory: '',
-        apiBaseUrl: '',
         apiVersion: '',
         documentationUrl: '',
         active: 'Y',
@@ -73,7 +69,6 @@ export default function ProviderPage() {
       providerName: '',
       providerDescription: '',
       providerCategory: '',
-      apiBaseUrl: '',
       apiVersion: '',
       documentationUrl: '',
       active: 'Y',
@@ -130,11 +125,6 @@ export default function ProviderPage() {
     if (filterCategory) {
       filtered = filtered.filter((p) =>
         p.providerCategory?.toLowerCase().includes(filterCategory.toLowerCase())
-      );
-    }
-    if (filterApiBaseUrl) {
-      filtered = filtered.filter((p) =>
-        p.apiBaseUrl?.toLowerCase().includes(filterApiBaseUrl.toLowerCase())
       );
     }
     if (filterApiVersion) {
@@ -252,35 +242,6 @@ export default function ProviderPage() {
                 color: 'var(--text-color)',
               }}
             >
-              Base URL
-            </label>
-            <input
-              type="text"
-              value={filterApiBaseUrl}
-              onChange={(e) => setFilterApiBaseUrl(e.target.value)}
-              placeholder="Search base URL..."
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                backgroundColor: '#353535',
-                color: 'var(--text-color)',
-              }}
-            />
-          </div>
-
-          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                fontSize: '14px',
-                color: 'var(--text-color)',
-              }}
-            >
               API Version
             </label>
             <input
@@ -324,7 +285,6 @@ export default function ProviderPage() {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th>Base URL</th>
                 <th>API Version</th>
                 <th style={{ maxWidth: '200px' }}>Doc URL</th>
                 <th>Status</th>
@@ -347,16 +307,6 @@ export default function ProviderPage() {
                     ) : (
                       <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
-                  </td>
-                  <td>
-                    <small
-                      style={{
-                        color: 'var(--text-light)',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {provider.apiBaseUrl || '—'}
-                    </small>
                   </td>
                   <td>
                     {provider.apiVersion ? (
@@ -445,18 +395,6 @@ export default function ProviderPage() {
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="apiBaseUrl">Base URL</label>
-                  <input
-                    type="url"
-                    id="apiBaseUrl"
-                    name="apiBaseUrl"
-                    value={formData.apiBaseUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://api.provider.com"
-                  />
-                </div>
-
                 <div className="form-group">
                   <label htmlFor="apiVersion">API Version</label>
                   <input
