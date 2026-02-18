@@ -11,6 +11,7 @@ import ProtocolAttributePage from './pages/ProtocolAttributePage';
 import ProviderPage from './pages/ProviderPage';
 import ProviderEventPage from './pages/ProviderEventPage';
 import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
+import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('telemetry');
@@ -39,6 +40,8 @@ export default function App() {
         return <ProviderEventPage />;
       case 'customerSubscription':
         return <CustomerSubscriptionPage />;
+      case 'customerEntities':
+        return <CustomerEntitiesPage />;
       default:
         return <EntityTelemetryAnalyticsPage />;
     }
@@ -117,6 +120,12 @@ export default function App() {
               onClick={() => setCurrentPage('customerSubscription')}
             >
               👥 Customer Subscriptions
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'customerEntities' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('customerEntities')}
+            >
+              🌍 Customer Entities
             </button>
           </div>
 
