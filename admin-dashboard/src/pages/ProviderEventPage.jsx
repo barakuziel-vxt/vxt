@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { providerEventAPI, providerAPI } from '../services/api';
+import { providerEventAPI, providerAPI, protocolAPI } from '../services/api';
 
 export default function ProviderEventPage() {
   const [events, setEvents] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -18,11 +19,14 @@ export default function ProviderEventPage() {
     providerEventType: '',
     providerEventDescription: '',
     providerNamespace: '',
+    protocolId: '',
+    protocolAttributeCode: '',
     active: 'Y',
   });
 
   useEffect(() => {
     loadProviders();
+    loadProtocols();
     loadEvents();
   }, []);
 
@@ -32,6 +36,15 @@ export default function ProviderEventPage() {
       setProviders(data);
     } catch (err) {
       console.error('Error loading providers:', err);
+    }
+  };
+
+  const loadProtocols = async () => {
+    try {
+      const data = await protocolAPI.getAll();
+      setProtocols(data);
+    } catch (err) {
+      console.error('Error loading protocols:', err);
     }
   };
 
@@ -57,6 +70,8 @@ export default function ProviderEventPage() {
         providerEventType: event.providerEventType || '',
         providerEventDescription: event.providerEventDescription || '',
         providerNamespace: event.providerNamespace || '',
+        protocolId: event.protocolId || '',
+        protocolAttributeCode: event.protocolAttributeCode || '',
         active: event.active || 'Y',
       });
     } else {
@@ -67,6 +82,8 @@ export default function ProviderEventPage() {
         providerEventType: '',
         providerEventDescription: '',
         providerNamespace: '',
+        protocolId: '',
+        protocolAttributeCode: '',
         active: 'Y',
       });
     }
@@ -82,6 +99,8 @@ export default function ProviderEventPage() {
       providerEventType: '',
       providerEventDescription: '',
       providerNamespace: '',
+      protocolId: '',
+      protocolAttributeCode: '',
       active: 'Y',
     });
   };
@@ -299,6 +318,8 @@ export default function ProviderEventPage() {
                 <th>Description</th>
                 <th>Namespace</th>
                 <th>Event Type</th>
+                <th>Protocol</th>
+                <th>Attribute Code</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -323,6 +344,14 @@ export default function ProviderEventPage() {
                     </td>
                     <td>
                       <span>{event.providerEventType || '—'}</span>
+                    </td>
+                    <td>
+                      <span>
+                        {protocols.find((p) => p.protocolId === event.protocolId)?.protocolName || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <code>{event.protocolAttributeCode || '—'}</code>
                     </td>
                     <td>
                       <span>
@@ -355,7 +384,7 @@ export default function ProviderEventPage() {
         <div className="modal">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>{editingId ? 'Edit Event' : 'Add New Event'}</h3>
+              <h3>{editingId ? 'Edit Provider Event' : 'Add New Provider Event'}</h3>
             </div>
 
             <form onSubmit={handleSave}>
@@ -424,6 +453,37 @@ export default function ProviderEventPage() {
                   rows="4"
                   placeholder="Detailed description of this event"
                 />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="protocolId">Protocol</label>
+                  <select
+                    id="protocolId"
+                    name="protocolId"
+                    value={formData.protocolId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select a protocol (optional)</option>
+                    {protocols.map((protocol) => (
+                      <option key={protocol.protocolId} value={protocol.protocolId}>
+                        {protocol.protocolName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="protocolAttributeCode">Protocol Attribute Code</label>
+                  <input
+                    type="text"
+                    id="protocolAttributeCode"
+                    name="protocolAttributeCode"
+                    value={formData.protocolAttributeCode}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 8867-4"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
