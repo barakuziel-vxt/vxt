@@ -15,6 +15,7 @@ INSERT INTO dbo.EntityTypeAttribute (
     entityTypeAttributeTimeAspect,
     entityTypeAttributeUnit,
     providerId,
+    providerEventType,
     active
 )
 SELECT 
@@ -24,6 +25,7 @@ SELECT
     'Pt',
     '',
     @providerId,
+    pe.providerEventType,
     'Y'
 FROM dbo.ProviderEvent pe
 WHERE pe.providerId = @providerId
@@ -43,6 +45,7 @@ INSERT INTO dbo.EntityTypeAttribute (
     entityTypeAttributeTimeAspect,
     entityTypeAttributeUnit,
     providerId,
+    providerEventType,
     active
 )
 SELECT 
@@ -52,6 +55,7 @@ SELECT
     'Pt',
     '',
     @providerId,
+    pe.providerEventType,
     'Y'
 FROM dbo.ProviderEvent pe
 WHERE pe.providerId = @providerId
@@ -71,6 +75,7 @@ INSERT INTO dbo.EntityTypeAttribute (
     entityTypeAttributeTimeAspect,
     entityTypeAttributeUnit,
     providerId,
+    providerEventType,
     active
 )
 SELECT 
@@ -80,6 +85,7 @@ SELECT
     'Pt',
     '',
     @providerId,
+    pe.providerEventType,
     'Y'
 FROM dbo.ProviderEvent pe
 WHERE pe.providerId = @providerId
