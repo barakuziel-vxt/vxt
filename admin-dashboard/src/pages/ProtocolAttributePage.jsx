@@ -13,7 +13,6 @@ export default function ProtocolAttributePage() {
   const [filterCode, setFilterCode] = useState('');
   const [filterComponent, setFilterComponent] = useState('');
   const [filterUnit, setFilterUnit] = useState('');
-  const [filterDataType, setFilterDataType] = useState('');
   const [formData, setFormData] = useState({
     protocolId: '',
     protocolAttributeCode: '',
@@ -21,9 +20,6 @@ export default function ProtocolAttributePage() {
     description: '',
     component: '',
     unit: '',
-    dataType: '',
-    rangeMin: '',
-    rangeMax: '',
     active: 'Y',
   });
 
@@ -64,9 +60,6 @@ export default function ProtocolAttributePage() {
         description: attribute.description || '',
         component: attribute.component || '',
         unit: attribute.unit || '',
-        dataType: attribute.dataType || '',
-        rangeMin: attribute.rangeMin || '',
-        rangeMax: attribute.rangeMax || '',
         active: attribute.active || 'Y',
       });
     } else {
@@ -78,9 +71,6 @@ export default function ProtocolAttributePage() {
         description: '',
         component: '',
         unit: '',
-        dataType: '',
-        rangeMin: '',
-        rangeMax: '',
         active: 'Y',
       });
     }
@@ -154,11 +144,6 @@ export default function ProtocolAttributePage() {
     if (filterUnit) {
       filtered = filtered.filter((a) =>
         a.unit?.toLowerCase().includes(filterUnit.toLowerCase())
-      );
-    }
-    if (filterDataType) {
-      filtered = filtered.filter((a) =>
-        a.dataType?.toLowerCase().includes(filterDataType.toLowerCase())
       );
     }
     if (filterAttribute) {
@@ -322,35 +307,6 @@ export default function ProtocolAttributePage() {
               }}
             />
           </div>
-
-          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                fontSize: '14px',
-                color: 'var(--text-color)',
-              }}
-            >
-              Data Type
-            </label>
-            <input
-              type="text"
-              value={filterDataType}
-              onChange={(e) => setFilterDataType(e.target.value)}
-              placeholder="Search type..."
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                backgroundColor: '#353535',
-                color: 'var(--text-color)',
-              }}
-            />
-          </div>
         </div>
 
         <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
@@ -379,8 +335,6 @@ export default function ProtocolAttributePage() {
                 <th>Description</th>
                 <th>Component</th>
                 <th>Unit</th>
-                <th>Data Type</th>
-                <th>Range</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -408,16 +362,6 @@ export default function ProtocolAttributePage() {
                     </td>
                     <td>
                       <small>{attribute.unit || '—'}</small>
-                    </td>
-                    <td>
-                      <small>{attribute.dataType || '—'}</small>
-                    </td>
-                    <td>
-                      <small>
-                        {attribute.rangeMin || attribute.rangeMax
-                          ? `${attribute.rangeMin || '—'} - ${attribute.rangeMax || '—'}`
-                          : '—'}
-                      </small>
                     </td>
                     <td>
                       <span>
@@ -532,46 +476,6 @@ export default function ProtocolAttributePage() {
                     value={formData.unit}
                     onChange={handleInputChange}
                     placeholder="e.g., Celsius, %"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="dataType">Data Type</label>
-                  <input
-                    type="text"
-                    id="dataType"
-                    name="dataType"
-                    value={formData.dataType}
-                    onChange={handleInputChange}
-                    placeholder="e.g., float, string, integer"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="rangeMin">Range Min</label>
-                  <input
-                    type="text"
-                    id="rangeMin"
-                    name="rangeMin"
-                    value={formData.rangeMin}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 0"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="rangeMax">Range Max</label>
-                  <input
-                    type="text"
-                    id="rangeMax"
-                    name="rangeMax"
-                    value={formData.rangeMax}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 100"
                   />
                 </div>
               </div>
