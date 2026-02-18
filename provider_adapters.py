@@ -388,9 +388,10 @@ class TerraAdapter(ProviderAdapter):
         return events
 
 
-class SignalKAdapter(ProviderAdapter):
+class N2KToSignalKAdapter(ProviderAdapter):
     """
-    Adapter for SignalK Maritime Protocol
+    Adapter for N2KToSignalK Maritime Protocol
+    Converts NMEA 0183/2000 to SignalK format
     Parses maritime vessel telemetry (navigation, engine, environment)
     
     SignalK structure (simplified):

@@ -2161,6 +2161,242 @@ async def get_entity_attribute_scores(attribute_code: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================
+# CUSTOMER ENDPOINTS
+# ============================================
+
+@app.get("/customers")
+def get_customers():
+    """Get all customers"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT customerId, customerName, active
+            FROM Customers
+            WHERE active = 'Y'
+            ORDER BY customerName
+        """)
+        rows = cur.fetchall()
+        
+        customers = []
+        for row in rows:
+            customers.append({
+                "customerId": row[0],
+                "customerName": row[1],
+                "active": row[2]
+            })
+        
+        cur.close()
+        conn.close()
+        return customers
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/customers/{id}")
+def get_customer(id: int):
+    """Get a specific customer by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT customerId, customerName, active, createDate, lastUpdateTimestamp
+            FROM Customers
+            WHERE customerId = ? AND active = 'Y'
+        """, (id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        customer = {
+            "customerId": row[0],
+            "customerName": row[1],
+            "active": row[2],
+            "createDate": row[3].isoformat() if row[3] else None,
+            "lastUpdateTimestamp": row[4].isoformat() if row[4] else None
+        }
+        return customer
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# CUSTOMER SUBSCRIPTION ENDPOINTS
+# ============================================
+
+@app.get("/customersubscriptions")
+def get_customer_subscriptions():
+    """Get all customer subscriptions with customer, entity, and event details"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                cs.customerSubscriptionId,
+                cs.customerId,
+                c.customerName,
+                cs.entityId,
+                cs.eventId,
+                e.eventCode,
+                cs.subscriptionStartDate,
+                cs.subscriptionEndDate,
+                cs.active
+            FROM CustomerSubscriptions cs
+            JOIN Customers c ON cs.customerId = c.customerId
+            LEFT JOIN Event e ON cs.eventId = e.eventId
+            WHERE cs.active = 'Y'
+            ORDER BY c.customerName, cs.entityId
+        """)
+        rows = cur.fetchall()
+        
+        subscriptions = []
+        for row in rows:
+            subscriptions.append({
+                "customerSubscriptionId": row[0],
+                "customerId": row[1],
+                "customerName": row[2],
+                "entityId": row[3],
+                "eventId": row[4],
+                "eventCode": row[5],
+                "subscriptionStartDate": row[6].isoformat() if row[6] else None,
+                "subscriptionEndDate": row[7].isoformat() if row[7] else None,
+                "active": row[8]
+            })
+        
+        cur.close()
+        conn.close()
+        return subscriptions
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/customersubscriptions/{id}")
+def get_customer_subscription(id: int):
+    """Get a specific customer subscription by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                cs.customerSubscriptionId,
+                cs.customerId,
+                c.customerName,
+                cs.entityId,
+                cs.eventId,
+                e.eventCode,
+                cs.subscriptionStartDate,
+                cs.subscriptionEndDate,
+                cs.active
+            FROM CustomerSubscriptions cs
+            JOIN Customers c ON cs.customerId = c.customerId
+            LEFT JOIN Event e ON cs.eventId = e.eventId
+            WHERE cs.customerSubscriptionId = ?
+        """, (id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        subscription = {
+            "customerSubscriptionId": row[0],
+            "customerId": row[1],
+            "customerName": row[2],
+            "entityId": row[3],
+            "eventId": row[4],
+            "eventCode": row[5],
+            "subscriptionStartDate": row[6].isoformat() if row[6] else None,
+            "subscriptionEndDate": row[7].isoformat() if row[7] else None,
+            "active": row[8]
+        }
+        return subscription
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/customersubscriptions")
+def create_customer_subscription(data: dict):
+    """Create a new customer subscription"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO CustomerSubscriptions (customerId, entityId, eventId, subscriptionStartDate, subscriptionEndDate, active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            data.get("customerId"),
+            data.get("entityId"),
+            data.get("eventId"),
+            data.get("subscriptionStartDate"),
+            data.get("subscriptionEndDate"),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Subscription created successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/customersubscriptions/{id}")
+def update_customer_subscription(id: int, data: dict):
+    """Update a customer subscription"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE CustomerSubscriptions
+            SET customerId = ?, entityId = ?, eventId = ?, subscriptionStartDate = ?, subscriptionEndDate = ?, active = ?
+            WHERE customerSubscriptionId = ?
+        """, (
+            data.get("customerId"),
+            data.get("entityId"),
+            data.get("eventId"),
+            data.get("subscriptionStartDate"),
+            data.get("subscriptionEndDate"),
+            data.get("active", "Y"),
+            id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Subscription updated successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/customersubscriptions/{id}")
+def delete_customer_subscription(id: int):
+    """Soft delete a customer subscription"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE CustomerSubscriptions
+            SET active = 'N'
+            WHERE customerSubscriptionId = ?
+        """, (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Subscription deleted successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
