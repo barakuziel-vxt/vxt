@@ -6,8 +6,28 @@ Write-Host "[1/7] Starting Docker Containers (SQL Edge & Redpanda)..." -Foregrou
 docker-compose up -d
 
 # 2. Wait for Infrastructure to be ready
-Write-Host "[2/7] Waiting for services to initialize (5 seconds)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+Write-Host "[2/7] Waiting for Redpanda to be fully initialized (30 seconds)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 30
+
+# Health check for Redpanda availability
+Write-Host "[2.5/7] Checking Redpanda broker connectivity..." -ForegroundColor Yellow
+$maxRetries = 10
+$retries = 0
+while ($retries -lt $maxRetries) {
+    try {
+        $result = docker exec yacht-broker rpk broker info 2>&1
+        if ($result -match "version") {
+            Write-Host "✓ Redpanda broker is ready" -ForegroundColor Green
+            break
+        }
+    } catch {
+        $retries++
+        if ($retries -lt $maxRetries) {
+            Write-Host "Waiting for broker readiness... ($retries/$maxRetries)" -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
+        }
+    }
+}
 
 # 3. Create Kafka Topic
 Write-Host "[3/7] Configuring Kafka Topics..." -ForegroundColor Yellow
@@ -25,7 +45,8 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\p
 Write-Host "[4.5/7] Launching Consumer and Simulator..." -ForegroundColor Yellow
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe consumer_boatTelemetry.py" -WindowStyle Normal
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe consumer_HealthVitals.py" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Consumes_Junction_events_into_EntityTelemetry.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_junction_consumer.py" -WindowStyle Normal
+#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Consumes_Junction_events_into_EntityTelemetry.py" -WindowStyle Normal
 # Launch Simulators
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_boat_234567890.py" -WindowStyle Normal
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_boat_234567891.py" -WindowStyle Normal

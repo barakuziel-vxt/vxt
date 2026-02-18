@@ -16,7 +16,7 @@ This document describes the multi-provider, multi-protocol telemetry consumer sy
 
 2. **provider_adapters.py** - Protocol-specific parsers
    - `ProviderAdapter` - Abstract base class
-   - `JunctionVitalsAdapter` - LOINC-based health vitals (Junction Health)
+   - `JunctionAdapter` - LOINC-based health vitals (Junction Health)
    - `TerraAdapter` - Health API format (Terra API)
    - `SignalKAdapter` - Maritime vessel telemetry (SignalK)
 
@@ -388,5 +388,5 @@ Final Summary:
 2. Check provider_adapters.py for class definition:
    ```python
    # Verify class exists
-   from provider_adapters import JunctionVitalsAdapter
+    from provider_adapters import JunctionAdapter
    ```
