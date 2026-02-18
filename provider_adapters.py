@@ -124,7 +124,7 @@ class ProviderAdapter(ABC):
             return []
 
 
-class JunctionVitalsAdapter(ProviderAdapter):
+class JunctionAdapter(ProviderAdapter):
     """
     Adapter for Junction Health Provider
     Parses health vitals with nested sample arrays per measurement type
@@ -152,9 +152,11 @@ class JunctionVitalsAdapter(ProviderAdapter):
     def validate_message(self, message: Dict) -> bool:
         """
         Validate Junction event format
-        Required fields: user, user.user_id, type, event_type, loinc_code, timestamp
+        Required fields: user, user.user_id, timestamp
+        
+        Note: Accepts any event type - filtering by ProviderEvent rules happens downstream
         """
-        required_fields = ['user', 'type', 'event_type', 'loinc_code', 'timestamp']
+        required_fields = ['user', 'timestamp']
         
         for field in required_fields:
             if field not in message:
@@ -163,10 +165,6 @@ class JunctionVitalsAdapter(ProviderAdapter):
         
         if 'user_id' not in message.get('user', {}):
             logger.warning("Missing user.user_id in Junction event")
-            return False
-        
-        if message.get('type') != 'vitals':
-            logger.warning(f"Invalid event type: {message.get('type')}, expected 'vitals'")
             return False
         
         return True
@@ -180,14 +178,26 @@ class JunctionVitalsAdapter(ProviderAdapter):
         events = []
         
         try:
-            user_id = message.get('user', {}).get('user_id', 'unknown')
+            # Extract user_id as entity identifier (e.g., 'user_033114869' -> '033114869')
+            user_id_str = message.get('user', {}).get('user_id', 'unknown')
+            
+            # Strip 'user_' prefix if present
+            if isinstance(user_id_str, str) and user_id_str.startswith('user_'):
+                entity_id = user_id_str[5:]  # Remove 'user_' prefix, keep as string
+            else:
+                entity_id = user_id_str  # Already without prefix or not a string
+            
+            if not entity_id or entity_id == 'unknown':
+                logger.warning(f"Could not extract entity_id from user_id '{user_id_str}'")
+                return events
+            
             event_type = message.get('event_type')
             timestamp = message.get('timestamp')
             device = message.get('provider_device', 'Junction Device')
             
             # Look up extraction rule for this event type
             if event_type not in self.event_rules:
-                logger.warning(f"No extraction rule for event type '{event_type}'")
+                logger.debug(f"No extraction rule for event type '{event_type}'")
                 return events
             
             rule = self.event_rules[event_type]
@@ -204,7 +214,7 @@ class JunctionVitalsAdapter(ProviderAdapter):
             summary_value = self._extract_json_path(message, value_json_path)
             if summary_value is not None:
                 events.append({
-                    'entity_id': user_id,
+                    'entity_id': entity_id,  # String identifier (e.g., '033114869')
                     'protocol_attribute_code': protocol_attr_code,
                     'entity_type_attribute_id': rule.get('entity_type_attribute_id'),
                     'timestamp': timestamp,
@@ -228,7 +238,7 @@ class JunctionVitalsAdapter(ProviderAdapter):
                 for sample in samples:
                     if sample['value'] is not None and sample['timestamp']:
                         events.append({
-                            'entity_id': user_id,
+                            'entity_id': entity_id,  # String identifier (e.g., '033114869')
                             'protocol_attribute_code': protocol_attr_code,
                             'entity_type_attribute_id': rule.get('entity_type_attribute_id'),
                             'timestamp': sample['timestamp'],

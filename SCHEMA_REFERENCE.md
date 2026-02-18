@@ -268,7 +268,7 @@ C:\VXT\
 
 **For adapter issues:**
 - Verify AdapterClassName matches file class exactly
-- Test with `python -c "from provider_adapters import JunctionVitalsAdapter"`
+- Test with `python -c "from provider_adapters import JunctionAdapter"`
 
 **For filtering issues:**
 - Check entity exists: `SELECT * FROM Entity WHERE entityId = 'xxx'`

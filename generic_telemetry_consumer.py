@@ -6,6 +6,7 @@ Filters by: Entity + EntityTypeAttribute (matching code + provider)
 
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from kafka import KafkaConsumer
 from typing import List, Dict, Tuple, Optional
@@ -50,8 +51,8 @@ class GenericTelemetryConsumer:
       - EntityTypeAttribute.Active = 'Y'
     """
     
-    def __init__(self, provider_name: str, db_server='localhost', db_name='VXT', 
-                 db_user='sa', db_password=''):
+    def __init__(self, provider_name: str, db_server='localhost', db_name='BoatTelemetryDB', 
+                 db_user='sa', db_password='YourStrongPassword123!'):
         self.provider_name = provider_name
         self.provider_id = None
         self.db_server = db_server
@@ -72,7 +73,7 @@ class GenericTelemetryConsumer:
         
         # Pre-load caches for efficient filtering
         self.entity_cache = self._load_entity_cache()  # {entity_id -> entity_type_id}
-        self.attribute_cache = self._load_attribute_cache()  # {protocol_attr_code -> set(entity_type_ids)}
+        self.attribute_cache = self._load_attribute_cache()  # set of valid attribute codes for provider
         
         # Initialize Kafka consumer
         self.consumer = self._init_kafka_consumer()
@@ -119,7 +120,7 @@ class GenericTelemetryConsumer:
             cursor = connection.cursor()
             
             cursor.execute("""
-                SELECT ProviderId, ProviderName, AdapterClassName, TopicName, BatchSize
+                SELECT ProviderId, ProviderName, TopicName, BatchSize
                 FROM Provider
                 WHERE ProviderId = ? AND Active = 'Y'
             """, (self.provider_id,))
@@ -130,26 +131,33 @@ class GenericTelemetryConsumer:
             if not row:
                 raise Exception(f"Provider {self.provider_id} not found or inactive")
             
+            # Derive adapter class name from provider name (e.g., "Junction" → "JunctionAdapter")
+            adapter_class_name = f"{row[1]}Adapter"
+            
             return {
                 'ProviderId': row[0],
                 'ProviderName': row[1],
-                'AdapterClassName': row[2],
-                'TopicName': row[3],
-                'BatchSize': row[4]
+                'AdapterClassName': adapter_class_name,
+                'TopicName': row[2],
+                'BatchSize': row[3]
             }
         except Exception as e:
             logger.error(f"Failed to load provider config: {e}")
             raise
     
     def _load_adapter(self):
-        """Dynamically load provider adapter"""
+        """Dynamically load provider adapter based on naming convention"""
         try:
             adapter_class_name = self.provider_config['AdapterClassName']
             module = import_module('provider_adapters')
             adapter_class = getattr(module, adapter_class_name)
+            logger.info(f"✓ Loaded adapter: {adapter_class_name}")
             return adapter_class(self.provider_config)
+        except AttributeError as e:
+            logger.error(f"Adapter class '{adapter_class_name}' not found in provider_adapters module. Expected naming convention: <ProviderName>Adapter (e.g., JunctionAdapter)")
+            raise
         except Exception as e:
-            logger.error(f"Failed to load adapter {self.provider_config.get('AdapterClassName')}: {e}")
+            logger.error(f"Failed to load adapter: {e}")
             raise
     
     def _load_event_mappings(self) -> Dict:
@@ -161,20 +169,20 @@ class GenericTelemetryConsumer:
             # Join with EntityTypeAttribute to get the entityTypeAttributeId
             cursor.execute("""
                 SELECT 
-                    pe.ProviderEventId,
-                    pe.ProviderEventType,
+                    pe.providerEventId,
+                    pe.providerEventType,
                     pe.protocolAttributeCode,
                     pe.ValueJsonPath,
                     pe.SampleArrayPath,
                     pe.CompositeValueTemplate,
                     pe.FieldMappingJSON,
                     COALESCE(eta.entityTypeAttributeId, 0) as entityTypeAttributeId
-                FROM ProviderEvent pe
-                LEFT JOIN EntityTypeAttribute eta 
+                FROM dbo.ProviderEvent pe
+                LEFT JOIN dbo.EntityTypeAttribute eta 
                     ON eta.entityTypeAttributeCode = pe.protocolAttributeCode
-                    AND eta.providerId = pe.ProviderId
+                    AND eta.providerId = pe.providerId
                     AND eta.Active = 'Y'
-                WHERE pe.ProviderId = ? AND pe.Active = 'Y'
+                WHERE pe.providerId = ? AND pe.Active = 'Y'
             """, (self.provider_id,))
             
             rules = {}
@@ -201,38 +209,52 @@ class GenericTelemetryConsumer:
     
     def _load_entity_cache(self) -> Dict[int, int]:
         """
-        Cache all entities and their EntityTypes
+        Cache entities that have EntityTypeAttributes for this provider
+        
         Returns: {entity_id -> entity_type_id}
+        
+        Only includes entities whose EntityTypeId exists in EntityTypeAttribute 
+        where providerId = this provider AND Active = 'Y'
         """
         try:
             connection = self._get_db_connection()
             cursor = connection.cursor()
             
             cursor.execute("""
-                SELECT EntityId, EntityTypeId
-                FROM Entity
-                WHERE Active = 'Y'
-            """)
+                SELECT DISTINCT e.EntityId, e.EntityTypeId
+                FROM Entity e
+                WHERE e.Active = 'Y'
+                  AND EXISTS (
+                    SELECT 1 FROM EntityTypeAttribute eta 
+                    WHERE eta.EntityTypeId = e.EntityTypeId 
+                      AND eta.providerId = ? 
+                      AND eta.Active = 'Y'
+                  )
+            """, (self.provider_id,))
             
             cache = {}
             for row in cursor.fetchall():
                 cache[row[0]] = row[1]
             
             connection.close()
-            logger.info(f"Cached {len(cache)} active entities")
+            logger.info(f"Cached {len(cache)} active entities with EntityTypeAttributes for provider {self.provider_id}")
+            if cache:
+                sample_keys = list(cache.items())[:5]
+                logger.info(f"  Sample entity cache entries: {sample_keys}")
+            else:
+                logger.warning(f"  WARNING: Entity cache is EMPTY! No entities found for provider {self.provider_id}")
             return cache
         except Exception as e:
             logger.error(f"Failed to load entity cache: {e}")
             raise
     
-    def _load_attribute_cache(self) -> Dict[str, set]:
+    def _load_attribute_cache(self) -> set:
         """
         Cache EntityTypeAttribute codes linked to this provider
         
-        Returns: {entityTypeAttributeCode -> set(entity_type_ids)}
+        Returns: set of valid entityTypeAttributeCodes for this provider
         
-        Only includes attributes where:
-        - entityTypeAttributeCode = ProviderEvent.protocolAttributeCode
+        Only includes codes where:
         - EntityTypeAttribute.providerId = this provider_id
         - EntityTypeAttribute.Active = 'Y'
         """
@@ -241,78 +263,76 @@ class GenericTelemetryConsumer:
             cursor = connection.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT 
-                    eta.EntityTypeId,
-                    eta.entityTypeAttributeCode
+                SELECT DISTINCT eta.entityTypeAttributeCode
                 FROM EntityTypeAttribute eta
                 WHERE eta.Active = 'Y'
                   AND eta.providerId = ?
             """, (self.provider_id,))
             
-            cache = {}
-            for row in cursor.fetchall():
-                entity_type_id = row[0]
-                attr_code = row[1]
-                
-                if attr_code not in cache:
-                    cache[attr_code] = set()
-                cache[attr_code].add(entity_type_id)
+            cache = set(row[0] for row in cursor.fetchall())
             
             connection.close()
-            logger.info(f"Cached {len(cache)} EntityTypeAttribute codes for provider {self.provider_id}")
+            logger.info(f"Cached {len(cache)} EntityTypeAttribute codes for provider {self.provider_id}: {cache}")
             return cache
         except Exception as e:
             logger.error(f"Failed to load attribute cache: {e}")
             raise
     
-    def _should_insert(self, entity_id: int, protocol_attr_code: str) -> Tuple[bool, str]:
+    def _should_insert(self, entity_id: str, protocol_attr_code: str) -> Tuple[bool, str]:
         """
         Determine if we should insert this telemetry record
         
         Checks:
-        1. Entity must exist in Entity table
-        2. EntityTypeAttribute must exist with:
-           - entityTypeAttributeCode = protocol_attr_code
-           - providerId = this provider_id
-           - Active = 'Y'
-        3. Entity's EntityType must be mapped to this attribute
+        1. Entity must exist in Entity table (and have EntityTypeId matching this provider)
+        2. EntityTypeAttribute code exists for this provider
+        
+        Args:
+            entity_id: str - entity identifier (e.g., '033114869')
+            protocol_attr_code: str - attribute code (e.g., 'heart_rate')
         
         Returns: (should_insert, reason)
         """
-        # Check 1: Entity must exist
+        # Check 1: Entity must exist in entity cache (already filtered by provider's EntityTypeIds)
         if entity_id not in self.entity_cache:
-            return False, f"Entity {entity_id} not found in Entity table"
+            return False, f"Entity '{entity_id}' not found in cache. Available entities: {list(self.entity_cache.keys())[:10]}"
         
-        entity_type_id = self.entity_cache[entity_id]
-        
-        # Check 2: EntityTypeAttribute must exist with matching code and provider
-        allowed_entity_types = self.attribute_cache.get(protocol_attr_code, set())
-        if not allowed_entity_types:
-            return False, f"No EntityTypeAttribute with code '{protocol_attr_code}' for provider {self.provider_id}"
-        
-        # Check 3: Entity's type must be one of the allowed types for this attribute
-        if entity_type_id not in allowed_entity_types:
-            return False, f"EntityType {entity_type_id} not mapped to attribute '{protocol_attr_code}' for provider {self.provider_id}"
+        # Check 2: EntityTypeAttribute code must exist for this provider
+        if protocol_attr_code not in self.attribute_cache:
+            return False, f"No EntityTypeAttribute with code '{protocol_attr_code}' for provider {self.provider_id}. Available codes: {list(self.attribute_cache)[:10]}"
         
         return True, "OK"
     
     def _init_kafka_consumer(self):
-        """Initialize Kafka consumer for provider topic"""
-        try:
-            consumer = KafkaConsumer(
-                self.provider_config['TopicName'],
-                bootstrap_servers='127.0.0.1:9092',
-                value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-                group_id=f"consumer-provider-{self.provider_id}",
-                auto_offset_reset='earliest',
-                enable_auto_commit=False,
-                consumer_timeout_ms=-1
-            )
-            logger.info(f"✓ Connected to Kafka topic: {self.provider_config['TopicName']}")
-            return consumer
-        except Exception as e:
-            logger.error(f"Failed to connect to Kafka: {e}")
-            raise
+        """Initialize Kafka consumer for provider topic with retry logic"""
+        max_retries = 10
+        retry_delay = 2  # seconds
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                consumer = KafkaConsumer(
+                    self.provider_config['TopicName'],
+                    bootstrap_servers='localhost:9092',
+                    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+                    group_id=f"consumer-provider-{self.provider_id}",
+                    client_id=f"client-{self.provider_id}",
+                    auto_offset_reset='earliest',
+                    enable_auto_commit=False,
+                    consumer_timeout_ms=-1,
+                    api_version_auto_discovery_callback=lambda: None,
+                    request_timeout_ms=30000,
+                    session_timeout_ms=10000
+                )
+                logger.info(f"✓ Connected to Kafka topic: {self.provider_config['TopicName']}")
+                return consumer
+            except Exception as e:
+                if attempt < max_retries:
+                    backoff_delay = retry_delay * (2 ** (attempt - 1))  # exponential backoff
+                    logger.warning(f"Kafka connection failed (attempt {attempt}/{max_retries}): {e}")
+                    logger.info(f"Retrying in {backoff_delay} seconds...")
+                    time.sleep(backoff_delay)
+                else:
+                    logger.error(f"Failed to connect to Kafka after {max_retries} attempts: {e}")
+                    raise
     
     def _get_db_connection(self):
         """Create database connection"""
@@ -335,11 +355,11 @@ class GenericTelemetryConsumer:
             cursor = connection.cursor()
             
             insert_query = """
-            INSERT INTO EntityTelemetry 
+            INSERT INTO dbo.EntityTelemetry 
             (entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC, 
              providerEventInterpretation, providerDevice, numericValue, latitude, 
-             longitude, stringValue, providerId, providerEventId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             longitude, stringValue)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             cursor.executemany(insert_query, records)
@@ -383,7 +403,7 @@ class GenericTelemetryConsumer:
                     normalized_events = self.adapter.parse_event(event)
                     
                     for evt in normalized_events:
-                        entity_id = int(evt['entity_id'])
+                        entity_id = evt['entity_id']  # Keep as string - Entity.entityId is NVARCHAR(50)
                         protocol_attr_code = evt['protocol_attribute_code']
                         entity_type_attribute_id = evt.get('entity_type_attribute_id')
                         
@@ -391,11 +411,11 @@ class GenericTelemetryConsumer:
                         should_insert, reason = self._should_insert(entity_id, protocol_attr_code)
                         
                         if not should_insert:
-                            logger.debug(f"SKIP entity {entity_id}: {reason}")
+                            logger.info(f"SKIP entity {entity_id}: {reason}")
                             self.total_skipped += 1
                             continue
                         
-                        # Create telemetry record
+                        # Create telemetry record (10 columns)
                         record = (
                             entity_id,
                             entity_type_attribute_id,
@@ -406,9 +426,7 @@ class GenericTelemetryConsumer:
                             evt.get('numeric_value'),
                             evt.get('latitude'),
                             evt.get('longitude'),
-                            evt.get('string_value'),
-                            self.provider_id,
-                            evt.get('provider_event_id')
+                            evt.get('string_value')
                         )
                         self.event_buffer.append(record)
                     
@@ -460,9 +478,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generic Telemetry Consumer with Adapter Pattern')
     parser.add_argument('provider_name', type=str, help='Provider name to consume for (e.g., Junction, Terra)')
     parser.add_argument('--db-server', default='localhost', help='Database server (default: localhost)')
-    parser.add_argument('--db-name', default='VXT', help='Database name (default: VXT)')
+    parser.add_argument('--db-name', default='BoatTelemetryDB', help='Database name (default: BoatTelemetryDB)')
     parser.add_argument('--db-user', default='sa', help='Database user (default: sa)')
-    parser.add_argument('--db-password', default='', help='Database password')
+    parser.add_argument('--db-password', default='YourStrongPassword123!', help='Database password')
     parser.add_argument('--log-level', default='INFO', help='Log level (default: INFO)')
     
     args = parser.parse_args()

@@ -81,7 +81,7 @@ Expected output:
 ```
 ProviderName     AdapterClassName         TopicName
 ---------------- ----------------------- ------------------
-Junction         JunctionVitalsAdapter    junction-events
+Junction         JunctionAdapter         junction-events
 Terra            TerraAdapter             terra_health_vitals
 ```
 
@@ -140,7 +140,7 @@ Expected startup logs:
 If you see errors, check:
 1. Kafka running: `docker ps | grep redpanda`
 2. Provider exists: Query Provider table
-3. AdapterClassName correct: Should be exactly `JunctionVitalsAdapter`
+3. AdapterClassName correct: Should be exactly `JunctionAdapter`
 
 ### 7. Full System Startup
 
@@ -210,7 +210,7 @@ pip install jsonpath-ng
 
 **Debug:**
 ```powershell
-python -c "from provider_adapters import JunctionVitalsAdapter; print('OK')"
+python -c "from provider_adapters import JunctionAdapter; print('OK')"
 ```
 
 ### Issue: No records inserted, all skipped
