@@ -889,6 +889,336 @@ def get_protocol_attributes(protocolId: int = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Provider Endpoints
+@app.get("/providers")
+def get_providers():
+    """Get all providers"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT providerId, providerName, providerDescription, providerCategory, 
+                   apiBaseUrl, apiVersion, documentationUrl, active
+            FROM Provider
+            ORDER BY providerName
+        """)
+        providers = []
+        for row in cur.fetchall():
+            providers.append({
+                "providerId": row[0],
+                "providerName": row[1],
+                "providerDescription": row[2],
+                "providerCategory": row[3],
+                "apiBaseUrl": row[4],
+                "apiVersion": row[5],
+                "documentationUrl": row[6],
+                "active": row[7]
+            })
+        cur.close()
+        conn.close()
+        return providers
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/providers")
+def create_provider(data: dict):
+    """Create a new provider"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO Provider (providerName, providerDescription, providerCategory, 
+                                 apiBaseUrl, apiVersion, documentationUrl, active, 
+                                 createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            data.get("providerName"),
+            data.get("providerDescription", ""),
+            data.get("providerCategory", ""),
+            data.get("apiBaseUrl"),
+            data.get("apiVersion"),
+            data.get("documentationUrl"),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/providers/{provider_id}")
+def update_provider(provider_id: int, data: dict):
+    """Update an existing provider"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE Provider
+            SET providerName = ?, providerDescription = ?, providerCategory = ?,
+                apiBaseUrl = ?, apiVersion = ?, documentationUrl = ?, 
+                active = ?, lastUpdateTimestamp = GETDATE()
+            WHERE providerId = ?
+        """, (
+            data.get("providerName"),
+            data.get("providerDescription", ""),
+            data.get("providerCategory", ""),
+            data.get("apiBaseUrl"),
+            data.get("apiVersion"),
+            data.get("documentationUrl"),
+            data.get("active", "Y"),
+            provider_id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/providers/{provider_id}")
+def delete_provider(provider_id: int):
+    """Delete a provider"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM Provider WHERE providerId = ?", (provider_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Protocol Endpoints (POST, PUT, DELETE)
+@app.post("/protocols")
+def create_protocol(data: dict):
+    """Create a new protocol"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO Protocol (protocolName, protocolDescription, active, 
+                                 createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            data.get("protocolName"),
+            data.get("protocolDescription", ""),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/protocols/{protocol_id}")
+def update_protocol(protocol_id: int, data: dict):
+    """Update an existing protocol"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE Protocol
+            SET protocolName = ?, protocolDescription = ?, active = ?, lastUpdateTimestamp = GETDATE()
+            WHERE protocolId = ?
+        """, (
+            data.get("protocolName"),
+            data.get("protocolDescription", ""),
+            data.get("active", "Y"),
+            protocol_id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/protocols/{protocol_id}")
+def delete_protocol(protocol_id: int):
+    """Delete a protocol"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM Protocol WHERE protocolId = ?", (protocol_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ProtocolAttribute Endpoints (POST, PUT, DELETE)
+@app.post("/protocolattributes")
+def create_protocol_attribute(data: dict):
+    """Create a new protocol attribute"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO ProtocolAttribute (protocolId, attributeName, attributeDescription, active, 
+                                          createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            data.get("protocolId"),
+            data.get("attributeName"),
+            data.get("attributeDescription", ""),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol attribute created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/protocolattributes/{attribute_id}")
+def update_protocol_attribute(attribute_id: int, data: dict):
+    """Update an existing protocol attribute"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE ProtocolAttribute
+            SET protocolId = ?, attributeName = ?, attributeDescription = ?, active = ?, lastUpdateTimestamp = GETDATE()
+            WHERE protocolAttributeId = ?
+        """, (
+            data.get("protocolId"),
+            data.get("attributeName"),
+            data.get("attributeDescription", ""),
+            data.get("active", "Y"),
+            attribute_id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol attribute updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/protocolattributes/{attribute_id}")
+def delete_protocol_attribute(attribute_id: int):
+    """Delete a protocol attribute"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = ?", (attribute_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Protocol attribute deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ProviderEvent Endpoints
+@app.get("/providerevents")
+def get_provider_events():
+    """Get all provider events"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT providerEventId, providerId, providerEventType, providerEventDescription, active
+            FROM ProviderEvent
+            ORDER BY providerEventName
+        """)
+        events = []
+        for row in cur.fetchall():
+            events.append({
+                "providerEventId": row[0],
+                "providerId": row[1],
+                "providerEventType": row[2],
+                "providerEventDescription": row[3],
+                "active": row[4]
+            })
+        cur.close()
+        conn.close()
+        return events
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/providerevents")
+def create_provider_event(data: dict):
+    """Create a new provider event"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO ProviderEvent (providerId, providerEventType, providerEventDescription, 
+                                      providerNamespace, providerEventName, active, createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            data.get("providerId"),
+            data.get("providerEventType", ""),
+            data.get("providerEventDescription", ""),
+            data.get("providerNamespace", ""),
+            data.get("providerEventName", ""),
+            data.get("active", "Y")
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider event created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/providerevents/{event_id}")
+def update_provider_event(event_id: int, data: dict):
+    """Update an existing provider event"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE ProviderEvent
+            SET providerId = ?, providerEventType = ?, providerEventDescription = ?, 
+                providerNamespace = ?, providerEventName = ?, active = ?, lastUpdateTimestamp = GETDATE()
+            WHERE providerEventId = ?
+        """, (
+            data.get("providerId"),
+            data.get("providerEventType", ""),
+            data.get("providerEventDescription", ""),
+            data.get("providerNamespace", ""),
+            data.get("providerEventName", ""),
+            data.get("active", "Y"),
+            event_id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider event updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/providerevents/{event_id}")
+def delete_provider_event(event_id: int):
+    """Delete a provider event"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = ?", (event_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": "Provider event deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Entity Type Criteria Endpoints
 @app.get("/entitytypeattributescore")
 def get_entity_type_attribute_score(attributeId: int = None):

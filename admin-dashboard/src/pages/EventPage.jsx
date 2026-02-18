@@ -319,7 +319,7 @@ export default function EventPage() {
   return (
     <div className="management-page">
       <h1>Event Management</h1>
-      {error && <div style={{color:'red', padding:'10px', backgroundColor:'#ffe6e6', marginBottom:'10px'}}>{error}</div>}
+      {error && <div style={{color:'#ff6666', padding:'10px', backgroundColor:'#3a1a1a', marginBottom:'10px', borderRadius:'4px', border:'1px solid #5f2d2d'}}>{error}</div>}
       {loading && <p>Loading...</p>}
 
       {/* Filters */}
@@ -615,15 +615,16 @@ export default function EventPage() {
                             return (
                               <div>
                                 <h4>Analysis Metadata (AI Function)</h4>
-                                <p style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', fontStyle: 'italic' }}>
                                   Dynamic analysis statistics will be captured when events are triggered. 
                                   This will include baseline comparisons, statistical findings, and confidence metrics.
                                 </p>
                                 <div style={{ 
-                                  backgroundColor: '#e8f5e9', 
+                                  backgroundColor: '#1a3a1a', 
                                   padding: '12px', 
                                   borderRadius: '4px',
-                                  borderLeft: '4px solid #4CAF50'
+                                  borderLeft: '4px solid #44dd44',
+                                  color: '#44dd44'
                                 }}>
                                   <strong>✓ Python/AI Function:</strong> Analysis metadata will be stored in EventLog and displayed when events are triggered.
                                 </div>

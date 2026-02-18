@@ -177,7 +177,7 @@ export default function EntityPage() {
       </div>
 
       {error && (
-        <div style={{ padding: '10px', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '15px' }}>
+        <div style={{ padding: '10px', backgroundColor: '#3a1a1a', color: '#ff6666', borderRadius: '4px', marginBottom: '15px' }}>
           <strong>Error:</strong> {error}
         </div>
       )}
@@ -207,7 +207,7 @@ export default function EntityPage() {
 
       {/* Entities Table */}
       <div className="table-container">
-        <div style={{ marginBottom: '10px', fontSize: '12px', color: '#666' }}>
+        <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-light)' }}>
           Total Entities: {entities.length} | Filtered: {filteredEntities.length}
         </div>
         {filteredEntities.length === 0 ? (
