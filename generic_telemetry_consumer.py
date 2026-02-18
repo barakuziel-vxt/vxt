@@ -74,6 +74,7 @@ class GenericTelemetryConsumer:
         # Pre-load caches for efficient filtering
         self.entity_cache = self._load_entity_cache()  # {entity_id -> entity_type_id}
         self.attribute_cache = self._load_attribute_cache()  # set of valid attribute codes for provider
+        self.customer_entities_cache = self._load_customer_entities_cache()  # {entity_id -> customer_id} of active assignments
         
         # Initialize Kafka consumer
         self.consumer = self._init_kafka_consumer()
@@ -87,6 +88,7 @@ class GenericTelemetryConsumer:
         logger.info(f"✓ Consumer initialized: {self.provider_config['ProviderName']}")
         logger.info(f"  Entities cached: {len(self.entity_cache)}")
         logger.info(f"  EntityTypeAttributes cached: {len(self.attribute_cache)}")
+        logger.info(f"  Customer entities cached: {len(self.customer_entities_cache)}")
     
     def _lookup_provider_id(self) -> int:
         """Lookup provider ID from provider name"""
@@ -276,8 +278,44 @@ class GenericTelemetryConsumer:
             return cache
         except Exception as e:
             logger.error(f"Failed to load attribute cache: {e}")
-            raise
-    
+            return set()
+
+    def _load_customer_entities_cache(self) -> set:
+        """
+        Cache CustomerEntities that have active assignments with active customers
+        
+        Returns: set of entity_ids that are assigned to active customers
+        
+        Only includes entities where:
+        - CustomerEntities.active = 'Y'
+        - Customers.active = 'Y'
+        """
+        try:
+            connection = self._get_db_connection()
+            cursor = connection.cursor()
+            
+            cursor.execute("""
+                SELECT DISTINCT ce.entityId
+                FROM CustomerEntities ce
+                JOIN Customers c ON ce.customerId = c.customerId
+                WHERE ce.active = 'Y'
+                  AND c.active = 'Y'
+            """)
+            
+            cache = set(row[0] for row in cursor.fetchall())
+            
+            connection.close()
+            logger.info(f"Cached {len(cache)} active customer entities")
+            if cache:
+                sample_entities = list(cache)[:5]
+                logger.info(f"  Sample customer entities: {sample_entities}")
+            else:
+                logger.warning(f"  WARNING: Customer entities cache is EMPTY! No active customer entities found.")
+            return cache
+        except Exception as e:
+            logger.error(f"Failed to load customer entities cache: {e}")
+            return set()
+
     def _should_insert(self, entity_id: str, protocol_attr_code: str) -> Tuple[bool, str]:
         """
         Determine if we should insert this telemetry record
@@ -285,6 +323,7 @@ class GenericTelemetryConsumer:
         Checks:
         1. Entity must exist in Entity table (and have EntityTypeId matching this provider)
         2. EntityTypeAttribute code exists for this provider
+        3. Entity must be in CustomerEntities with active customer subscription
         
         Args:
             entity_id: str - entity identifier (e.g., '033114869')
@@ -294,11 +333,15 @@ class GenericTelemetryConsumer:
         """
         # Check 1: Entity must exist in entity cache (already filtered by provider's EntityTypeIds)
         if entity_id not in self.entity_cache:
-            return False, f"Entity '{entity_id}' not found in cache. Available entities: {list(self.entity_cache.keys())[:10]}"
+            return False, f"Entity '{entity_id}' not found in Entity cache. Available entities: {list(self.entity_cache.keys())[:10]}"
         
         # Check 2: EntityTypeAttribute code must exist for this provider
         if protocol_attr_code not in self.attribute_cache:
             return False, f"No EntityTypeAttribute with code '{protocol_attr_code}' for provider {self.provider_id}. Available codes: {list(self.attribute_cache)[:10]}"
+        
+        # Check 3: Entity must be assigned to an active customer (active CustomerEntity with active Customer)
+        if entity_id not in self.customer_entities_cache:
+            return False, f"Entity '{entity_id}' not assigned to any active customer or customer is inactive. No data inserted."
         
         return True, "OK"
     
