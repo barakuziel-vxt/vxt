@@ -50,7 +50,35 @@ export default function App() {
       <div className="app-container">
         <nav className="app-sidebar">
           <div className="nav-section">
-            <h3>Configuration Management</h3>
+            <h3>Protocol & Provider</h3>
+            <button
+              className={`nav-button ${currentPage === 'protocol' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('protocol')}
+            >
+              📡 Protocols
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'protocolAttribute' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('protocolAttribute')}
+            >
+              🔧 Protocol Attributes
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'provider' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('provider')}
+            >
+              🔌 Providers
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'providerEvent' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('providerEvent')}
+            >
+              📪 Provider Events
+            </button>
+          </div>
+
+          <div className="nav-section">
+            <h3>Configuration</h3>
             <button
               className={`nav-button ${currentPage === 'entityCategory' ? 'active' : ''}`}
               onClick={() => setCurrentPage('entityCategory')}
@@ -75,49 +103,21 @@ export default function App() {
             >
               📢 Events
             </button>
-          </div>
-
-          <div className="nav-section">
-            <h3>Data Management</h3>
             <button
               className={`nav-button ${currentPage === 'entity' ? 'active' : ''}`}
               onClick={() => setCurrentPage('entity')}
             >
               🚢 Entities
             </button>
+          </div>
+
+          <div className="nav-section">
+            <h3>Data</h3>
             <button
               className={`nav-button ${currentPage === 'telemetry' ? 'active' : ''}`}
               onClick={() => setCurrentPage('telemetry')}
             >
               📊 Telemetry & Events
-            </button>
-          </div>
-
-          <div className="nav-section">
-            <h3>Protocol & Provider Management</h3>
-            <button
-              className={`nav-button ${currentPage === 'protocol' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('protocol')}
-            >
-              📡 Protocols
-            </button>
-            <button
-              className={`nav-button ${currentPage === 'protocolAttribute' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('protocolAttribute')}
-            >
-              🔧 Protocol Attributes
-            </button>
-            <button
-              className={`nav-button ${currentPage === 'provider' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('provider')}
-            >
-              🔌 Providers
-            </button>
-            <button
-              className={`nav-button ${currentPage === 'providerEvent' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('providerEvent')}
-            >
-              📪 Provider Events
             </button>
           </div>
 
