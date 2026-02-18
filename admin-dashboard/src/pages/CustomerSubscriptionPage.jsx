@@ -1,70 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
-import './CustomerSubscriptionPage.css';
+import { customerSubscriptionAPI, customerAPI, entityAPI, eventAPI } from '../services/api';
 
-const CustomerSubscriptionPage = () => {
+export default function CustomerSubscriptionPage() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [entities, setEntities] = useState([]);
   const [events, setEvents] = useState([]);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [showEventDetails, setShowEventDetails] = useState(false);
-  const [selectedEventDetails, setSelectedEventDetails] = useState(null);
-  
-  const [filterCustomerId, setFilterCustomerId] = useState('');
-  const [filterEntityId, setFilterEntityId] = useState('');
-  const [filterEventId, setFilterEventId] = useState('');
-  
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterEntity, setFilterEntity] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [formData, setFormData] = useState({
     customerId: '',
     entityId: '',
     eventId: '',
     subscriptionStartDate: new Date().toISOString().split('T')[0],
     subscriptionEndDate: '',
-    active: 'Y'
+    active: 'Y',
   });
 
-  // Load all data on component mount
   useEffect(() => {
-    loadData();
+    loadCustomers();
+    loadEntities();
+    loadEvents();
+    loadSubscriptions();
   }, []);
 
-  const loadData = async () => {
+  const loadCustomers = async () => {
     try {
-      const [subRes, custRes, entRes, evRes] = await Promise.all([
-        api.get('/customersubscriptions'),
-        api.get('/customers'),
-        api.get('/entities'),
-        api.get('/events')
-      ]);
-      setSubscriptions(subRes.data || []);
-      setCustomers(custRes.data || []);
-      setEntities(entRes.data || []);
-      setEvents(evRes.data || []);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      alert('Failed to load data');
+      const data = await customerAPI.getAll();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Error loading customers:', err);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const loadEntities = async () => {
+    try {
+      const data = await entityAPI.getAll();
+      setEntities(data);
+    } catch (err) {
+      console.error('Error loading entities:', err);
+    }
   };
 
-  const handleSelectEvent = async (eventId) => {
+  const loadEvents = async () => {
     try {
-      const response = await api.get(`/events/${eventId}/details`);
-      setSelectedEventDetails(response.data || response);
-      setShowEventDetails(true);
-    } catch (error) {
-      console.error('Error loading event details:', error);
-      alert('Failed to load event details');
+      const data = await eventAPI.getAll();
+      setEvents(data);
+    } catch (err) {
+      console.error('Error loading events:', err);
+    }
+  };
+
+  const loadSubscriptions = async () => {
+    setLoading(true);
+    try {
+      const data = await customerSubscriptionAPI.getAll();
+      setSubscriptions(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,12 +73,12 @@ const CustomerSubscriptionPage = () => {
     if (subscription) {
       setEditingId(subscription.customerSubscriptionId);
       setFormData({
-        customerId: String(subscription.customerId || ''),
-        entityId: String(subscription.entityId || ''),
-        eventId: String(subscription.eventId || ''),
+        customerId: subscription.customerId || '',
+        entityId: subscription.entityId || '',
+        eventId: subscription.eventId || '',
         subscriptionStartDate: subscription.subscriptionStartDate?.split('T')[0] || '',
         subscriptionEndDate: subscription.subscriptionEndDate?.split('T')[0] || '',
-        active: subscription.active || 'Y'
+        active: subscription.active || 'Y',
       });
     } else {
       setEditingId(null);
@@ -87,298 +88,331 @@ const CustomerSubscriptionPage = () => {
         eventId: '',
         subscriptionStartDate: new Date().toISOString().split('T')[0],
         subscriptionEndDate: '',
-        active: 'Y'
+        active: 'Y',
       });
     }
-    setShowEventDetails(false);
-    setSelectedEventDetails(null);
-    setIsModalOpen(true);
+    setShowModal(true);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
+    setShowModal(false);
     setEditingId(null);
+    setFormData({
+      customerId: '',
+      entityId: '',
+      eventId: '',
+      subscriptionStartDate: new Date().toISOString().split('T')[0],
+      subscriptionEndDate: '',
+      active: 'Y',
+    });
   };
 
-  const handleSave = async () => {
-    if (!formData.customerId || !formData.entityId || !formData.eventId) {
-      alert('Please fill in all required fields');
-      return;
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
+  const handleSave = async (e) => {
+    e.preventDefault();
     try {
       if (editingId) {
-        await api.put(`/customersubscriptions/${editingId}`, formData);
-        alert('Subscription updated successfully');
+        await customerSubscriptionAPI.update(editingId, formData);
       } else {
-        await api.post('/customersubscriptions', formData);
-        alert('Subscription created successfully');
+        await customerSubscriptionAPI.create(formData);
       }
+      await loadSubscriptions();
       handleCloseModal();
-      loadData();
-    } catch (error) {
-      console.error('Error saving subscription:', error);
-      alert(`Failed to save subscription: ${error.response?.data?.detail || error.message}`);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this subscription?')) {
-      return;
-    }
-
-    try {
-      await api.delete(`/customersubscriptions/${id}`);
-      alert('Subscription deleted successfully');
-      loadData();
-    } catch (error) {
-      console.error('Error deleting subscription:', error);
-      alert(`Failed to delete subscription: ${error.response?.data?.detail || error.message}`);
+    if (window.confirm('Are you sure you want to delete this subscription?')) {
+      try {
+        await customerSubscriptionAPI.delete(id);
+        await loadSubscriptions();
+      } catch (err) {
+        setError(err.message);
+      }
     }
   };
 
-  const getCustomerName = (id) => {
-    const customer = customers.find(c => c.customerId === id);
-    return customer ? customer.customerName : 'N/A';
+  const getFilteredSubscriptions = () => {
+    let filtered = subscriptions;
+    
+    if (filterCustomer) {
+      filtered = filtered.filter((s) => {
+        const customer = customers.find((c) => c.customerId === s.customerId);
+        return customer?.customerName.toLowerCase().includes(filterCustomer.toLowerCase());
+      });
+    }
+    if (filterEntity) {
+      filtered = filtered.filter((s) =>
+        s.entityId.toLowerCase().includes(filterEntity.toLowerCase())
+      );
+    }
+    if (filterStatus) {
+      filtered = filtered.filter((s) => s.active === filterStatus);
+    }
+    
+    return filtered;
   };
-
-  const getEntityName = (id) => {
-    const entity = entities.find(e => e.entityId === id);
-    return entity ? entity.entityName : 'N/A';
-  };
-
-  const getEventCode = (id) => {
-    const event = events.find(e => e.eventId === id);
-    return event ? event.eventCode : 'N/A';
-  };
-
-  const filteredSubscriptions = subscriptions.filter(sub => {
-    if (filterCustomerId && sub.customerId !== parseInt(filterCustomerId)) return false;
-    if (filterEntityId && sub.entityId !== parseInt(filterEntityId)) return false;
-    if (filterEventId && sub.eventId !== parseInt(filterEventId)) return false;
-    return true;
-  });
 
   return (
-    <div className="customer-subscription-page">
-      <div className="page-header">
-        <h1>Customer Subscriptions</h1>
-      </div>
+    <div className="page">
+      <h2>Customer Subscription Management</h2>
+      <p className="page-subtitle">Manage customer subscriptions to entities and events</p>
 
-      {/* Filters */}
-      <div className="filter-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '15px', flex: '1', minWidth: '300px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <label htmlFor="filterCustomer" style={{ whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-color)', fontSize: '13px' }}>Subscriber:</label>
-            <select
-              id="filterCustomer"
-              value={filterCustomerId}
-              onChange={(e) => setFilterCustomerId(e.target.value)}
-              className="filter-select"
-              style={{ minWidth: '150px' }}
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
             >
-              <option value="">ALL</option>
-              {customers.map(cust => (
-                <option key={cust.customerId} value={cust.customerId}>
-                  {cust.customerName}
-                </option>
-              ))}
-            </select>
+              Customer
+            </label>
+            <input
+              type="text"
+              value={filterCustomer}
+              onChange={(e) => setFilterCustomer(e.target.value)}
+              placeholder="Search customer..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <label htmlFor="filterEntity" style={{ whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-color)', fontSize: '13px' }}>Entity:</label>
-            <select
-              id="filterEntity"
-              value={filterEntityId}
-              onChange={(e) => setFilterEntityId(e.target.value)}
-              className="filter-select"
-              style={{ minWidth: '150px' }}
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
             >
-              <option value="">ALL</option>
-              {entities.map(ent => (
-                <option key={ent.entityId} value={ent.entityId}>
-                  {ent.entityName || `${ent.entityFirstName} ${ent.entityLastName || ''}`.trim()}
-                </option>
-              ))}
-            </select>
+              Entity ID
+            </label>
+            <input
+              type="text"
+              value={filterEntity}
+              onChange={(e) => setFilterEntity(e.target.value)}
+              placeholder="Search entity..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <label htmlFor="filterEvent" style={{ whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-color)', fontSize: '13px' }}>Event:</label>
-            <select
-              id="filterEvent"
-              value={filterEventId}
-              onChange={(e) => setFilterEventId(e.target.value)}
-              className="filter-select"
-              style={{ minWidth: '150px' }}
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
             >
-              <option value="">ALL</option>
-              {events.map(evt => (
-                <option key={evt.eventId} value={evt.eventId}>
-                  {evt.eventCode}
-                </option>
-              ))}
+              Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            >
+              <option value="">All</option>
+              <option value="Y">Active</option>
+              <option value="N">Inactive</option>
             </select>
           </div>
         </div>
-        <button className="btn-primary" onClick={() => handleOpenModal()} style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
-          + Add New Subscription
+
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
         </button>
       </div>
 
-      {/* Subscriptions Table */}
-      <div className="subscriptions-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Customer</th>
-              <th>Entity</th>
-              <th>Event</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSubscriptions.map(sub => (
-              <tr key={sub.customerSubscriptionId}>
-                <td>{sub.customerName}</td>
-                <td>{sub.entityName} ({sub.entityId})</td>
-                <td>
-                  <button 
-                    className="link-button"
-                    onClick={() => handleSelectEvent(sub.eventId)}
-                    title="Click to view event details"
-                  >
-                    {sub.eventCode}
-                  </button>
-                </td>
-                <td>{sub.subscriptionStartDate?.split('T')[0]}</td>
-                <td>{sub.subscriptionEndDate?.split('T')[0] || 'Never'}</td>
-                <td>
-                  <span className={`status ${sub.active === 'Y' ? 'active' : 'inactive'}`}>
-                    {sub.active === 'Y' ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>
-                  <button 
-                    className="action-button edit-button"
-                    onClick={() => handleOpenModal(sub)}
-                    title="Edit subscription"
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button 
-                    className="action-button delete-button"
-                    onClick={() => handleDelete(sub.customerSubscriptionId)}
-                    title="Delete subscription"
-                  >
-                    🗑️ Delete
-                  </button>
-                </td>
+      {loading ? (
+        <div className="empty-state">
+          <h3>Loading...</h3>
+        </div>
+      ) : getFilteredSubscriptions().length === 0 ? (
+        <div className="empty-state">
+          <h3>{subscriptions.length === 0 ? 'No subscriptions found' : 'No subscriptions match the selected filter'}</h3>
+          <p>{subscriptions.length === 0 ? 'Create your first customer subscription' : 'Try adjusting your filters'}</p>
+        </div>
+      ) : (
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Entity ID</th>
+                <th>Event</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {filteredSubscriptions.length === 0 && (
-          <div className="no-data">No subscriptions found</div>
-        )}
-      </div>
+            </thead>
+            <tbody>
+              {getFilteredSubscriptions().map((subscription) => {
+                const customer = customers.find((c) => c.customerId === subscription.customerId);
+                const event = events.find((e) => e.eventId === subscription.eventId);
+                return (
+                  <tr key={subscription.customerSubscriptionId}>
+                    <td>{subscription.customerSubscriptionId}</td>
+                    <td>
+                      <span>{customer?.customerName || 'Unknown'}</span>
+                    </td>
+                    <td>
+                      <strong>{subscription.entityId}</strong>
+                    </td>
+                    <td>
+                      <span>{event?.eventCode || '—'}</span>
+                    </td>
+                    <td>
+                      <span>{subscription.subscriptionStartDate?.split('T')[0] || '—'}</span>
+                    </td>
+                    <td>
+                      <span>{subscription.subscriptionEndDate?.split('T')[0] || '—'}</span>
+                    </td>
+                    <td>
+                      <span>
+                        {subscription.active === 'Y' ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleOpenModal(subscription)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleDelete(subscription.customerSubscriptionId)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="modal-backdrop" style={{ zIndex: 1000 }} onClick={handleCloseModal}>
-          <div className="modal" style={{ zIndex: 1001 }} onClick={e => e.stopPropagation()}>
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content">
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Subscription' : 'Create New Subscription'}</h2>
-              <button className="close-btn" onClick={handleCloseModal}>×</button>
+              <h3>{editingId ? 'Edit Customer Subscription' : 'Add New Customer Subscription'}</h3>
             </div>
 
-            <div className="modal-body">
-              {/* Customer Selection */}
+            <form onSubmit={handleSave}>
               <div className="form-group">
-                <label>Customer *</label>
-                <select 
+                <label htmlFor="customerId">Customer *</label>
+                <select
+                  id="customerId"
                   name="customerId"
                   value={formData.customerId}
                   onChange={handleInputChange}
                   required
                 >
-                  <option value="">Select a customer...</option>
-                  {customers.map(cust => (
-                    <option key={cust.customerId} value={String(cust.customerId)}>
-                      {cust.customerName}
+                  <option value="">Select a customer</option>
+                  {customers.map((customer) => (
+                    <option key={customer.customerId} value={customer.customerId}>
+                      {customer.customerName}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Entity Selection */}
               <div className="form-group">
-                <label>Entity *</label>
-                <select 
+                <label htmlFor="entityId">Entity ID *</label>
+                <input
+                  type="text"
+                  id="entityId"
                   name="entityId"
                   value={formData.entityId}
                   onChange={handleInputChange}
                   required
+                  placeholder="e.g., 234567890"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="eventId">Event</label>
+                <select
+                  id="eventId"
+                  name="eventId"
+                  value={formData.eventId}
+                  onChange={handleInputChange}
                 >
-                  <option value="">Select an entity...</option>
-                  {entities.map(ent => (
-                    <option key={ent.entityId} value={String(ent.entityId)}>
-                      {ent.entityName || `${ent.entityFirstName} ${ent.entityLastName || ''}`.trim()}
+                  <option value="">Select an event (optional)</option>
+                  {events.map((event) => (
+                    <option key={event.eventId} value={event.eventId}>
+                      {event.eventCode}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Event Selection */}
-              <div className="form-group">
-                <label>Event *</label>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <select 
-                    name="eventId"
-                    value={String(formData.eventId || '')}
-                    onChange={handleInputChange}
-                    required
-                    style={{ flex: 1, minWidth: 0 }}
-                  >
-                    <option value="">Select an event...</option>
-                    {events.map(evt => (
-                      <option key={`evt-${evt.eventId}`} value={String(evt.eventId)}>
-                        {evt.eventDescription}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.eventId && (
-                    <button 
-                      className="btn-view-details"
-                      onClick={() => handleSelectEvent(parseInt(formData.eventId))}
-                      type="button"
-                    >
-                      View Details
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Dates */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Start Date *</label>
-                  <input 
+                  <label htmlFor="subscriptionStartDate">Start Date *</label>
+                  <input
                     type="date"
+                    id="subscriptionStartDate"
                     name="subscriptionStartDate"
                     value={formData.subscriptionStartDate}
                     onChange={handleInputChange}
                     required
                   />
                 </div>
+
                 <div className="form-group">
-                  <label>End Date</label>
-                  <input 
+                  <label htmlFor="subscriptionEndDate">End Date</label>
+                  <input
                     type="date"
+                    id="subscriptionEndDate"
                     name="subscriptionEndDate"
                     value={formData.subscriptionEndDate}
                     onChange={handleInputChange}
@@ -386,10 +420,10 @@ const CustomerSubscriptionPage = () => {
                 </div>
               </div>
 
-              {/* Active Status */}
               <div className="form-group">
-                <label>Status</label>
-                <select 
+                <label htmlFor="active">Status</label>
+                <select
+                  id="active"
                   name="active"
                   value={formData.active}
                   onChange={handleInputChange}
@@ -399,122 +433,18 @@ const CustomerSubscriptionPage = () => {
                 </select>
               </div>
 
-
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={handleCloseModal}>
-                Cancel
-              </button>
-              <button className="btn-primary" onClick={handleSave}>
-                {editingId ? 'Update' : 'Create'} Subscription
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Event Details Modal */}
-      {showEventDetails && selectedEventDetails && (
-        <div className="modal-backdrop" style={{ zIndex: 2000 }} onClick={() => setShowEventDetails(false)}>
-          <div className="modal" style={{ zIndex: 2001 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Event Details: {selectedEventDetails.eventCode}</h2>
-              <button className="close-btn" onClick={() => setShowEventDetails(false)}>×</button>
-            </div>
-
-            <div className="modal-body">
-              <div className="details-group">
-                <h4>Description</h4>
-                <p>{selectedEventDetails.eventDescription}</p>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {editingId ? 'Update' : 'Create'} Subscription
+                </button>
               </div>
-
-              {/* Analysis Function */}
-              {selectedEventDetails.functionName && (
-                <div className="details-group">
-                  <h4>Analysis Function</h4>
-                  <div className="function-info">
-                    <div className="function-name">
-                      <strong>Function:</strong> {selectedEventDetails.functionName}
-                    </div>
-                    <div className="function-type">
-                      <strong>Type:</strong> {selectedEventDetails.functionType}
-                    </div>
-                    {selectedEventDetails.functionDescription && (
-                      <div className="function-description">
-                        <strong>Description:</strong>
-                        <p>{selectedEventDetails.functionDescription}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Event Parameters */}
-              <div className="details-group">
-                <h4>Event Parameters</h4>
-                <div className="parameters-grid">
-                  <div className="param">
-                    <strong>Min Score:</strong> {selectedEventDetails.minCumulatedScore}
-                  </div>
-                  <div className="param">
-                    <strong>Max Score:</strong> {selectedEventDetails.maxCumulatedScore}
-                  </div>
-                  <div className="param">
-                    <strong>Risk Level:</strong> {selectedEventDetails.risk}
-                  </div>
-                  <div className="param">
-                    <strong>Lookback Minutes:</strong> {selectedEventDetails.LookbackMinutes}
-                  </div>
-                  <div className="param">
-                    <strong>Baseline Days:</strong> {selectedEventDetails.BaselineDays}
-                  </div>
-                  <div className="param">
-                    <strong>Sensitivity:</strong> {selectedEventDetails.SensitivityThreshold}
-                  </div>
-                  <div className="param">
-                    <strong>Min Samples:</strong> {selectedEventDetails.MinSamplesRequired}
-                  </div>
-                </div>
-              </div>
-
-              {/* Attributes */}
-              {selectedEventDetails.attributes && selectedEventDetails.attributes.length > 0 && (
-                <div className="details-group">
-                  <h4>Associated Attributes ({selectedEventDetails.attributes.length})</h4>
-                  <div className="attributes-list">
-                    {selectedEventDetails.attributes.map(attr => (
-                      <div key={attr.eventAttributeId} className="attribute-item">
-                        <div className="attr-header">
-                          <strong>{attr.attributeName}</strong>
-                          <span className="attr-code">{attr.attributeCode}</span>
-                        </div>
-                        {attr.attributeDescription && (
-                          <div className="attr-description">
-                            {attr.attributeDescription}
-                          </div>
-                        )}
-                        <div className="attr-meta">
-                          {attr.timeAspect && <span>Time Aspect: {attr.timeAspect}</span>}
-                          {attr.unit && <span>Unit: {attr.unit}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowEventDetails(false)}>
-                Close
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default CustomerSubscriptionPage;
+}
