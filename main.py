@@ -1002,12 +1002,14 @@ def create_protocol(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO Protocol (protocolName, protocolDescription, active, 
+            INSERT INTO Protocol (protocolName, protocolDescription, protocolVersion, kafkaTopic, active, 
                                  createDate, lastUpdateTimestamp)
-            VALUES (?, ?, ?, GETDATE(), GETDATE())
+            VALUES (?, ?, ?, ?, ?, GETDATE(), GETDATE())
         """, (
             data.get("protocolName"),
             data.get("protocolDescription", ""),
+            data.get("protocolVersion", ""),
+            data.get("kafkaTopic", ""),
             data.get("active", "Y")
         ))
         conn.commit()
