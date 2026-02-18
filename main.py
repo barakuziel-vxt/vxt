@@ -821,7 +821,7 @@ def get_protocols():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT protocolId, protocolName, protocolVersion, description, kafkaTopic, active
+            SELECT protocolId, protocolName, protocolVersion, protocolDescription, kafkaTopic, active
             FROM Protocol
             WHERE active = 'Y'
             ORDER BY protocolName
@@ -832,7 +832,7 @@ def get_protocols():
                 "protocolId": row[0],
                 "protocolName": row[1],
                 "protocolVersion": row[2],
-                "description": row[3],
+                "protocolDescription": row[3],
                 "kafkaTopic": row[4],
                 "active": row[5]
             })
