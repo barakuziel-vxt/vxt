@@ -1146,7 +1146,8 @@ def get_provider_events():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT providerEventId, providerId, providerEventType, providerEventDescription, active
+            SELECT providerEventId, providerId, providerEventName, providerEventType, 
+                   providerEventDescription, providerNamespace, active
             FROM ProviderEvent
             ORDER BY providerEventName
         """)
@@ -1155,9 +1156,11 @@ def get_provider_events():
             events.append({
                 "providerEventId": row[0],
                 "providerId": row[1],
-                "providerEventType": row[2],
-                "providerEventDescription": row[3],
-                "active": row[4]
+                "providerEventName": row[2],
+                "providerEventType": row[3],
+                "providerEventDescription": row[4],
+                "providerNamespace": row[5],
+                "active": row[6]
             })
         cur.close()
         conn.close()

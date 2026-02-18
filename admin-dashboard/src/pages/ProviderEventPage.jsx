@@ -9,11 +9,15 @@ export default function ProviderEventPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [filterProvider, setFilterProvider] = useState('');
-  const [filterEvent, setFilterEvent] = useState('');
+  const [filterEventName, setFilterEventName] = useState('');
+  const [filterEventType, setFilterEventType] = useState('');
+  const [filterNamespace, setFilterNamespace] = useState('');
   const [formData, setFormData] = useState({
     providerId: '',
-    eventName: '',
-    eventDescription: '',
+    providerEventName: '',
+    providerEventType: '',
+    providerEventDescription: '',
+    providerNamespace: '',
     active: 'Y',
   });
 
@@ -49,16 +53,20 @@ export default function ProviderEventPage() {
       setEditingId(event.providerEventId);
       setFormData({
         providerId: event.providerId || '',
-        eventName: event.eventName,
-        eventDescription: event.eventDescription || '',
+        providerEventName: event.providerEventName || '',
+        providerEventType: event.providerEventType || '',
+        providerEventDescription: event.providerEventDescription || '',
+        providerNamespace: event.providerNamespace || '',
         active: event.active || 'Y',
       });
     } else {
       setEditingId(null);
       setFormData({
         providerId: '',
-        eventName: '',
-        eventDescription: '',
+        providerEventName: '',
+        providerEventType: '',
+        providerEventDescription: '',
+        providerNamespace: '',
         active: 'Y',
       });
     }
@@ -70,8 +78,10 @@ export default function ProviderEventPage() {
     setEditingId(null);
     setFormData({
       providerId: '',
-      eventName: '',
-      eventDescription: '',
+      providerEventName: '',
+      providerEventType: '',
+      providerEventDescription: '',
+      providerNamespace: '',
       active: 'Y',
     });
   };
@@ -119,9 +129,19 @@ export default function ProviderEventPage() {
         return provider?.providerName.toLowerCase().includes(filterProvider.toLowerCase());
       });
     }
-    if (filterEvent) {
+    if (filterEventName) {
       filtered = filtered.filter((e) =>
-        e.eventName.toLowerCase().includes(filterEvent.toLowerCase())
+        e.providerEventName.toLowerCase().includes(filterEventName.toLowerCase())
+      );
+    }
+    if (filterEventType) {
+      filtered = filtered.filter((e) =>
+        e.providerEventType.toLowerCase().includes(filterEventType.toLowerCase())
+      );
+    }
+    if (filterNamespace) {
+      filtered = filtered.filter((e) =>
+        e.providerNamespace.toLowerCase().includes(filterNamespace.toLowerCase())
       );
     }
     
@@ -180,9 +200,67 @@ export default function ProviderEventPage() {
             </label>
             <input
               type="text"
-              value={filterEvent}
-              onChange={(e) => setFilterEvent(e.target.value)}
+              value={filterEventName}
+              onChange={(e) => setFilterEventName(e.target.value)}
               placeholder="Search event..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Event Type
+            </label>
+            <input
+              type="text"
+              value={filterEventType}
+              onChange={(e) => setFilterEventType(e.target.value)}
+              placeholder="Search type..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Namespace
+            </label>
+            <input
+              type="text"
+              value={filterNamespace}
+              onChange={(e) => setFilterNamespace(e.target.value)}
+              placeholder="Search namespace..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -218,6 +296,8 @@ export default function ProviderEventPage() {
                 <th>ID</th>
                 <th>Provider</th>
                 <th>Event Name</th>
+                <th>Event Type</th>
+                <th>Namespace</th>
                 <th>Description</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -233,10 +313,16 @@ export default function ProviderEventPage() {
                       <span>{provider?.providerName || 'Unknown'}</span>
                     </td>
                     <td>
-                      <strong>{event.eventName}</strong>
+                      <strong>{event.providerEventName}</strong>
                     </td>
                     <td>
-                      <small>{event.eventDescription || '—'}</small>
+                      <span>{event.providerEventType || '—'}</span>
+                    </td>
+                    <td>
+                      <span>{event.providerNamespace || '—'}</span>
+                    </td>
+                    <td>
+                      <small>{event.providerEventDescription || '—'}</small>
                     </td>
                     <td>
                       <span>
@@ -292,12 +378,12 @@ export default function ProviderEventPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="eventName">Event Name *</label>
+                <label htmlFor="providerEventName">Event Name *</label>
                 <input
                   type="text"
-                  id="eventName"
-                  name="eventName"
-                  value={formData.eventName}
+                  id="providerEventName"
+                  name="providerEventName"
+                  value={formData.providerEventName}
                   onChange={handleInputChange}
                   required
                   placeholder="e.g., BoatTelemetryReceived, HealthUpdate"
@@ -305,11 +391,35 @@ export default function ProviderEventPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="eventDescription">Description</label>
+                <label htmlFor="providerEventType">Event Type</label>
+                <input
+                  type="text"
+                  id="providerEventType"
+                  name="providerEventType"
+                  value={formData.providerEventType}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Telemetry, Health, Status"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="providerNamespace">Namespace</label>
+                <input
+                  type="text"
+                  id="providerNamespace"
+                  name="providerNamespace"
+                  value={formData.providerNamespace}
+                  onChange={handleInputChange}
+                  placeholder="e.g., com.example.events"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="providerEventDescription">Description</label>
                 <textarea
-                  id="eventDescription"
-                  name="eventDescription"
-                  value={formData.eventDescription}
+                  id="providerEventDescription"
+                  name="providerEventDescription"
+                  value={formData.providerEventDescription}
                   onChange={handleInputChange}
                   rows="4"
                   placeholder="Detailed description of this event"
