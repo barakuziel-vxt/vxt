@@ -153,9 +153,9 @@ export default function ProviderPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ marginBottom: '0' }}>
-          <div>
+      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
                 display: 'block',
@@ -184,7 +184,7 @@ export default function ProviderPage() {
             />
           </div>
 
-          <div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
                 display: 'block',
@@ -213,7 +213,7 @@ export default function ProviderPage() {
             />
           </div>
 
-          <div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
                 display: 'block',
@@ -242,7 +242,7 @@ export default function ProviderPage() {
             />
           </div>
 
-          <div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
                 display: 'block',
@@ -271,7 +271,7 @@ export default function ProviderPage() {
             />
           </div>
 
-          <div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
               style={{
                 display: 'block',
@@ -300,11 +300,9 @@ export default function ProviderPage() {
             />
           </div>
         </div>
-      </div>
 
-      <div style={{ marginBottom: '20px' }}>
-        <button className="add-button" onClick={() => handleOpenModal()}>
-          + Add New Provider
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
         </button>
       </div>
 
@@ -326,9 +324,9 @@ export default function ProviderPage() {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th style={{ maxWidth: '250px' }}>Base URL</th>
+                <th>Base URL</th>
                 <th>API Version</th>
-                <th style={{ maxWidth: '200px' }}>Documentation URL</th>
+                <th style={{ maxWidth: '200px' }}>Doc URL</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -345,7 +343,7 @@ export default function ProviderPage() {
                   </td>
                   <td>
                     {provider.providerCategory ? (
-                      <span className="badge badge-info">{provider.providerCategory}</span>
+                      <span>{provider.providerCategory}</span>
                     ) : (
                       <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
@@ -355,19 +353,14 @@ export default function ProviderPage() {
                       style={{
                         color: 'var(--text-light)',
                         fontFamily: 'monospace',
-                        display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
                       }}
-                      title={provider.apiBaseUrl || ''}
                     >
                       {provider.apiBaseUrl || '—'}
                     </small>
                   </td>
                   <td>
                     {provider.apiVersion ? (
-                      <span className="badge badge-secondary">{provider.apiVersion}</span>
+                      <span>{provider.apiVersion}</span>
                     ) : (
                       <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
@@ -393,7 +386,7 @@ export default function ProviderPage() {
                     </small>
                   </td>
                   <td>
-                    <span className={`badge badge-${provider.active === 'Y' ? 'active' : 'inactive'}`}>
+                    <span>
                       {provider.active === 'Y' ? 'Active' : 'Inactive'}
                     </span>
                   </td>
@@ -405,7 +398,7 @@ export default function ProviderPage() {
                       Edit
                     </button>
                     <button
-                      className="btn btn-sm btn-danger"
+                      className="btn btn-sm btn-secondary"
                       onClick={() => handleDelete(provider.providerId)}
                     >
                       Delete
