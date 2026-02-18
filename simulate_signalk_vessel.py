@@ -27,7 +27,7 @@ class SignalKSimulator:
         """Initialize Kafka producer for SignalK events"""
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
-        self.vessel_mmsi = '244670426'  # Example MMSI (unique identifier for vessel)
+        self.vessel_mmsi = '234567890'  # Vessel MMSI identifier
         
         try:
             self.producer = KafkaProducer(
