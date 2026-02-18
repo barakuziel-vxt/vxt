@@ -9,9 +9,12 @@ export default function ProtocolPage() {
   const [editingId, setEditingId] = useState(null);
   const [filterName, setFilterName] = useState('');
   const [filterDescription, setFilterDescription] = useState('');
+  const [filterVersion, setFilterVersion] = useState('');
   const [formData, setFormData] = useState({
     protocolName: '',
     protocolDescription: '',
+    protocolVersion: '',
+    kafkaTopic: '',
     active: 'Y',
   });
 
@@ -38,6 +41,8 @@ export default function ProtocolPage() {
       setFormData({
         protocolName: protocol.protocolName,
         protocolDescription: protocol.protocolDescription || '',
+        protocolVersion: protocol.protocolVersion || '',
+        kafkaTopic: protocol.kafkaTopic || '',
         active: protocol.active || 'Y',
       });
     } else {
@@ -45,6 +50,8 @@ export default function ProtocolPage() {
       setFormData({
         protocolName: '',
         protocolDescription: '',
+        protocolVersion: '',
+        kafkaTopic: '',
         active: 'Y',
       });
     }
@@ -57,6 +64,8 @@ export default function ProtocolPage() {
     setFormData({
       protocolName: '',
       protocolDescription: '',
+      protocolVersion: '',
+      kafkaTopic: '',
       active: 'Y',
     });
   };
@@ -106,6 +115,11 @@ export default function ProtocolPage() {
     if (filterDescription) {
       filtered = filtered.filter((p) =>
         p.protocolDescription?.toLowerCase().includes(filterDescription.toLowerCase())
+      );
+    }
+    if (filterVersion) {
+      filtered = filtered.filter((p) =>
+        p.protocolVersion?.toLowerCase().includes(filterVersion.toLowerCase())
       );
     }
     
@@ -176,11 +190,34 @@ export default function ProtocolPage() {
                 backgroundColor: '#353535',
                 color: 'var(--text-color)',
               }}
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Version
+            </label>
+            <input
+              type="text"
+              value={filterVersion}
+              onChange={(e) => setFilterVersion(e.target.value)}
+              placeholder="Search version..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
             />
           </div>
-        </div>
-
-        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
           + Add New
         </button>
       </div>
@@ -202,6 +239,8 @@ export default function ProtocolPage() {
                 <th>ID</th>
                 <th>Name</th>
                 <th>Description</th>
+                <th>Version</th>
+                <th>Kafka Topic</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -215,6 +254,12 @@ export default function ProtocolPage() {
                   </td>
                   <td>
                     <small>{protocol.protocolDescription || '—'}</small>
+                  </td>
+                  <td>
+                    <small>{protocol.protocolVersion || '—'}</small>
+                  </td>
+                  <td>
+                    <small>{protocol.kafkaTopic || '—'}</small>
                   </td>
                   <td>
                     <span>
@@ -272,6 +317,30 @@ export default function ProtocolPage() {
                   onChange={handleInputChange}
                   rows="4"
                   placeholder="Detailed description of this protocol"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="protocolVersion">Protocol Version</label>
+                <input
+                  type="text"
+                  id="protocolVersion"
+                  name="protocolVersion"
+                  value={formData.protocolVersion}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 1.0, 2.0"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="kafkaTopic">Kafka Topic</label>
+                <input
+                  type="text"
+                  id="kafkaTopic"
+                  name="kafkaTopic"
+                  value={formData.kafkaTopic}
+                  onChange={handleInputChange}
+                  placeholder="e.g., protocol-events"
                 />
               </div>
 
