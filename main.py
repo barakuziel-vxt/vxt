@@ -1067,13 +1067,21 @@ def create_protocol_attribute(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO ProtocolAttribute (protocolId, attributeName, attributeDescription, active, 
-                                          createDate, lastUpdateTimestamp)
-            VALUES (?, ?, ?, ?, GETDATE(), GETDATE())
+            INSERT INTO ProtocolAttribute (protocolId, protocolAttributeCode, protocolAttributeName, 
+                                          description, component, unit, dataType, jsonPath, rangeMin, rangeMax, 
+                                          active, createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
         """, (
             data.get("protocolId"),
-            data.get("attributeName"),
-            data.get("attributeDescription", ""),
+            data.get("protocolAttributeCode"),
+            data.get("protocolAttributeName"),
+            data.get("description", ""),
+            data.get("component", ""),
+            data.get("unit", ""),
+            data.get("dataType", ""),
+            data.get("jsonPath", ""),
+            data.get("rangeMin", None),
+            data.get("rangeMax", None),
             data.get("active", "Y")
         ))
         conn.commit()
@@ -1092,12 +1100,21 @@ def update_protocol_attribute(attribute_id: int, data: dict):
         cur = conn.cursor()
         cur.execute("""
             UPDATE ProtocolAttribute
-            SET protocolId = ?, attributeName = ?, attributeDescription = ?, active = ?, lastUpdateTimestamp = GETDATE()
+            SET protocolId = ?, protocolAttributeCode = ?, protocolAttributeName = ?, 
+                description = ?, component = ?, unit = ?, dataType = ?, jsonPath = ?, 
+                rangeMin = ?, rangeMax = ?, active = ?, lastUpdateTimestamp = GETDATE()
             WHERE protocolAttributeId = ?
         """, (
             data.get("protocolId"),
-            data.get("attributeName"),
-            data.get("attributeDescription", ""),
+            data.get("protocolAttributeCode"),
+            data.get("protocolAttributeName"),
+            data.get("description", ""),
+            data.get("component", ""),
+            data.get("unit", ""),
+            data.get("dataType", ""),
+            data.get("jsonPath", ""),
+            data.get("rangeMin", None),
+            data.get("rangeMax", None),
             data.get("active", "Y"),
             attribute_id
         ))

@@ -10,10 +10,21 @@ export default function ProtocolAttributePage() {
   const [editingId, setEditingId] = useState(null);
   const [filterProtocol, setFilterProtocol] = useState('');
   const [filterAttribute, setFilterAttribute] = useState('');
+  const [filterCode, setFilterCode] = useState('');
+  const [filterComponent, setFilterComponent] = useState('');
+  const [filterUnit, setFilterUnit] = useState('');
+  const [filterDataType, setFilterDataType] = useState('');
   const [formData, setFormData] = useState({
     protocolId: '',
-    attributeName: '',
-    attributeDescription: '',
+    protocolAttributeCode: '',
+    protocolAttributeName: '',
+    description: '',
+    component: '',
+    unit: '',
+    dataType: '',
+    jsonPath: '',
+    rangeMin: '',
+    rangeMax: '',
     active: 'Y',
   });
 
@@ -49,16 +60,30 @@ export default function ProtocolAttributePage() {
       setEditingId(attribute.protocolAttributeId);
       setFormData({
         protocolId: attribute.protocolId || '',
-        attributeName: attribute.attributeName,
-        attributeDescription: attribute.attributeDescription || '',
+        protocolAttributeCode: attribute.protocolAttributeCode || '',
+        protocolAttributeName: attribute.protocolAttributeName || '',
+        description: attribute.description || '',
+        component: attribute.component || '',
+        unit: attribute.unit || '',
+        dataType: attribute.dataType || '',
+        jsonPath: attribute.jsonPath || '',
+        rangeMin: attribute.rangeMin || '',
+        rangeMax: attribute.rangeMax || '',
         active: attribute.active || 'Y',
       });
     } else {
       setEditingId(null);
       setFormData({
         protocolId: '',
-        attributeName: '',
-        attributeDescription: '',
+        protocolAttributeCode: '',
+        protocolAttributeName: '',
+        description: '',
+        component: '',
+        unit: '',
+        dataType: '',
+        jsonPath: '',
+        rangeMin: '',
+        rangeMax: '',
         active: 'Y',
       });
     }
@@ -119,9 +144,29 @@ export default function ProtocolAttributePage() {
         return protocol?.protocolName.toLowerCase().includes(filterProtocol.toLowerCase());
       });
     }
+    if (filterCode) {
+      filtered = filtered.filter((a) =>
+        a.protocolAttributeCode?.toLowerCase().includes(filterCode.toLowerCase())
+      );
+    }
+    if (filterComponent) {
+      filtered = filtered.filter((a) =>
+        a.component?.toLowerCase().includes(filterComponent.toLowerCase())
+      );
+    }
+    if (filterUnit) {
+      filtered = filtered.filter((a) =>
+        a.unit?.toLowerCase().includes(filterUnit.toLowerCase())
+      );
+    }
+    if (filterDataType) {
+      filtered = filtered.filter((a) =>
+        a.dataType?.toLowerCase().includes(filterDataType.toLowerCase())
+      );
+    }
     if (filterAttribute) {
       filtered = filtered.filter((a) =>
-        a.attributeName.toLowerCase().includes(filterAttribute.toLowerCase())
+        a.protocolAttributeName?.toLowerCase().includes(filterAttribute.toLowerCase())
       );
     }
     
@@ -194,6 +239,121 @@ export default function ProtocolAttributePage() {
               }}
             />
           </div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Attribute Code
+            </label>
+            <input
+              type="text"
+              value={filterCode}
+              onChange={(e) => setFilterCode(e.target.value)}
+              placeholder="Search code..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Component
+            </label>
+            <input
+              type="text"
+              value={filterComponent}
+              onChange={(e) => setFilterComponent(e.target.value)}
+              placeholder="Search component..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Unit
+            </label>
+            <input
+              type="text"
+              value={filterUnit}
+              onChange={(e) => setFilterUnit(e.target.value)}
+              placeholder="Search unit..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Data Type
+            </label>
+            <input
+              type="text"
+              value={filterDataType}
+              onChange={(e) => setFilterDataType(e.target.value)}
+              placeholder="Search type..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            />
+          </div>
         </div>
 
         <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
@@ -217,8 +377,14 @@ export default function ProtocolAttributePage() {
               <tr>
                 <th>ID</th>
                 <th>Protocol</th>
+                <th>Code</th>
                 <th>Attribute Name</th>
                 <th>Description</th>
+                <th>Component</th>
+                <th>Unit</th>
+                <th>Data Type</th>
+                <th>JSON Path</th>
+                <th>Range</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -233,10 +399,34 @@ export default function ProtocolAttributePage() {
                       <span>{protocol?.protocolName || 'Unknown'}</span>
                     </td>
                     <td>
-                      <strong>{attribute.attributeName}</strong>
+                      <small>{attribute.protocolAttributeCode || '—'}</small>
                     </td>
                     <td>
-                      <small>{attribute.attributeDescription || '—'}</small>
+                      <strong>{attribute.protocolAttributeName}</strong>
+                    </td>
+                    <td>
+                      <small>{attribute.description || '—'}</small>
+                    </td>
+                    <td>
+                      <small>{attribute.component || '—'}</small>
+                    </td>
+                    <td>
+                      <small>{attribute.unit || '—'}</small>
+                    </td>
+                    <td>
+                      <small>{attribute.dataType || '—'}</small>
+                    </td>
+                    <td>
+                      <small style={{ fontFamily: 'monospace', color: 'var(--text-light)' }}>
+                        {attribute.jsonPath || '—'}
+                      </small>
+                    </td>
+                    <td>
+                      <small>
+                        {attribute.rangeMin || attribute.rangeMax
+                          ? `${attribute.rangeMin || '—'} - ${attribute.rangeMax || '—'}`
+                          : '—'}
+                      </small>
                     </td>
                     <td>
                       <span>
@@ -292,28 +482,119 @@ export default function ProtocolAttributePage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="attributeName">Attribute Name *</label>
+                <label htmlFor="protocolAttributeCode">Attribute Code *</label>
                 <input
                   type="text"
-                  id="attributeName"
-                  name="attributeName"
-                  value={formData.attributeName}
+                  id="protocolAttributeCode"
+                  name="protocolAttributeCode"
+                  value={formData.protocolAttributeCode}
                   onChange={handleInputChange}
                   required
-                  placeholder="e.g., Topic, QoS Level"
+                  placeholder="e.g., ATTR_001, temperature"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="attributeDescription">Description</label>
-                <textarea
-                  id="attributeDescription"
-                  name="attributeDescription"
-                  value={formData.attributeDescription}
+                <label htmlFor="protocolAttributeName">Attribute Name *</label>
+                <input
+                  type="text"
+                  id="protocolAttributeName"
+                  name="protocolAttributeName"
+                  value={formData.protocolAttributeName}
                   onChange={handleInputChange}
-                  rows="4"
+                  required
+                  placeholder="e.g., Temperature, Humidity"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="description">Description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
                   placeholder="Detailed description of this attribute"
                 />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="component">Component</label>
+                  <input
+                    type="text"
+                    id="component"
+                    name="component"
+                    value={formData.component}
+                    onChange={handleInputChange}
+                    placeholder="e.g., sensor, actuator"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="unit">Unit</label>
+                  <input
+                    type="text"
+                    id="unit"
+                    name="unit"
+                    value={formData.unit}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Celsius, %"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="dataType">Data Type</label>
+                  <input
+                    type="text"
+                    id="dataType"
+                    name="dataType"
+                    value={formData.dataType}
+                    onChange={handleInputChange}
+                    placeholder="e.g., float, string, integer"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="jsonPath">JSON Path</label>
+                  <input
+                    type="text"
+                    id="jsonPath"
+                    name="jsonPath"
+                    value={formData.jsonPath}
+                    onChange={handleInputChange}
+                    placeholder="e.g., $.data.temperature"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="rangeMin">Range Min</label>
+                  <input
+                    type="text"
+                    id="rangeMin"
+                    name="rangeMin"
+                    value={formData.rangeMin}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 0"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="rangeMax">Range Max</label>
+                  <input
+                    type="text"
+                    id="rangeMax"
+                    name="rangeMax"
+                    value={formData.rangeMax}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 100"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
