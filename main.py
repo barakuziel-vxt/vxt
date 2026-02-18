@@ -1147,7 +1147,7 @@ def get_provider_events():
         cur = conn.cursor()
         cur.execute("""
             SELECT providerEventId, providerId, providerEventName, providerEventType, 
-                   providerEventDescription, providerNamespace, active
+                   providerEventDescription, providerNamespace, protocolAttributeCode, ProtocolId, active
             FROM ProviderEvent
             ORDER BY providerEventName
         """)
@@ -1160,7 +1160,9 @@ def get_provider_events():
                 "providerEventType": row[3],
                 "providerEventDescription": row[4],
                 "providerNamespace": row[5],
-                "active": row[6]
+                "protocolAttributeCode": row[6],
+                "protocolId": row[7],
+                "active": row[8]
             })
         cur.close()
         conn.close()
@@ -1177,14 +1179,16 @@ def create_provider_event(data: dict):
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO ProviderEvent (providerId, providerEventType, providerEventDescription, 
-                                      providerNamespace, providerEventName, active, createDate, lastUpdateTimestamp)
-            VALUES (?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+                                      providerNamespace, providerEventName, protocolAttributeCode, ProtocolId, active, createDate, lastUpdateTimestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
         """, (
             data.get("providerId"),
             data.get("providerEventType", ""),
             data.get("providerEventDescription", ""),
             data.get("providerNamespace", ""),
             data.get("providerEventName", ""),
+            data.get("protocolAttributeCode", None),
+            data.get("protocolId", None),
             data.get("active", "Y")
         ))
         conn.commit()
@@ -1204,7 +1208,7 @@ def update_provider_event(event_id: int, data: dict):
         cur.execute("""
             UPDATE ProviderEvent
             SET providerId = ?, providerEventType = ?, providerEventDescription = ?, 
-                providerNamespace = ?, providerEventName = ?, active = ?, lastUpdateTimestamp = GETDATE()
+                providerNamespace = ?, providerEventName = ?, protocolAttributeCode = ?, ProtocolId = ?, active = ?, lastUpdateTimestamp = GETDATE()
             WHERE providerEventId = ?
         """, (
             data.get("providerId"),
@@ -1212,6 +1216,8 @@ def update_provider_event(event_id: int, data: dict):
             data.get("providerEventDescription", ""),
             data.get("providerNamespace", ""),
             data.get("providerEventName", ""),
+            data.get("protocolAttributeCode", None),
+            data.get("protocolId", None),
             data.get("active", "Y"),
             event_id
         ))
