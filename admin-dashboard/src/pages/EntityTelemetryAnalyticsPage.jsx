@@ -405,11 +405,18 @@ export default function EntityTelemetryAnalyticsPage() {
     return kelvin - 273.15;
   };
 
-  // Convert pressure to PSI with appropriate decimals
-  const convertPressureToPSI = (pascals) => {
+  // Convert pressure in Pa to bar
+  const convertPressureToBar = (pascals) => {
     if (pascals === null || pascals === undefined) return null;
-    // 1 PSI = 6894.76 Pa
-    return pascals / 6894.76;
+    // 1 bar = 100,000 Pa
+    return pascals / 100000;
+  };
+
+  // Convert speed from m/s to knots
+  const convertMsToKnots = (meterPerSecond) => {
+    if (meterPerSecond === null || meterPerSecond === undefined) return null;
+    // 1 knot = 0.514444 m/s
+    return meterPerSecond / 0.514444;
   };
 
   // Format value with unit conversion if needed
@@ -426,13 +433,29 @@ export default function EntityTelemetryAnalyticsPage() {
       return { value: celsius.toFixed(1), unit: '°C' };
     }
 
-    // Convert pressure to PSI
-    if ((attributeCode === 'environment.outside.pressure' ||
-         attributeCode === 'environment.water.seawater.pressure' ||
+    // Convert pressure to bar (atmospheric)
+    if (attributeCode === 'environment.outside.pressure' &&
+        attributeUnit === 'Pa') {
+      const bar = convertPressureToBar(numericValue);
+      return { value: bar.toFixed(2), unit: 'bar' };
+    }
+
+    // Convert pressure to bar (oil, seawater)
+    if ((attributeCode === 'environment.water.seawater.pressure' ||
          attributeCode === 'propulsion.main.oilPressure') &&
         attributeUnit === 'Pa') {
-      const psi = convertPressureToPSI(numericValue);
-      return { value: psi.toFixed(1), unit: 'PSI' };
+      const bar = convertPressureToBar(numericValue);
+      return { value: bar.toFixed(1), unit: 'bar' };
+    }
+
+    // Convert speed to knots (m/s)
+    if ((attributeCode === 'navigation.speedOverGround' ||
+         attributeCode === 'navigation.speedThroughWater' ||
+         attributeCode === 'environment.wind.speedApparent' ||
+         attributeCode === 'environment.wind.speedTrue') &&
+        attributeUnit === 'm/s') {
+      const knots = convertMsToKnots(numericValue);
+      return { value: knots.toFixed(1), unit: 'kn' };
     }
 
     // Default: no conversion
