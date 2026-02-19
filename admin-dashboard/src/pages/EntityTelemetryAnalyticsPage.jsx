@@ -430,13 +430,29 @@ export default function EntityTelemetryAnalyticsPage() {
     if (numericValue === null) return { value: 'N/A', unit: '' };
 
     // Convert Kelvin temperatures to Celsius
-    if ((attributeCode === 'environment.outside.temperature' ||
-         attributeCode === 'environment.water.seawater.temperature' ||
-         attributeCode === 'environment.water.temperature' ||
-         attributeCode === 'propulsion.main.temperature') &&
-        attributeUnit === 'K') {
-      const celsius = convertKelvinToCelsius(numericValue);
-      return { value: celsius.toFixed(1), unit: '°C' };
+    // Handle both "K" unit and mislabeled Kelvin values (250-400 range)
+    const isTempAttribute = attributeCode === 'environment.outside.temperature' ||
+                           attributeCode === 'environment.water.seawater.temperature' ||
+                           attributeCode === 'environment.water.temperature' ||
+                           attributeCode === 'propulsion.main.temperature';
+    
+    if (isTempAttribute) {
+      // If unit is K, always convert
+      if (attributeUnit === 'K') {
+        const celsius = convertKelvinToCelsius(numericValue);
+        return { value: celsius.toFixed(1), unit: '°C' };
+      }
+      // If unit is C but value looks like Kelvin (250-400K range), convert it
+      else if ((attributeUnit === 'C' || attributeUnit === '') && 
+               numericValue > 200 && numericValue < 400) {
+        // Likely mislabeled Kelvin value
+        const celsius = convertKelvinToCelsius(numericValue);
+        return { value: celsius.toFixed(1), unit: '°C' };
+      }
+      // Otherwise treat as-is (already in Celsius)
+      else if (attributeUnit === 'C' || attributeUnit === '') {
+        return { value: numericValue.toFixed(1), unit: '°C' };
+      }
     }
 
     // Convert pressure to bar (atmospheric)
