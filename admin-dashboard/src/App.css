@@ -422,3 +422,267 @@
   padding: 6px 12px;
   font-size: 12px;
 }
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+.hamburger-menu {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 5px 15px;
+  margin-right: 15px;
+  transition: all 0.3s ease;
+}
+
+.hamburger-menu:hover {
+  color: #667eea;
+}
+
+.close-button {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.close-button:hover {
+  color: #667eea;
+}
+
+.sidebar-close {
+  display: none;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ============================================
+   TABLET LAYOUT (769px - 1024px)
+   ============================================ */
+@media (max-width: 1024px) {
+  .app-sidebar {
+    width: 200px;
+  }
+
+  .app-header {
+    padding: 15px 20px;
+  }
+
+  .app-header h1 {
+    font-size: 24px;
+  }
+
+  .app-main {
+    padding: 20px;
+  }
+}
+
+/* ============================================
+   MOBILE LAYOUT (< 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  .hamburger-menu {
+    display: block;
+  }
+
+  .close-button {
+    display: block;
+  }
+
+  .sidebar-close {
+    display: block;
+  }
+
+  .app-header {
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+  }
+
+  .app-header h1 {
+    font-size: 18px;
+    margin: 0 0 0 10px;
+  }
+
+  .app-container {
+    position: relative;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    left: -250px;
+    top: 60px;
+    width: 250px;
+    height: calc(100vh - 60px);
+    z-index: 1000;
+    transition: left 0.3s ease;
+    background-color: #252525;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .app-sidebar.open {
+    left: 0;
+  }
+
+  .app-main {
+    padding: 15px;
+    font-size: 14px;
+  }
+
+  .app-header h1 {
+    font-size: 18px;
+  }
+
+  .nav-button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .nav-section h3 {
+    font-size: 11px;
+  }
+
+  /* Make table responsive */
+  table {
+    font-size: 12px !important;
+  }
+
+  th, td {
+    padding: 8px 4px !important;
+  }
+
+  button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .btn-sm {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevent iOS zoom on input */
+    padding: 8px 6px !important;
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .modal-content {
+    width: 95vw;
+    max-height: 90vh;
+    border-radius: 8px;
+  }
+
+  .modal-header h2 {
+    font-size: 16px;
+  }
+
+  .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-bar input,
+  .filter-bar select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Hide unnecessary columns on mobile */
+  th:nth-child(n+5),
+  td:nth-child(n+5) {
+    display: none;
+  }
+
+  .chart-container {
+    height: 300px !important;
+    margin-bottom: 15px;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE (< 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  .app-header h1 {
+    font-size: 16px;
+  }
+
+  .hamburger-menu {
+    font-size: 24px;
+    padding: 4px 10px;
+    margin-right: 8px;
+  }
+
+  .app-main {
+    padding: 10px;
+  }
+
+  .modal-content {
+    width: 100%;
+    margin: 0 10px;
+    max-height: 95vh;
+  }
+
+  table {
+    font-size: 11px !important;
+  }
+
+  th, td {
+    padding: 6px 2px !important;
+  }
+
+  .form-group {
+    margin-bottom: 10px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    padding: 8px 4px !important;
+  }
+
+  button {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+
+  .btn-sm {
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+  }
+
+  .chart-container {
+    height: 250px !important;
+  }
+}

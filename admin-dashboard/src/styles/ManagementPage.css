@@ -670,47 +670,48 @@ input[type="datetime-local"]::-webkit-outer-spin-button {
 /* Health Dashboard style metrics display */
 .metrics-display {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
   padding: 0;
 }
 
 .metric-card {
   background: #2d2d2d;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
   color: var(--text-color);
 }
 
 .metric-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   border-color: #667eea;
 }
 
 .metric-key {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-light);
   font-weight: 600;
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   text-align: left;
+  word-break: break-word;
 }
 
 .metric-val {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   display: flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 2px;
 }
 
 .metric-timestamp {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-light);
   font-family: monospace;
   text-align: left;
@@ -861,6 +862,27 @@ input[type="datetime-local"]::-webkit-outer-spin-button {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .metrics-display {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 4px;
+  }
+
+  .metric-card {
+    padding: 6px;
+  }
+
+  .metric-key {
+    font-size: 10px;
+  }
+
+  .metric-val {
+    font-size: 14px;
+  }
+
+  .metric-timestamp {
+    font-size: 8px;
+  }
+
   .events-table {
     font-size: 12px;
   }
@@ -875,3 +897,17 @@ input[type="datetime-local"]::-webkit-outer-spin-button {
   }
 }
 
+/* Extra small mobile (< 480px) */
+@media (max-width: 480px) {
+  .metrics-display {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metric-key {
+    font-size: 9px;
+  }
+
+  .metric-val {
+    font-size: 13px;
+  }
+}
