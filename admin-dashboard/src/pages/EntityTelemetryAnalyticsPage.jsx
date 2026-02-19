@@ -659,14 +659,6 @@ export default function EntityTelemetryAnalyticsPage() {
             />
           </label>
         </div>
-
-        <button 
-          onClick={loadAnalyticsData}
-          disabled={!selectedEntity || loading}
-          className="btn-primary"
-        >
-          {loading ? '⌛ Loading...' : '🔄 Refresh'}
-        </button>
       </div>
 
       {/* Section 1: Latest Values */}
