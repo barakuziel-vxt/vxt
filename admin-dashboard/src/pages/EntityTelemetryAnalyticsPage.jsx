@@ -456,18 +456,24 @@ export default function EntityTelemetryAnalyticsPage() {
     }
 
     // Convert pressure to bar (atmospheric)
-    if (attributeCode === 'environment.outside.pressure' &&
-        attributeUnit === 'Pa') {
-      const bar = convertPressureToBar(numericValue);
-      return { value: bar.toFixed(2), unit: 'bar' };
+    if (attributeCode === 'environment.outside.pressure') {
+      // Check if unit is Pa or similar, or if value is very large (indicates Pascals)
+      if (attributeUnit === 'Pa' || 
+          (numericValue > 1000 && (attributeUnit === '' || attributeUnit === null))) {
+        const bar = convertPressureToBar(numericValue);
+        return { value: bar.toFixed(2), unit: 'bar' };
+      }
     }
 
     // Convert pressure to bar (oil, seawater)
     if ((attributeCode === 'environment.water.seawater.pressure' ||
-         attributeCode === 'propulsion.main.oilPressure') &&
-        attributeUnit === 'Pa') {
-      const bar = convertPressureToBar(numericValue);
-      return { value: bar.toFixed(1), unit: 'bar' };
+         attributeCode === 'propulsion.main.oilPressure')) {
+      // Check if unit is Pa or similar, or if value is very large (indicates Pascals)
+      if (attributeUnit === 'Pa' || 
+          (numericValue > 1000 && (attributeUnit === '' || attributeUnit === null))) {
+        const bar = convertPressureToBar(numericValue);
+        return { value: bar.toFixed(1), unit: 'bar' };
+      }
     }
 
     // Convert speed to knots (m/s)
