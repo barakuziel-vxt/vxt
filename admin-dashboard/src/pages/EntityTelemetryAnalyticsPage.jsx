@@ -597,8 +597,21 @@ export default function EntityTelemetryAnalyticsPage() {
   return (
     <div className="management-page">
       <div className="page-header">
-        <h2>📊 Entity Telemetry & Events Analytics</h2>
-        <p>Monitor real-time data and detected events for selected entities</p>
+        <div className="page-header-title">
+          <h2>📊 Telemetry & Events</h2>
+          <p>Monitor real-time data and detected events for selected entities</p>
+        </div>
+        <button 
+          className="refresh-button"
+          onClick={() => {
+            setLoading(true);
+            fetchData();
+          }}
+          disabled={loading}
+          title="Refresh data"
+        >
+          🔄 {loading ? 'Loading...' : 'Refresh'}
+        </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
