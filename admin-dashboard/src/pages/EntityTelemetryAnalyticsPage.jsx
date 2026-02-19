@@ -419,6 +419,12 @@ export default function EntityTelemetryAnalyticsPage() {
     return meterPerSecond / 0.514444;
   };
 
+  // Convert angle from radians to degrees
+  const convertRadiansToDegrees = (radians) => {
+    if (radians === null || radians === undefined) return null;
+    return radians * (180 / Math.PI);
+  };
+
   // Format value with unit conversion if needed
   const getFormattedValue = (attributeCode, numericValue, attributeUnit) => {
     if (numericValue === null) return { value: 'N/A', unit: '' };
@@ -456,6 +462,18 @@ export default function EntityTelemetryAnalyticsPage() {
         attributeUnit === 'm/s') {
       const knots = convertMsToKnots(numericValue);
       return { value: knots.toFixed(1), unit: 'kn' };
+    }
+
+    // Convert angle from radians to degrees
+    if ((attributeCode === 'navigation.courseOverGround' ||
+         attributeCode === 'navigation.courseOverGroundMagnetic' ||
+         attributeCode === 'navigation.headingTrue' ||
+         attributeCode === 'navigation.headingMagnetic' ||
+         attributeCode === 'environment.wind.directionApparent' ||
+         attributeCode === 'environment.wind.directionTrue') &&
+        attributeUnit === 'rad') {
+      const degrees = convertRadiansToDegrees(numericValue);
+      return { value: degrees.toFixed(0), unit: '°' };
     }
 
     // Default: no conversion
