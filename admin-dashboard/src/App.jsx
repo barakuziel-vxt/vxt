@@ -15,6 +15,15 @@ import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('telemetry');
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Close sidebar on mobile after selection
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
+  };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -50,34 +59,50 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
+        <button 
+          className="hamburger-menu"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Toggle menu"
+        >
+          ☰
+        </button>
         <h1>VXT Admin Dashboard</h1>
       </header>
 
       <div className="app-container">
-        <nav className="app-sidebar">
+        <nav className={`app-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="sidebar-close">
+            <button 
+              className="close-button"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
           <div className="nav-section">
             <h3>Protocol & Provider</h3>
             <button
               className={`nav-button ${currentPage === 'protocol' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('protocol')}
+              onClick={() => handlePageChange('protocol')}
             >
               📡 Protocols
             </button>
             <button
               className={`nav-button ${currentPage === 'protocolAttribute' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('protocolAttribute')}
+              onClick={() => handlePageChange('protocolAttribute')}
             >
               🔧 Protocol Attributes
             </button>
             <button
               className={`nav-button ${currentPage === 'provider' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('provider')}
+              onClick={() => handlePageChange('provider')}
             >
               🔌 Providers
             </button>
             <button
               className={`nav-button ${currentPage === 'providerEvent' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('providerEvent')}
+              onClick={() => handlePageChange('providerEvent')}
             >
               📪 Provider Events
             </button>
@@ -87,43 +112,43 @@ export default function App() {
             <h3>Configuration</h3>
             <button
               className={`nav-button ${currentPage === 'entityCategory' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('entityCategory')}
+              onClick={() => handlePageChange('entityCategory')}
             >
               📁 Entity Categories
             </button>
             <button
               className={`nav-button ${currentPage === 'entityType' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('entityType')}
+              onClick={() => handlePageChange('entityType')}
             >
               🏷️ Entity Types
             </button>
             <button
               className={`nav-button ${currentPage === 'entityTypeAttribute' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('entityTypeAttribute')}
+              onClick={() => handlePageChange('entityTypeAttribute')}
             >
               ⚙️ Entity Type Attributes
             </button>
             <button
               className={`nav-button ${currentPage === 'event' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('event')}
+              onClick={() => handlePageChange('event')}
             >
               📢 Events
             </button>
             <button
               className={`nav-button ${currentPage === 'entity' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('entity')}
+              onClick={() => handlePageChange('entity')}
             >
               🚢 Entities
             </button>
             <button
               className={`nav-button ${currentPage === 'customerSubscription' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('customerSubscription')}
+              onClick={() => handlePageChange('customerSubscription')}
             >
               👥 Customer Subscriptions
             </button>
             <button
               className={`nav-button ${currentPage === 'customerEntities' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('customerEntities')}
+              onClick={() => handlePageChange('customerEntities')}
             >
               🌍 Customer Entities
             </button>
@@ -133,7 +158,7 @@ export default function App() {
             <h3>Data</h3>
             <button
               className={`nav-button ${currentPage === 'telemetry' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('telemetry')}
+              onClick={() => handlePageChange('telemetry')}
             >
               📊 Telemetry & Events
             </button>
