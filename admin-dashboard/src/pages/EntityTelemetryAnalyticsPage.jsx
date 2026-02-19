@@ -393,6 +393,52 @@ export default function EntityTelemetryAnalyticsPage() {
     return palette[index % palette.length];
   };
 
+  // Get the chart index for a metric code (accounting for sorted display)
+  const getChartIndexForMetricCode = (code) => {
+    const allMetrics = getMetricsFromTelemetry();
+    return allMetrics.indexOf(code);
+  };
+
+  // Convert temperature from Kelvin to Celsius
+  const convertKelvinToCelsius = (kelvin) => {
+    if (kelvin === null || kelvin === undefined) return null;
+    return kelvin - 273.15;
+  };
+
+  // Convert pressure to PSI with appropriate decimals
+  const convertPressureToPSI = (pascals) => {
+    if (pascals === null || pascals === undefined) return null;
+    // 1 PSI = 6894.76 Pa
+    return pascals / 6894.76;
+  };
+
+  // Format value with unit conversion if needed
+  const getFormattedValue = (attributeCode, numericValue, attributeUnit) => {
+    if (numericValue === null) return { value: 'N/A', unit: '' };
+
+    // Convert Kelvin temperatures to Celsius
+    if ((attributeCode === 'environment.outside.temperature' ||
+         attributeCode === 'environment.water.seawater.temperature' ||
+         attributeCode === 'environment.water.temperature' ||
+         attributeCode === 'propulsion.main.temperature') &&
+        attributeUnit === 'K') {
+      const celsius = convertKelvinToCelsius(numericValue);
+      return { value: celsius.toFixed(1), unit: '°C' };
+    }
+
+    // Convert pressure to PSI
+    if ((attributeCode === 'environment.outside.pressure' ||
+         attributeCode === 'environment.water.seawater.pressure' ||
+         attributeCode === 'propulsion.main.oilPressure') &&
+        attributeUnit === 'Pa') {
+      const psi = convertPressureToPSI(numericValue);
+      return { value: psi.toFixed(1), unit: 'PSI' };
+    }
+
+    // Default: no conversion
+    return { value: numericValue.toFixed(1), unit: attributeUnit };
+  };
+
   // Fetch event details from API
   const fetchEventDetails = async (eventLogId) => {
     try {
@@ -552,26 +598,32 @@ export default function EntityTelemetryAnalyticsPage() {
         <h3>📌 Latest Values</h3>
         {latestValues.length > 0 ? (
           <div className="metrics-display">
-            {getSortedLatestValues().map((value, idx) => (
-              <div key={idx} className="metric-card">
-                <div className="metric-key">{value.attributeName || value.attributeCode}</div>
-                <div 
-                  className="metric-val"
-                  style={{ 
-                    color: metricColorForIndex(idx),
-                    fontFamily: 'Inter, Arial, sans-serif',
-                    fontSize: '24px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {value.numericValue !== null ? value.numericValue.toFixed(1) : 'N/A'}
-                  <span style={{ fontSize: '14px', marginLeft: '4px' }}>{value.attributeUnit}</span>
+            {getSortedLatestValues().map((value, idx) => {
+              const chartIdx = getChartIndexForMetricCode(value.attributeCode);
+              const chartColor = chartIdx >= 0 ? metricColorForIndex(chartIdx) : metricColorForIndex(idx);
+              const formatted = getFormattedValue(value.attributeCode, value.numericValue, value.attributeUnit);
+              
+              return (
+                <div key={idx} className="metric-card">
+                  <div className="metric-key">{value.attributeName || value.attributeCode}</div>
+                  <div 
+                    className="metric-val"
+                    style={{ 
+                      color: chartColor,
+                      fontFamily: 'Inter, Arial, sans-serif',
+                      fontSize: '24px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {formatted.value}
+                    <span style={{ fontSize: '14px', marginLeft: '4px' }}>{formatted.unit}</span>
+                  </div>
+                  <div className="metric-timestamp">
+                    {value.endTimestampUTC ? formatDate(value.endTimestampUTC) : 'N/A'}
+                  </div>
                 </div>
-                <div className="metric-timestamp">
-                  {value.endTimestampUTC ? formatDate(value.endTimestampUTC) : 'N/A'}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="no-data">No latest values available</p>
