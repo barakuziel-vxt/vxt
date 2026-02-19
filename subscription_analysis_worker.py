@@ -538,18 +538,18 @@ class SubscriptionAnalysisWorker:
             # Get event criteria
             criteria = self.get_event_criteria(event_id)
             if not criteria:
-                logger.warning(f"No criteria found for event {event_id}")
+                logger.info(f"Entity: {entity_id}, no event criteria found")
                 self.log_analysis_completed(entity_id, triggered_at, 
                                           int((datetime.now(timezone.utc) - analysis_start).total_seconds() * 1000), 0)
-                return False
+                return True
             
             # Get telemetry data
             telemetry = self.get_entity_telemetry(entity_id, triggered_at, analysis_window_min)
             if not telemetry:
-                logger.warning(f"No telemetry found for entity {entity_id}")
+                logger.info(f"Entity: {entity_id}, no telemetry data")
                 self.log_analysis_completed(entity_id, triggered_at,
                                           int((datetime.now(timezone.utc) - analysis_start).total_seconds() * 1000), 0)
-                return False
+                return True
             
             # Step 2: Execute Python analysis function
             analysis_result = self.execute_python_analysis(
