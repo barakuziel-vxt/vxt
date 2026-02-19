@@ -859,28 +859,28 @@ input[type="datetime-local"]::-webkit-outer-spin-button {
   }
 
   .latest-values-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .metrics-display {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+    gap: 3px;
   }
 
   .metric-card {
-    padding: 6px;
+    padding: 4px;
   }
 
   .metric-key {
-    font-size: 10px;
+    font-size: 8px;
   }
 
   .metric-val {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .metric-timestamp {
-    font-size: 8px;
+    font-size: 7px;
   }
 
   .events-table {
@@ -900,14 +900,25 @@ input[type="datetime-local"]::-webkit-outer-spin-button {
 /* Extra small mobile (< 480px) */
 @media (max-width: 480px) {
   .metrics-display {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 2px;
+  }
+
+  .metric-card {
+    padding: 3px;
   }
 
   .metric-key {
-    font-size: 9px;
+    font-size: 7px;
+    margin-bottom: 2px;
   }
 
   .metric-val {
-    font-size: 13px;
+    font-size: 11px;
+    margin-bottom: 1px;
+  }
+
+  .metric-timestamp {
+    font-size: 6px;
   }
 }
