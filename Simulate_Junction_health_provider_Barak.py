@@ -658,7 +658,7 @@ class JunctionEventProducer:
             self.producer.send(self.topic, value=event)
             user_id = event.get('user', {}).get('user_id', 'N/A')
             num_samples = self._count_samples(event)
-            logger.info(f"✓ {event['event_type']:45} | User: {user_id:10} | Samples: {num_samples:3} | LOINC: {event.get('loinc_code', 'N/A')}")
+            logger.info(f"[OK] {event['event_type']:45} | User: {user_id:10} | Samples: {num_samples:3} | LOINC: {event.get('loinc_code', 'N/A')}")
         except Exception as e:
             logger.error(f"Error producing event: {e}")
     
@@ -718,7 +718,7 @@ class JunctionEventProducer:
         
         self.producer.flush()
         logger.info("=" * 120)
-        logger.info(f"✓ Simulation complete. Total bulk events produced: {event_count}")
+        logger.info(f"[OK] Simulation complete. Total bulk events produced: {event_count}")
         logger.info("=" * 120)
         self.producer.close()
 

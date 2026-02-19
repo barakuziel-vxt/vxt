@@ -61,11 +61,11 @@ class KafkaTopicSetup:
             for topic_name, future in fs.items():
                 try:
                     future.result()  # The result itself is None
-                    logger.info(f"✓ Topic '{topic_name}' created successfully!")
+                    logger.info(f"[OK] Topic '{topic_name}' created successfully!")
                 except TopicAlreadyExistsError:
-                    logger.info(f"✓ Topic '{topic_name}' already exists")
+                    logger.info(f"[OK] Topic '{topic_name}' already exists")
                 except KafkaError as e:
-                    logger.error(f"✗ Failed to create topic '{topic_name}': {e}")
+                    logger.error(f"[ERROR] Failed to create topic '{topic_name}': {e}")
                     return False
             
             return True
@@ -103,9 +103,9 @@ class KafkaTopicSetup:
             for topic, future in fs.items():
                 try:
                     future.result()
-                    logger.info(f"✓ Topic '{topic}' deleted successfully!")
+                    logger.info(f"[OK] Topic '{topic}' deleted successfully!")
                 except Exception as e:
-                    logger.error(f"✗ Failed to delete topic '{topic}': {e}")
+                    logger.error(f"[ERROR] Failed to delete topic '{topic}': {e}")
                     return False
             
             return True

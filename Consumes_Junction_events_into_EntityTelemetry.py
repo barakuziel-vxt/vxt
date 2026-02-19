@@ -71,7 +71,7 @@ class EntityTelemetryConsumer:
                     request_timeout_ms=30000,
                     consumer_timeout_ms=-1  # Wait indefinitely for messages
                 )
-                logger.info("✓ Connected to Kafka broker")
+                logger.info("[OK] Connected to Kafka broker")
                 return consumer
             except Exception as e:
                 if attempt < max_retries - 1:
@@ -323,13 +323,13 @@ class EntityTelemetryConsumer:
             cursor.executemany(insert_query, records)
             connection.commit()
             
-            logger.info(f"✓ SUCCESS: Inserted {len(records)} telemetry records into database")
+            logger.info(f"[OK] SUCCESS: Inserted {len(records)} telemetry records into database")
             self.total_inserted += len(records)
             
             return True
             
         except Exception as e:
-            logger.error(f"✗ FAILED: Bulk insert error: {e}")
+            logger.error(f"[FAILED] FAILED: Bulk insert error: {e}")
             if connection:
                 try:
                     connection.rollback()

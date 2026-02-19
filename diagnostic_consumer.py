@@ -43,7 +43,7 @@ def check_kafka_topic():
             consumer_timeout_ms=5000
         )
         
-        logger.info("✓ Connected to Kafka broker")
+        logger.info("[OK] Connected to Kafka broker")
         logger.info("Waiting for messages (5 second timeout)...")
         
         message_count = 0
@@ -89,12 +89,12 @@ def check_kafka_topic():
             logger.warning("  2. Topic does not exist")
             logger.warning("  3. Topic has no recent messages")
         else:
-            logger.info(f"\n✓ Found {message_count} messages in topic")
+            logger.info(f"\n[OK] Found {message_count} messages in topic")
         
         consumer.close()
         
     except Exception as e:
-        logger.error(f"✗ Kafka connection error: {e}")
+        logger.error(f"[ERROR] Kafka connection error: {e}")
         logger.error("Make sure Redpanda is running: docker-compose up -d")
         return False
     
@@ -129,7 +129,7 @@ def check_database_connection():
             logger.info(f"Trying driver: {driver}...")
             conn = pyodbc.connect(conn_str)
             cursor = conn.cursor()
-            logger.info(f"✓ Successfully connected using {driver}")
+            logger.info(f"[OK] Successfully connected using {driver}")
             
             # Check if EntityTelemetry table exists
             cursor.execute("""
@@ -140,7 +140,7 @@ def check_database_connection():
             col_count = cursor.fetchone()[0]
             
             if col_count > 0:
-                logger.info("✓ EntityTelemetry table exists")
+                logger.info("[OK] EntityTelemetry table exists")
                 
                 # Get column info
                 cursor.execute("""
@@ -158,7 +158,7 @@ def check_database_connection():
                 logger.info(f"  Current record count: {record_count}")
                 
             else:
-                logger.error("✗ EntityTelemetry table not found!")
+                logger.error("[ERROR] EntityTelemetry table not found!")
             
             # Test insert
             try:
@@ -169,7 +169,7 @@ def check_database_connection():
                 """
                 cursor.execute(test_insert, (datetime.utcnow().isoformat(),))
                 conn.commit()
-                logger.info("✓ Test insert successful (inserted diagnostic record)")
+                logger.info("[OK] Test insert successful (inserted diagnostic record)")
                 
                 # Delete test record
                 cursor.execute("DELETE FROM EntityTelemetry WHERE entityId = 999999 AND source = 'diagnostic'")
@@ -177,7 +177,7 @@ def check_database_connection():
                 logger.info("  (diagnostic record deleted)")
                 
             except Exception as e:
-                logger.error(f"✗ Test insert failed: {e}")
+                logger.error(f"[ERROR] Test insert failed: {e}")
             
             conn.close()
             return True
@@ -186,7 +186,7 @@ def check_database_connection():
             logger.debug(f"  Driver {driver} failed: {e}")
             continue
     
-    logger.error("✗ No working ODBC driver found!")
+    logger.error("[ERROR] No working ODBC driver found!")
     logger.error("Make sure SQL Server ODBC driver is installed")
     return False
 
@@ -201,8 +201,8 @@ def main():
     logger.info("\n" + "=" * 70)
     logger.info("DIAGNOSTIC SUMMARY")
     logger.info("=" * 70)
-    logger.info(f"Kafka Topic Check: {'✓ PASS' if kafka_ok else '✗ FAIL'}")
-    logger.info(f"Database Check: {'✓ PASS' if db_ok else '✗ FAIL'}")
+    logger.info(f"Kafka Topic Check: {'[OK] PASS' if kafka_ok else '[FAILED] FAIL'}")
+    logger.info(f"Database Check: {'[OK] PASS' if db_ok else '[FAILED] FAIL'}")
     
     if not kafka_ok:
         logger.info("\nAction: Start the producer")

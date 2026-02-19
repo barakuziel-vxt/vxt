@@ -85,7 +85,7 @@ class GenericTelemetryConsumer:
         self.total_events = 0
         self.total_skipped = 0
         
-        logger.info(f"✓ Consumer initialized: {self.provider_config['ProviderName']}")
+        logger.info(f"[OK] Consumer initialized: {self.provider_config['ProviderName']}")
         logger.info(f"  Entities cached: {len(self.entity_cache)}")
         logger.info(f"  EntityTypeAttributes cached: {len(self.attribute_cache)}")
         logger.info(f"  Customer entities cached: {len(self.customer_entities_cache)}")
@@ -110,7 +110,7 @@ class GenericTelemetryConsumer:
                 raise Exception(f"Provider '{self.provider_name}' not found or inactive")
             
             provider_id = row[0]
-            logger.info(f"✓ Resolved provider name '{self.provider_name}' to provider ID {provider_id}")
+            logger.info(f"[OK] Resolved provider name '{self.provider_name}' to provider ID {provider_id}")
             return provider_id
         except Exception as e:
             logger.error(f"Failed to lookup provider ID: {e}")
@@ -186,7 +186,7 @@ class GenericTelemetryConsumer:
                 }
             
             connection.close()
-            logger.info(f"✓ Loaded {len(rules)} ProviderEvent mappings for provider {self.provider_id}")
+            logger.info(f"[OK] Loaded {len(rules)} ProviderEvent mappings for provider {self.provider_id}")
             for event_type, rule in rules.items():
                 if rule['entity_type_attribute_id'] > 0:
                     logger.debug(f"  {event_type} -> entityTypeAttributeId {rule['entity_type_attribute_id']}")
@@ -225,7 +225,7 @@ class GenericTelemetryConsumer:
                 cache[row[0]] = row[1]
             
             connection.close()
-            logger.info(f"✓ Cached {len(cache)} active entities with EntityTypeAttributes for provider {self.provider_id}")
+            logger.info(f"[OK] Cached {len(cache)} active entities with EntityTypeAttributes for provider {self.provider_id}")
             if cache:
                 sample_keys = list(cache.items())[:5]
                 logger.info(f"  Sample entity cache entries: {sample_keys}")
@@ -260,7 +260,7 @@ class GenericTelemetryConsumer:
             cache = set(row[0] for row in cursor.fetchall())
             
             connection.close()
-            logger.info(f"✓ Cached {len(cache)} EntityTypeAttribute codes for provider {self.provider_id}: {cache}")
+            logger.info(f"[OK] Cached {len(cache)} EntityTypeAttribute codes for provider {self.provider_id}: {cache}")
             return cache
         except Exception as e:
             logger.error(f"Failed to load attribute cache: {e}")
@@ -291,7 +291,7 @@ class GenericTelemetryConsumer:
             cache = set(row[0] for row in cursor.fetchall())
             
             connection.close()
-            logger.info(f"✓ Cached {len(cache)} active customer entities")
+            logger.info(f"[OK] Cached {len(cache)} active customer entities")
             if cache:
                 sample_entities = list(cache)[:5]
                 logger.info(f"  Sample customer entities: {sample_entities}")
@@ -308,7 +308,7 @@ class GenericTelemetryConsumer:
             adapter_class_name = self.provider_config['AdapterClassName']
             module = import_module('provider_adapters')
             adapter_class = getattr(module, adapter_class_name)
-            logger.info(f"✓ Loaded adapter: {adapter_class_name}")
+            logger.info(f"[OK] Loaded adapter: {adapter_class_name}")
             return adapter_class(self.provider_config)
         except AttributeError as e:
             logger.error(f"Adapter class '{adapter_class_name}' not found in provider_adapters module. Expected naming convention: <ProviderName>Adapter (e.g., JunctionAdapter)")
@@ -334,15 +334,15 @@ class GenericTelemetryConsumer:
         """
         # Check 1: Entity must exist in entity cache (already filtered by provider's EntityTypeIds)
         if entity_id not in self.entity_cache:
-            return False, f"✗ Entity '{entity_id}' not in entity_cache. Available: {sorted(self.entity_cache.keys())}"
+            return False, f"[ERROR] Entity '{entity_id}' not in entity_cache. Available: {sorted(self.entity_cache.keys())}"
         
         # Check 2: EntityTypeAttribute code must exist for this provider
         if protocol_attr_code not in self.attribute_cache:
-            return False, f"✗ Code '{protocol_attr_code}' not in attribute_cache. Available: {sorted(list(self.attribute_cache))[:5]}"
+            return False, f"[ERROR] Code '{protocol_attr_code}' not in attribute_cache. Available: {sorted(list(self.attribute_cache))[:5]}"
         
         # Check 3: Entity must be assigned to an active customer (active CustomerEntity with active Customer)
         if entity_id not in self.customer_entities_cache:
-            return False, f"✗ Entity '{entity_id}' not in customer_entities_cache. Allowed: {sorted(self.customer_entities_cache)}"
+            return False, f"[ERROR] Entity '{entity_id}' not in customer_entities_cache. Allowed: {sorted(self.customer_entities_cache)}"
         
         return True, "OK"
     
@@ -367,7 +367,7 @@ class GenericTelemetryConsumer:
                     session_timeout_ms=10000,
                     connections_max_idle_ms=540000  # 9 minutes
                 )
-                logger.info(f"✓ Connected to Kafka topic: {self.provider_config['TopicName']}")
+                logger.info(f"[OK] Connected to Kafka topic: {self.provider_config['TopicName']}")
                 return consumer
             except Exception as e:
                 if attempt < max_retries:
@@ -411,12 +411,12 @@ class GenericTelemetryConsumer:
             connection.commit()
             connection.close()
             
-            logger.info(f"✓ Inserted {len(records)} telemetry records")
+            logger.info(f"[OK] Inserted {len(records)} telemetry records")
             self.total_inserted += len(records)
             return True
             
         except Exception as e:
-            logger.error(f"✗ Insert failed: {e}")
+            logger.error(f"[FAILED] Insert failed: {e}")
             return False
     
     def consume_and_insert(self, max_events=None):
