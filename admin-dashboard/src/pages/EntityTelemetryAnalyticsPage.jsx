@@ -99,7 +99,7 @@ export default function EntityTelemetryAnalyticsPage() {
     }
   }, [selectedEntity, startDate, endDate]);
 
-  // Auto-select default health metrics when latest values arrive
+  // Auto-select default health metrics when latest values arrive for the first time
   useEffect(() => {
     if (latestValues.length > 0 && Object.keys(selectedMetrics).length === 0) {
       const isHealthMetric = (code) => {
@@ -123,7 +123,7 @@ export default function EntityTelemetryAnalyticsPage() {
         console.log('Auto-selected health metrics:', defaultSelected);
       }
     }
-  }, [latestValues]);
+  }, [latestValues.length]); // Only depend on length changing to trigger initialization
 
   // Convert local datetime string to UTC ISO format
   const convertLocalToUTC = (localDateTimeStr) => {
@@ -663,7 +663,7 @@ export default function EntityTelemetryAnalyticsPage() {
           className="refresh-button"
           onClick={() => {
             setLoading(true);
-            fetchData();
+            loadAnalyticsData();
           }}
           disabled={loading}
           title="Refresh data"
