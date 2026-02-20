@@ -67,7 +67,7 @@ if (!(Test-Path "node_modules")) {
     Write-Host "Installing admin-dashboard dependencies (npm install)..." -ForegroundColor Yellow
     npm install
 }
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev -- --host 0.0.0.0" -WindowStyle Normal
 Pop-Location
 
 # 8. Launch Health Dashboard
@@ -91,6 +91,6 @@ Write-Host "  - SignalK Consumer: Consuming maritime telemetry events into Entit
 Write-Host "  - Simulators: Generating Junction health and SignalK maritime telemetry data" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan
-Write-Host "  - Admin Dashboard: http://localhost:3001" -ForegroundColor Yellow
-Write-Host "  - Health Dashboard: http://localhost:3002" -ForegroundColor Yellow
+Write-Host "  - Admin Dashboard (Local): http://localhost:3001" -ForegroundColor Yellow
+Write-Host "  - Admin Dashboard (Network): http://192.168.1.29:3001 (or your PC's IP address)" -ForegroundColor Yellow
 Write-Host "  - FastAPI Docs: http://localhost:8000/docs" -ForegroundColor Yellow

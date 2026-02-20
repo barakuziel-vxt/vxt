@@ -268,27 +268,6 @@ export default function EntityTelemetryAnalyticsPage() {
         const latest = await latestRes.json();
         console.log(`Latest values loaded: ${latest.length} metrics`);
         setLatestValues(latest);
-        
-        // Initialize selectedMetrics with attributes that have defaultInGraph='Y'
-        // or match health-related patterns as fallback
-        const isHealthMetric = (code) => {
-          const c = code.toLowerCase();
-          return c.includes('mainengine') || 
-                 c.includes('engine.') ||
-                 c.includes('electrical.batt') || 
-                 c === 'electrical.batteryvoltage' ||
-                 c === 'navigation.depth';
-        };
-        
-        const defaultSelected = {};
-        latest.forEach(attr => {
-          // Prefer explicit defaultInGraph='Y', fallback to pattern matching
-          if (attr.defaultInGraph === 'Y' || (!attr.defaultInGraph && isHealthMetric(attr.attributeCode))) {
-            defaultSelected[attr.attributeCode] = true;
-          }
-        });
-        setSelectedMetrics(defaultSelected);
-        console.log('Default selected metrics:', defaultSelected);
       }
 
       // Load telemetry data for chart
