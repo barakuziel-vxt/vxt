@@ -30,6 +30,9 @@ export default function EntityTelemetryAnalyticsPage() {
   const [selectedScoreDetail, setSelectedScoreDetail] = useState(null);
   const [scoreDetailsLoading, setScoreDetailsLoading] = useState(false);
 
+  // State for metric selection in graph (tracks which metrics to display)
+  const [selectedMetrics, setSelectedMetrics] = useState({});
+
   // Initialize default date range (2 hours ago to now - balanced for performance and data)
   useEffect(() => {
     const now = new Date();
@@ -366,12 +369,26 @@ export default function EntityTelemetryAnalyticsPage() {
     return null;
   };
 
-  // Get all attribute names for legend
+  // Get all attribute names for legend, filter out location and non-selected metrics
   const getMetricLabels = () => {
-    return getMetricsFromTelemetry().map(code => ({
-      code: code,
-      name: getAttributeNameForCode(code)
-    }));
+    return getMetricsFromTelemetry()
+      .filter(code => {
+        // Exclude location attributes
+        const codeStr = (code || '').toLowerCase();
+        if (codeStr.includes('latitude') || codeStr.includes('longitude') || code === 'navigation.position') {
+          return false;
+        }
+        // Only include if selected (or if no selections made yet, show defaults)
+        const hasAnySelection = Object.values(selectedMetrics).some(v => v);
+        if (hasAnySelection && !selectedMetrics[code]) {
+          return false;
+        }
+        return true;
+      })
+      .map(code => ({
+        code: code,
+        name: getAttributeNameForCode(code)
+      }));
   };
 
   const getRiskColor = (risk) => {
@@ -586,13 +603,27 @@ export default function EntityTelemetryAnalyticsPage() {
     setSelectedScoreDetail(null);
   };
 
-  // Sort latest values by attribute name (ascending)
+  // Sort latest values by attribute name (ascending), filter out location data
   const getSortedLatestValues = () => {
-    return [...latestValues].sort((a, b) => {
-      const nameA = (a.attributeName || a.attributeCode || '').toLowerCase();
-      const nameB = (b.attributeName || b.attributeCode || '').toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    return [...latestValues]
+      .filter(v => {
+        // Exclude latitude, longitude, and location attributes
+        const code = (v.attributeCode || '').toLowerCase();
+        return !code.includes('latitude') && !code.includes('longitude') && code !== 'navigation.position';
+      })
+      .sort((a, b) => {
+        const nameA = (a.attributeName || a.attributeCode || '').toLowerCase();
+        const nameB = (b.attributeName || b.attributeCode || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+  };
+
+  // Toggle metric selection for graph
+  const toggleMetricSelection = (attributeCode) => {
+    setSelectedMetrics(prev => ({
+      ...prev,
+      [attributeCode]: !prev[attributeCode]
+    }));
   };
 
   return (
@@ -667,16 +698,27 @@ export default function EntityTelemetryAnalyticsPage() {
 
       {/* Section 2: Latest Values */}
       <div className="analytics-section">
-        <h3>📌 Latest Values</h3>
+        <h3>📌 Latest Values (Click to toggle in graph)</h3>
         {latestValues.length > 0 ? (
           <div className="metrics-display">
             {getSortedLatestValues().map((value, idx) => {
               const chartIdx = getChartIndexForMetricCode(value.attributeCode);
               const chartColor = chartIdx >= 0 ? metricColorForIndex(chartIdx) : metricColorForIndex(idx);
               const formatted = getFormattedValue(value.attributeCode, value.numericValue, value.attributeUnit);
+              const isSelected = selectedMetrics[value.attributeCode] || false;
               
               return (
-                <div key={idx} className="metric-card">
+                <div 
+                  key={idx} 
+                  className="metric-card"
+                  onClick={() => toggleMetricSelection(value.attributeCode)}
+                  style={{
+                    cursor: 'pointer',
+                    border: isSelected ? '2px solid #60a5fa' : '2px solid transparent',
+                    transition: 'border-color 0.2s ease',
+                    padding: 'calc(12px - 2px)' // Adjust for border width
+                  }}
+                >
                   <div className="metric-key">{value.attributeName || value.attributeCode}</div>
                   <div 
                     className="metric-val"
@@ -742,7 +784,6 @@ export default function EntityTelemetryAnalyticsPage() {
                   content={<CustomTooltip />}
                   cursor={{ stroke: '#999', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
-                <Legend wrapperStyle={{ paddingTop: '0px', marginBottom: '0px' }} />
                 {getMetricLabels().map((metric, idx) => {
                   const palette = ['#ff7300', '#38a3b8', '#41b922', '#bb4c99', '#ff4d4d', '#8884d8'];
                   return (
