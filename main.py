@@ -1860,13 +1860,15 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         # Just use them directly for database query
         print(f"Telemetry query range - Start (UTC): {startDate}, End (UTC): {endDate}")
         
-        # Get telemetry data in date range
+        # Get telemetry data in date range including location data
         query = """
         SELECT
             et.entityTypeAttributeId,
             eta.entityTypeAttributeCode,
             et.numericValue,
-            et.endTimestampUTC
+            et.endTimestampUTC,
+            et.latitude,
+            et.longitude
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
         WHERE et.entityId = ?
@@ -1886,10 +1888,14 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             timestamp = row[3]
             code = row[1]
             value = row[2]
+            lat = row[4]
+            lon = row[5]
             
             if timestamp not in data_dict:
                 data_dict[timestamp] = {
-                    "endTimestampUTC": timestamp
+                    "endTimestampUTC": timestamp,
+                    "latitude": lat,
+                    "longitude": lon
                 }
             
             if value is not None:

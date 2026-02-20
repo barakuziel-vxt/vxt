@@ -3,6 +3,7 @@ import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import '../styles/ManagementPage.css';
+import LocationMap from '../components/LocationMap';
 
 export default function EntityTelemetryAnalyticsPage() {
   // State for entity selection
@@ -661,7 +662,10 @@ export default function EntityTelemetryAnalyticsPage() {
         </div>
       </div>
 
-      {/* Section 1: Latest Values */}
+      {/* Section 1: Location Map */}
+      <LocationMap telemetryData={telemetryData} title="Location History" />
+
+      {/* Section 2: Latest Values */}
       <div className="analytics-section">
         <h3>📌 Latest Values</h3>
         {latestValues.length > 0 ? (
@@ -698,7 +702,7 @@ export default function EntityTelemetryAnalyticsPage() {
         )}
       </div>
 
-      {/* Section 2: Telemetry Chart */}
+      {/* Section 3: Telemetry Chart */}
       <div className="analytics-section">
         <h3>📈 Telemetry Metrics ({getMetricsFromTelemetry().length} metrics)</h3>
         {telemetryData.length > 0 ? (
@@ -764,7 +768,7 @@ export default function EntityTelemetryAnalyticsPage() {
         )}
       </div>
 
-      {/* Section 3: Events */}
+      {/* Section 4: Events */}
       <div className="analytics-section">
         <h3>⚠️ Detected Events ({events.length})</h3>
         {events.length > 0 ? (
