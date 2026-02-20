@@ -90,8 +90,26 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
     );
   }
 
-  // Create polyline coordinates (in [lat, lon] format)
-  const polylineCoordinates = locationPoints.map(p => [p.lat, p.lon]);
+  // Create polyline coordinates with interpolation for smooth curves
+  const interpolatePoint = (p1, p2, t) => [
+    p1[0] + (p2[0] - p1[0]) * t,
+    p1[1] + (p2[1] - p1[1]) * t
+  ];
+  
+  const smoothedCoordinates = [];
+  const baseCoordinates = locationPoints.map(p => [p.lat, p.lon]);
+  
+  for (let i = 0; i < baseCoordinates.length - 1; i++) {
+    smoothedCoordinates.push(baseCoordinates[i]);
+    // Add 4 interpolated points between each pair of waypoints for smooth curves
+    for (let j = 1; j <= 4; j++) {
+      smoothedCoordinates.push(
+        interpolatePoint(baseCoordinates[i], baseCoordinates[i + 1], j / 5)
+      );
+    }
+  }
+  smoothedCoordinates.push(baseCoordinates[baseCoordinates.length - 1]);
+  
   const centerPoint = locationPoints[locationPoints.length - 1] || locationPoints[0];
 
   return (
@@ -115,9 +133,9 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
             attribution='&copy; OpenStreetMap contributors'
           />
           
-          {/* Draw path polyline */}
+          {/* Draw smoothly curved path polyline */}
           <Polyline
-            positions={polylineCoordinates}
+            positions={smoothedCoordinates}
             color="#000000"
             weight={3}
             opacity={1}

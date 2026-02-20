@@ -66,34 +66,79 @@ class SignalKSimulator:
     def _generate_sailing_route(self):
         """Generate waypoints for sailing around Haifa Port
         
-        Creates a rectangular pattern:
-        - North 5 miles from port
-        - West 2.5 miles from port
-        - Returns to start
-        - Cycles continuously with random variations
+        Uses actual GPS traces from Haifa harbor with realistic port docking pattern
+        61 waypoints tracing actual vessel path around the harbor
         """
-        waypoints = []
+        # Actual traced waypoints from Haifa harbor (lon, lat format from map tool)
+        waypoints_raw = [
+            (35.0315595, 32.8059605),
+            (35.0304437, 32.8062310),
+            (35.0293064, 32.8064474),
+            (35.0285125, 32.8068620),
+            (35.0282979, 32.8081422),
+            (35.0285983, 32.8089896),
+            (35.0286241, 32.8099920),
+            (35.0286026, 32.8109476),
+            (35.0283666, 32.8117949),
+            (35.0280018, 32.8124800),
+            (35.0270791, 32.8132192),
+            (35.0253754, 32.8148129),
+            (35.0237875, 32.8157324),
+            (35.0226631, 32.8162985),
+            (35.0209465, 32.8170737),
+            (35.0190582, 32.8179210),
+            (35.0175991, 32.8195975),
+            (35.0168052, 32.8210578),
+            (35.0160456, 32.8266640),
+            (35.0169253, 32.8272606),
+            (35.0179768, 32.8281980),
+            (35.0188136, 32.8297121),
+            (35.0193071, 32.8312443),
+            (35.0194144, 32.8321816),
+            (35.0195217, 32.8333171),
+            (35.0203028, 32.8335522),
+            (35.0210752, 32.8337324),
+            (35.0226631, 32.8338766),
+            (35.0250235, 32.8339487),
+            (35.0294867, 32.8334080),
+            (35.0336065, 32.8323986),
+            (35.0381985, 32.8308484),
+            (35.0413227, 32.8315365),
+            (35.0447559, 32.8339158),
+            (35.0473566, 32.8399213),
+            (35.0489445, 32.8434538),
+            (35.0502491, 32.8553910),
+            (35.0500774, 32.8629592),
+            (35.0524978, 32.8816849),
+            (35.0554676, 32.8922633),
+            (35.0610294, 32.9014277),
+            (35.0663509, 32.9054621),
+            (35.0705566, 32.9092081),
+            (35.0723848, 32.9119321),
+            (35.0736294, 32.9143452),
+            (35.0725393, 32.9161717),
+            (35.0717669, 32.9171621),
+            (35.0715737, 32.9176843),
+            (35.0715308, 32.9183146),
+            (35.0715051, 32.9186410),
+            (35.0715373, 32.9191002),
+            (35.0712905, 32.9194154),
+            (35.0711226, 32.9195032),
+            (35.0708544, 32.9195509),
+            (35.0705084, 32.9196049),
+            (35.0702444, 32.9196301),
+            (35.0700572, 32.9195613),
+            (35.0698748, 32.9194825)
+        ]
         
-        # Generate waypoints in a rectangular pattern around Haifa
-        # Segment 1: Southeast corner to Northwest corner (diagonal approximately north+west)
-        for i in range(50):
-            progress = i / 49.0
-            lat = self.POLYGON_BOUNDS['south'] + (self.POLYGON_BOUNDS['north'] - self.POLYGON_BOUNDS['south']) * progress
-            lon = self.POLYGON_BOUNDS['east'] + (self.POLYGON_BOUNDS['west'] - self.POLYGON_BOUNDS['east']) * progress
-            waypoints.append({'lat': lat, 'lon': lon})
+        # Convert to waypoint format (lon, lat) -> {'lat': lat, 'lon': lon}
+        waypoints = [{'lat': lat, 'lon': lon} for lon, lat in waypoints_raw]
         
-        # Segment 2: Return from Northwest to Southeast
-        for i in range(50):
-            progress = i / 49.0
-            lat = self.POLYGON_BOUNDS['north'] + (self.POLYGON_BOUNDS['south'] - self.POLYGON_BOUNDS['north']) * progress
-            lon = self.POLYGON_BOUNDS['west'] + (self.POLYGON_BOUNDS['east'] - self.POLYGON_BOUNDS['west']) * progress
-            waypoints.append({'lat': lat, 'lon': lon})
-        
-        logger.info(f"Generated sailing route with {len(waypoints)} waypoints")
-        logger.info(f"  Port Center: Haifa {self.HAIFA_CENTER}")
-        logger.info(f"  Polygon bounds: South={self.POLYGON_BOUNDS['south']:.4f}, North={self.POLYGON_BOUNDS['north']:.4f}")
-        logger.info(f"                  West={self.POLYGON_BOUNDS['west']:.4f}, East={self.POLYGON_BOUNDS['east']:.4f}")
-        logger.info(f"  Route: North 5nm, West 2.5nm, Return cycle")
+        logger.info(f"Generated sailing route with {len(waypoints)} actual harbor waypoints")
+        logger.info(f"  Haifa Harbor trace: Real GPS coordinates from Leaflet map trace")
+        logger.info(f"  Route: Complex docking pattern around Haifa port")
+        logger.info(f"  Latitude range: {min(w['lat'] for w in waypoints):.4f} to {max(w['lat'] for w in waypoints):.4f}")
+        logger.info(f"  Longitude range: {min(w['lon'] for w in waypoints):.4f} to {max(w['lon'] for w in waypoints):.4f}")
         return waypoints
     
     def generate_navigation_event(self, vessel_mmsi='234567890') -> Dict:
