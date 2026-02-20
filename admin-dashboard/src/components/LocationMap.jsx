@@ -120,12 +120,15 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
         width: '100%',
         borderRadius: '8px',
         overflow: 'hidden',
-        border: '1px solid #334155'
+        border: '1px solid #334155',
+        boxSizing: 'border-box',
+        marginLeft: '-4px',
+        paddingLeft: '0px'
       }}>
         <MapContainer
           center={[centerPoint.lat, centerPoint.lon]}
           zoom={12}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', boxSizing: 'border-box' }}
           scrollWheelZoom={true}
         >
           <TileLayer

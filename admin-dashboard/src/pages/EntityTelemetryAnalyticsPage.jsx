@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import '../styles/ManagementPage.css';
 import LocationMap from '../components/LocationMap';
 
@@ -102,13 +104,18 @@ export default function EntityTelemetryAnalyticsPage() {
   // Auto-select default health metrics when latest values arrive for the first time
   useEffect(() => {
     if (latestValues.length > 0 && Object.keys(selectedMetrics).length === 0) {
+      console.log('=== Auto-selecting metrics ===');
+      console.log('latestValues:', latestValues.map(v => v.attributeCode));
+      
       const isHealthMetric = (code) => {
         const c = code.toLowerCase();
-        return c.includes('mainengine') || 
+        const isHealth = c.includes('mainengine') || 
                c.includes('engine.') ||
                c.includes('electrical.batt') || 
                c === 'electrical.batteryvoltage' ||
                c === 'navigation.depth';
+        console.log(`  [${code}] -> ${isHealth}`);
+        return isHealth;
       };
       
       const defaultSelected = {};
@@ -118,9 +125,11 @@ export default function EntityTelemetryAnalyticsPage() {
         }
       });
       
+      console.log('defaultSelected:', defaultSelected);
+      
       if (Object.keys(defaultSelected).length > 0) {
         setSelectedMetrics(defaultSelected);
-        console.log('Auto-selected health metrics:', defaultSelected);
+        console.log('✓ Auto-selected health metrics set:', defaultSelected);
       }
     }
   }, [latestValues]);
@@ -629,6 +638,151 @@ export default function EntityTelemetryAnalyticsPage() {
     setSelectedScoreDetail(null);
   };
 
+  // Export page to PDF
+  const exportToPDF = async () => {
+    try {
+      const element = document.getElementById('telemetry-content');
+      if (!element) {
+        alert('Content not found for export');
+        return;
+      }
+
+      console.log('Generating PDF...');
+      
+      // Clone the element and remove filter-section for PDF export only
+      const clonedElement = element.cloneNode(true);
+      const filterSection = clonedElement.querySelector('.filter-section');
+      if (filterSection) {
+        filterSection.remove();
+      }
+      
+      // Temporarily add cloned element to DOM for html2canvas to work
+      clonedElement.style.position = 'absolute';
+      clonedElement.style.left = '-9999px';
+      clonedElement.style.width = element.offsetWidth + 'px';
+      document.body.appendChild(clonedElement);
+      
+      // Store original styles to restore later
+      const originalBgColor = clonedElement.style.backgroundColor;
+      const originalColor = clonedElement.style.color;
+      
+      // Apply white background and dark text for PDF
+      clonedElement.style.backgroundColor = '#ffffff';
+      clonedElement.style.color = '#000000';
+      
+      // Also override dark backgrounds in child elements
+      const allElements = clonedElement.querySelectorAll('*');
+      const originalStyles = [];
+      
+      allElements.forEach(el => {
+        originalStyles.push({
+          element: el,
+          style: el.getAttribute('style') || ''
+        });
+        
+        const computedStyle = window.getComputedStyle(el);
+        const bgColor = computedStyle.backgroundColor;
+        const color = computedStyle.color;
+        
+        // Override dark backgrounds to white/light gray for all elements
+        if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+          const rgb = bgColor.match(/\d+/g);
+          if (rgb && rgb.length >= 3) {
+            const r = parseInt(rgb[0]);
+            const g = parseInt(rgb[1]);
+            const b = parseInt(rgb[2]);
+            // If average is dark (less than 150), make it light
+            const avg = (r + g + b) / 3;
+            if (avg < 150) {
+              el.style.backgroundColor = '#ffffff';
+            }
+          }
+        }
+        
+        // Override dark text to black for readability
+        const textRgb = color.match(/\d+/g);
+        if (textRgb && textRgb.length >= 3) {
+          const r = parseInt(textRgb[0]);
+          const g = parseInt(textRgb[1]);
+          const b = parseInt(textRgb[2]);
+          const avg = (r + g + b) / 3;
+          // If text is light (more than 150), make it dark
+          if (avg > 150) {
+            el.style.color = '#000000';
+          }
+        }
+        
+        // Force borders to be visible on light background
+        if (el.tagName === 'TD' || el.tagName === 'TH') {
+          el.style.borderColor = '#cccccc';
+        }
+      });
+      
+      // Create canvas from cloned element
+      const canvas = await html2canvas(clonedElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      // Remove cloned element from DOM
+      document.body.removeChild(clonedElement);
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Get dimensions
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Get entity name
+      const entity = entities.find(e => e.entityId === selectedEntity);
+      const entityName = entity ? (entity.entityFirstName || entity.entityName || selectedEntity) : selectedEntity;
+      
+      // Add content directly to the PDF without a separate title page
+      // Add header on first page
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(0, 0, 210, 25, 'F');
+      pdf.setFontSize(16);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Telemetry Report - ${entityName}`, 10, 12);
+      
+      pdf.setFontSize(9);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, 10, 18);
+      pdf.text(`Date Range: ${startDate} to ${endDate}`, 10, 23);
+      
+      // Add the captured image content starting below the header
+      let yPosition = 28;
+      let heightLeft = imgHeight;
+      let pageNum = 1;
+      
+      // Add image to pages
+      while (heightLeft > 0) {
+        if (yPosition + Math.min(heightLeft, pageHeight - yPosition) > pageHeight) {
+          pdf.addPage();
+          yPosition = 10;
+        }
+        
+        const contentHeight = Math.min(heightLeft, pageHeight - yPosition);
+        pdf.addImage(imgData, 'PNG', 0, yPosition, imgWidth, contentHeight);
+        heightLeft -= contentHeight;
+        yPosition = pageHeight; // Force new page for next iteration
+      }
+
+      // Save PDF
+      pdf.save(`telemetry-report-${selectedEntity}-${new Date().getTime()}.pdf`);
+      console.log('✓ PDF exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF: ' + (error.message || String(error)));
+    }
+  };
+
   // Sort latest values by attribute name (ascending), filter out location data
   const getSortedLatestValues = () => {
     return [...latestValues]
@@ -659,21 +813,32 @@ export default function EntityTelemetryAnalyticsPage() {
           <h2>📊 Telemetry & Events</h2>
           <p>Monitor real-time data and detected events for selected entities</p>
         </div>
-        <button 
-          className="refresh-button"
-          onClick={() => {
-            setLoading(true);
-            loadAnalyticsData();
-          }}
-          disabled={loading}
-          title="Refresh data"
-        >
-          🔄 {loading ? 'Loading...' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="refresh-button"
+            onClick={() => {
+              setLoading(true);
+              loadAnalyticsData();
+            }}
+            disabled={loading}
+            title="Refresh data"
+          >
+            🔄 {loading ? 'Loading...' : 'Refresh'}
+          </button>
+          <button 
+            className="refresh-button"
+            onClick={exportToPDF}
+            disabled={loading}
+            title="Export page as PDF"
+          >
+            📄 Export PDF
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
+      <div id="telemetry-content">
       {/* Filters Section */}
       <div className="filter-section">
         <div className="filter-group">
@@ -732,6 +897,11 @@ export default function EntityTelemetryAnalyticsPage() {
               const chartColor = chartIdx >= 0 ? metricColorForIndex(chartIdx) : metricColorForIndex(idx);
               const formatted = getFormattedValue(value.attributeCode, value.numericValue, value.attributeUnit);
               const isSelected = selectedMetrics[value.attributeCode] || false;
+              
+              if (idx === 0) {
+                console.log('=== Rendering Latest Values ===');
+                console.log('selectedMetrics:', selectedMetrics);
+              }
               
               return (
                 <div 
@@ -1481,6 +1651,7 @@ export default function EntityTelemetryAnalyticsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
