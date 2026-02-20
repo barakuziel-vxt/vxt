@@ -1804,6 +1804,7 @@ async def get_latest_telemetry(entity_id: str):
             eta.entityTypeAttributeCode,
             eta.entityTypeAttributeName,
             eta.entityTypeAttributeUnit,
+            eta.defaultInGraph,
             et.numericValue,
             et.stringValue,
             et.endTimestampUTC,
@@ -1818,6 +1819,7 @@ async def get_latest_telemetry(entity_id: str):
           entityTypeAttributeCode,
           entityTypeAttributeName,
           entityTypeAttributeUnit,
+          defaultInGraph,
           numericValue,
           stringValue,
           endTimestampUTC
@@ -1838,9 +1840,10 @@ async def get_latest_telemetry(entity_id: str):
                 "attributeCode": row[1],
                 "attributeName": row[2],
                 "attributeUnit": row[3],
-                "numericValue": row[4],
-                "stringValue": row[5],
-                "endTimestampUTC": row[6]
+                "defaultInGraph": row[4],
+                "numericValue": row[5],
+                "stringValue": row[6],
+                "endTimestampUTC": row[7]
             })
         
         return results

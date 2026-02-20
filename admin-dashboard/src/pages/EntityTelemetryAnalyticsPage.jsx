@@ -242,6 +242,16 @@ export default function EntityTelemetryAnalyticsPage() {
         const latest = await latestRes.json();
         console.log(`Latest values loaded: ${latest.length} metrics`);
         setLatestValues(latest);
+        
+        // Initialize selectedMetrics with attributes that have defaultInGraph='Y'
+        const defaultSelected = {};
+        latest.forEach(attr => {
+          if (attr.defaultInGraph === 'Y') {
+            defaultSelected[attr.attributeCode] = true;
+          }
+        });
+        setSelectedMetrics(defaultSelected);
+        console.log('Default selected metrics:', defaultSelected);
       }
 
       // Load telemetry data for chart
