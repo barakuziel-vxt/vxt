@@ -244,9 +244,20 @@ export default function EntityTelemetryAnalyticsPage() {
         setLatestValues(latest);
         
         // Initialize selectedMetrics with attributes that have defaultInGraph='Y'
+        // or match health-related patterns as fallback
+        const isHealthMetric = (code) => {
+          const c = code.toLowerCase();
+          return c.includes('mainengine') || 
+                 c.includes('engine.') ||
+                 c.includes('electrical.batt') || 
+                 c === 'electrical.batteryvoltage' ||
+                 c === 'navigation.depth';
+        };
+        
         const defaultSelected = {};
         latest.forEach(attr => {
-          if (attr.defaultInGraph === 'Y') {
+          // Prefer explicit defaultInGraph='Y', fallback to pattern matching
+          if (attr.defaultInGraph === 'Y' || (!attr.defaultInGraph && isHealthMetric(attr.attributeCode))) {
             defaultSelected[attr.attributeCode] = true;
           }
         });
