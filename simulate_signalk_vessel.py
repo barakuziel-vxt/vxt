@@ -23,11 +23,34 @@ logger = logging.getLogger(__name__)
 class SignalKSimulator:
     """Generates realistic SignalK maritime telemetry events"""
     
+    # Sailing route around Haifa Port, Israel
+    # Haifa Harbor (Israel): 32.8315366°N, 35.0036234°E
+    # Route: North 5 miles, West 2.5 miles, return to start
+    # Creates a rectangular sailing pattern around the port
+    HAIFA_CENTER = {'lat': 32.8315366, 'lon': 35.0036234}
+    
+    # Calculate polygon bounds (in degrees)
+    # 5 nautical miles north ≈ 0.0725° latitude
+    # 2.5 nautical miles west ≈ 0.0432° longitude (at this latitude)
+    POLYGON_BOUNDS = {
+        'south': 32.8315366,
+        'north': 32.9040366,  # +0.0725°
+        'west': 34.9604234,   # -0.0432°
+        'east': 35.0036234
+    }
+    
     def __init__(self, bootstrap_servers='localhost:9092', topic='signalk-events'):
         """Initialize Kafka producer for SignalK events"""
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
-        self.vessel_mmsi = '234567890'  # Vessel MMSI identifier
+        # Track position for both vessels with sailing route around Haifa
+        self.vessel_positions = {
+            '234567890': {'lat': 32.8315366, 'lon': 35.0036234, 'waypoint_idx': 0},  # Haifa Port
+            '234567891': {'lat': 32.8315366, 'lon': 35.0036234, 'waypoint_idx': 0}   # Haifa Port
+        }
+        # Create sailing route with multiple waypoints
+        self.route_waypoints = self._generate_sailing_route()
+        self.route_segment = 0  # Current segment of route
         
         try:
             self.producer = KafkaProducer(
@@ -40,10 +63,55 @@ class SignalKSimulator:
             logger.error(f"Failed to connect to Kafka: {e}")
             raise
     
-    def generate_navigation_event(self) -> Dict:
-        """Generate a navigation event (position, heading, speed)"""
+    def _generate_sailing_route(self):
+        """Generate waypoints for sailing around Haifa Port
+        
+        Creates a rectangular pattern:
+        - North 5 miles from port
+        - West 2.5 miles from port
+        - Returns to start
+        - Cycles continuously with random variations
+        """
+        waypoints = []
+        
+        # Generate waypoints in a rectangular pattern around Haifa
+        # Segment 1: Southeast corner to Northwest corner (diagonal approximately north+west)
+        for i in range(50):
+            progress = i / 49.0
+            lat = self.POLYGON_BOUNDS['south'] + (self.POLYGON_BOUNDS['north'] - self.POLYGON_BOUNDS['south']) * progress
+            lon = self.POLYGON_BOUNDS['east'] + (self.POLYGON_BOUNDS['west'] - self.POLYGON_BOUNDS['east']) * progress
+            waypoints.append({'lat': lat, 'lon': lon})
+        
+        # Segment 2: Return from Northwest to Southeast
+        for i in range(50):
+            progress = i / 49.0
+            lat = self.POLYGON_BOUNDS['north'] + (self.POLYGON_BOUNDS['south'] - self.POLYGON_BOUNDS['north']) * progress
+            lon = self.POLYGON_BOUNDS['west'] + (self.POLYGON_BOUNDS['east'] - self.POLYGON_BOUNDS['west']) * progress
+            waypoints.append({'lat': lat, 'lon': lon})
+        
+        logger.info(f"Generated sailing route with {len(waypoints)} waypoints")
+        logger.info(f"  Port Center: Haifa {self.HAIFA_CENTER}")
+        logger.info(f"  Polygon bounds: South={self.POLYGON_BOUNDS['south']:.4f}, North={self.POLYGON_BOUNDS['north']:.4f}")
+        logger.info(f"                  West={self.POLYGON_BOUNDS['west']:.4f}, East={self.POLYGON_BOUNDS['east']:.4f}")
+        logger.info(f"  Route: North 5nm, West 2.5nm, Return cycle")
+        return waypoints
+    
+    def generate_navigation_event(self, vessel_mmsi='234567890') -> Dict:
+        """Generate a navigation event (position, heading, speed) along the sailing route"""
+        # Move vessel along the predefined sailing route
+        waypoint_idx = self.route_segment % len(self.route_waypoints)
+        waypoint = self.route_waypoints[waypoint_idx]
+        
+        # Add slight random drift around waypoint (±0.001 degrees)
+        lat = waypoint['lat'] + random.uniform(-0.001, 0.001)
+        lon = waypoint['lon'] + random.uniform(-0.001, 0.001)
+        
+        # Update position for this vessel
+        self.vessel_positions[vessel_mmsi]['lat'] = lat
+        self.vessel_positions[vessel_mmsi]['lon'] = lon
+        
         return {
-            'context': f'vessels.urn:mrn:imo:mmsi:{self.vessel_mmsi}',
+            'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'gps1',
                 'timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -51,8 +119,8 @@ class SignalKSimulator:
                     {
                         'path': 'navigation.position',
                         'value': {
-                            'latitude': 60.0 + random.uniform(-0.1, 0.1),
-                            'longitude': 25.0 + random.uniform(-0.1, 0.1)
+                            'latitude': self.vessel_positions[vessel_mmsi]['lat'],
+                            'longitude': self.vessel_positions[vessel_mmsi]['lon']
                         }
                     },
                     {
@@ -79,10 +147,10 @@ class SignalKSimulator:
             }]
         }
     
-    def generate_environmental_event(self) -> Dict:
+    def generate_environmental_event(self, vessel_mmsi='234567890') -> Dict:
         """Generate an environmental event (wind, water temp, air pressure)"""
         return {
-            'context': f'vessels.urn:mrn:imo:mmsi:{self.vessel_mmsi}',
+            'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'weather1',
                 'timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -111,10 +179,10 @@ class SignalKSimulator:
             }]
         }
     
-    def generate_engine_event(self) -> Dict:
+    def generate_engine_event(self, vessel_mmsi='234567890') -> Dict:
         """Generate an engine event (RPM, temperature, pressure)"""
         return {
-            'context': f'vessels.urn:mrn:imo:mmsi:{self.vessel_mmsi}',
+            'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'engine1',
                 'timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -135,10 +203,10 @@ class SignalKSimulator:
             }]
         }
     
-    def generate_electrical_event(self) -> Dict:
+    def generate_electrical_event(self, vessel_mmsi='234567890') -> Dict:
         """Generate an electrical event (battery voltage, current)"""
         return {
-            'context': f'vessels.urn:mrn:imo:mmsi:{self.vessel_mmsi}',
+            'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'electrical1',
                 'timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -155,10 +223,10 @@ class SignalKSimulator:
             }]
         }
     
-    def generate_tank_event(self) -> Dict:
+    def generate_tank_event(self, vessel_mmsi='234567890') -> Dict:
         """Generate a tank event (fuel, water levels)"""
         return {
-            'context': f'vessels.urn:mrn:imo:mmsi:{self.vessel_mmsi}',
+            'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'tanks1',
                 'timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -187,9 +255,15 @@ class SignalKSimulator:
         except Exception as e:
             logger.error(f"Failed to send event: {e}")
     
+    def advance_route(self):
+        """Advance to next waypoint on the sailing route (cycles through full route)"""
+        self.route_segment = (self.route_segment + 1) % (len(self.route_waypoints) * 10)  # Cycle through route multiple times
+        if self.route_segment == 0:
+            logger.info("======= Completed full sailing cycle around Haifa Port =======")
+    
     def run(self, interval=5):
         """
-        Run the simulator indefinitely, generating events at regular intervals
+        Run the simulator indefinitely, generating events at regular intervals for both vessels
         
         Args:
             interval: Seconds between event rounds
@@ -202,19 +276,27 @@ class SignalKSimulator:
             ('tanks', self.generate_tank_event),
         ]
         
-        logger.info(f"Starting SignalK simulator for vessel {self.vessel_mmsi}")
+        logger.info(f"Starting SignalK simulator for vessels: {list(self.vessel_positions.keys())}")
         logger.info(f"Event interval: {interval} seconds")
+        logger.info(f"Sailing route: Haifa Port polygon (North 5nm, West 2.5nm)")
         logger.info("Press Ctrl+C to stop\n")
         
         event_count = 0
         try:
             while True:
-                for event_type, generator in event_generators:
-                    event = generator()
-                    self.send_event(event)
-                    event_count += 1
+                # Generate events for each vessel
+                for vessel_mmsi in self.vessel_positions.keys():
+                    for event_type, generator in event_generators:
+                        event = generator(vessel_mmsi)
+                        self.send_event(event)
+                        event_count += 1
                 
-                logger.info(f"  Total events sent: {event_count}\n")
+                # Advance to next waypoint on sailing route
+                self.advance_route()
+                
+                # Log current position periodically
+                current_pos = self.vessel_positions[list(self.vessel_positions.keys())[0]]
+                logger.info(f"  Waypoint: {self.route_segment} | Position: {current_pos['lat']:.4f}°N, {current_pos['lon']:.4f}°E | Total events: {event_count}")
                 time.sleep(interval)
         
         except KeyboardInterrupt:

@@ -17,7 +17,7 @@ while ($retries -lt $maxRetries) {
     try {
         $result = docker exec yacht-broker rpk broker info 2>&1
         if ($result -match "version") {
-            Write-Host "✓ Redpanda broker is ready" -ForegroundColor Green
+            Write-Host "[OK] Redpanda broker is ready" -ForegroundColor Green
             break
         }
     } catch {

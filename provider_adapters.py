@@ -436,13 +436,29 @@ class N2KToSignalKAdapter(ProviderAdapter):
             for update in message.get('updates', []):
                 timestamp = update.get('timestamp')
                 
-                # Process each value in the update
+                # Extract location data from all values for context
+                location_data = {'latitude': None, 'longitude': None}
+                
+                # First pass: extract position if available
                 for value_entry in update.get('values', []):
                     signal_path = value_entry.get('path')
                     signal_value = value_entry.get('value')
                     
-                    # Map SignalK path to protocol attribute code via event rules
-                    # (would be configured in database)
+                    # Extract latitude and longitude from nested position object
+                    if signal_path == 'navigation.position' and isinstance(signal_value, dict):
+                        location_data['latitude'] = signal_value.get('latitude')
+                        location_data['longitude'] = signal_value.get('longitude')
+                
+                # Second pass: process each path
+                for value_entry in update.get('values', []):
+                    signal_path = value_entry.get('path')
+                    signal_value = value_entry.get('value')
+                    
+                    # Skip nested position object - we already extracted lat/lon
+                    if signal_path == 'navigation.position':
+                        continue
+                    
+                    # Handle paths via event rules
                     if signal_path in self.event_rules:
                         rule = self.event_rules[signal_path]
                         events.append({
@@ -452,8 +468,8 @@ class N2KToSignalKAdapter(ProviderAdapter):
                             'timestamp': timestamp,
                             'numeric_value': float(signal_value) if isinstance(signal_value, (int, float)) else None,
                             'string_value': str(signal_value) if isinstance(signal_value, str) else None,
-                            'latitude': None,
-                            'longitude': None,
+                            'latitude': location_data['latitude'],  # Include location context
+                            'longitude': location_data['longitude'],
                             'provider_device': 'SignalK Device',
                             'provider_event_id': rule.get('provider_event_id')
                         })

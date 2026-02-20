@@ -12,7 +12,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "axios": "^1.6.0",
-    "recharts": "^2.10.0"
+    "recharts": "^2.10.0",
+    "react-leaflet": "^4.2.1",
+    "leaflet": "^1.9.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
