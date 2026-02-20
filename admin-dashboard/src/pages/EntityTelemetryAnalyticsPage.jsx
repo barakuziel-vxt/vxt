@@ -99,6 +99,32 @@ export default function EntityTelemetryAnalyticsPage() {
     }
   }, [selectedEntity, startDate, endDate]);
 
+  // Auto-select default health metrics when latest values arrive
+  useEffect(() => {
+    if (latestValues.length > 0 && Object.keys(selectedMetrics).length === 0) {
+      const isHealthMetric = (code) => {
+        const c = code.toLowerCase();
+        return c.includes('mainengine') || 
+               c.includes('engine.') ||
+               c.includes('electrical.batt') || 
+               c === 'electrical.batteryvoltage' ||
+               c === 'navigation.depth';
+      };
+      
+      const defaultSelected = {};
+      latestValues.forEach(attr => {
+        if (attr.defaultInGraph === 'Y' || (!attr.defaultInGraph && isHealthMetric(attr.attributeCode))) {
+          defaultSelected[attr.attributeCode] = true;
+        }
+      });
+      
+      if (Object.keys(defaultSelected).length > 0) {
+        setSelectedMetrics(defaultSelected);
+        console.log('Auto-selected health metrics:', defaultSelected);
+      }
+    }
+  }, [latestValues]);
+
   // Convert local datetime string to UTC ISO format
   const convertLocalToUTC = (localDateTimeStr) => {
     try {
