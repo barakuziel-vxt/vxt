@@ -123,7 +123,7 @@ export default function EntityTelemetryAnalyticsPage() {
         console.log('Auto-selected health metrics:', defaultSelected);
       }
     }
-  }, [latestValues.length]); // Only depend on length changing to trigger initialization
+  }, [latestValues]);
 
   // Convert local datetime string to UTC ISO format
   const convertLocalToUTC = (localDateTimeStr) => {
