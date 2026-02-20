@@ -4,6 +4,7 @@
 
 ALTER TABLE EntityTypeAttribute
 ADD defaultInGraph CHAR(1) DEFAULT 'N';
+GO
 
 -- Update health-related attributes to defaultInGraph = 'Y'
 -- Engine attributes

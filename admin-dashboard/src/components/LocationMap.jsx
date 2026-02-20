@@ -141,23 +141,11 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
             opacity={1}
           />
           
-          {/* Mark start point */}
-          <Marker position={[locationPoints[0].lat, locationPoints[0].lon]}>
-            <Popup>
-              <div style={{ fontSize: '12px' }}>
-                <strong>Start</strong><br/>
-                Lat: {locationPoints[0].lat.toFixed(4)}<br/>
-                Lon: {locationPoints[0].lon.toFixed(4)}<br/>
-                {locationPoints[0].timestamp ? new Date(locationPoints[0].timestamp).toLocaleString() : 'N/A'}
-              </div>
-            </Popup>
-          </Marker>
-          
-          {/* Mark end point */}
+          {/* Mark current/latest point */}
           <Marker position={[centerPoint.lat, centerPoint.lon]}>
             <Popup>
               <div style={{ fontSize: '12px' }}>
-                <strong>Latest</strong><br/>
+                <strong>Current Position</strong><br/>
                 Lat: {centerPoint.lat.toFixed(4)}<br/>
                 Lon: {centerPoint.lon.toFixed(4)}<br/>
                 {centerPoint.timestamp ? new Date(centerPoint.timestamp).toLocaleString() : 'N/A'}
