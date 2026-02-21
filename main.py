@@ -1856,12 +1856,51 @@ async def get_latest_telemetry(entity_id: str):
 async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
     """Get telemetry data for an entity within a date range, formatted for charting"""
     try:
+        print(f"\n{'='*60}")
+        print(f"GET /api/telemetry/range/{entity_id}")
+        print(f"   startDate (received): '{startDate}'")
+        print(f"   endDate (received): '{endDate}'")
+        print(f"   startDate type: {type(startDate)}, len: {len(startDate) if startDate else 0}")
+        print(f"   endDate type: {type(endDate)}, len: {len(endDate) if endDate else 0}")
+        print(f"{'='*60}")
+        
+        # Validate dates
+        if not startDate or not endDate:
+            print(f"ERROR: Missing date parameters!")
+            raise HTTPException(status_code=400, detail="startDate and endDate parameters are required and cannot be empty")
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
         # Frontend now sends UTC ISO format strings (e.g., "2026-02-15T12:48:00.000Z")
         # Just use them directly for database query
-        print(f"Telemetry query range - Start (UTC): {startDate}, End (UTC): {endDate}")
+        print(f"Executing telemetry query with:")
+        print(f"   Entity ID: {entity_id}")
+        print(f"   Start: {startDate}")
+        print(f"   End: {endDate}")
+        
+        # Python datetime parsing - much more robust than SQL Server CONVERT()
+        # JavaScript sends ISO format like "2026-02-21T11:45:51.597184Z"
+        # We need to parse this properly
+        from datetime import datetime as dt_class
+        
+        try:
+            # Remove 'Z' suffix if present and parse ISO format
+            start_str = startDate.replace('Z', '') if startDate.endswith('Z') else startDate
+            end_str = endDate.replace('Z', '') if endDate.endswith('Z') else endDate
+            
+            # Parse ISO format datetime
+            start_dt = dt_class.fromisoformat(start_str)
+            end_dt = dt_class.fromisoformat(end_str)
+            
+            # Convert back to SQL Server format that can be parsed
+            start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]  # Remove extra microseconds, keep 3-digit milliseconds
+            end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]
+            
+            print(f"   Parsed dates - Start: {start_sql}, End: {end_sql}")
+        except Exception as parse_err:
+            print(f"ERROR: Date parsing error: {parse_err}")
+            raise HTTPException(status_code=400, detail=f"Invalid date format: {str(parse_err)}")
         
         # Get telemetry data in date range including location data
         query = """
@@ -1875,13 +1914,14 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
         WHERE et.entityId = ?
-          AND et.endTimestampUTC >= CONVERT(DATETIME, ?)
-          AND et.endTimestampUTC <= CONVERT(DATETIME, ?)
+          AND et.endTimestampUTC >= CONVERT(DATETIME2, ?)
+          AND et.endTimestampUTC <= CONVERT(DATETIME2, ?)
         ORDER BY et.endTimestampUTC ASC
         """
         
-        cur.execute(query, (entity_id, startDate, endDate))
+        cur.execute(query, (entity_id, start_sql, end_sql))
         rows = cur.fetchall()
+        print(f"OK: Query executed. Raw row count: {len(rows)}")
         cur.close()
         conn.close()
         
@@ -1906,12 +1946,20 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         
         # Sort by timestamp
         result = sorted(data_dict.values(), key=lambda x: x['endTimestampUTC'])
-        print(f"Telemetry results: {len(result)} records returned")
+        print(f"OK: Telemetry results: {len(result)} records returned")
+        if len(result) == 0:
+            print(f"WARNING: Empty result for entity={entity_id}, dateRange=[{startDate}, {endDate}]")
+        else:
+            print(f"   First record timestamp: {result[0]['endTimestampUTC']}")
+            print(f"   Last record timestamp: {result[-1]['endTimestampUTC']}")
         return result
         
     except Exception as e:
-        print(f"Telemetry error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"ERROR: Telemetry error: {str(e)}")
+        print(f"   Exception type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Telemetry error: {str(e)}")
 
 
 @app.get("/api/events/range/{entity_id}")
