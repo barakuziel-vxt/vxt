@@ -35,6 +35,7 @@ export default function EntityTypeAttributePage() {
     providerId: '',
     providerEventType: '',
     active: 'Y',
+    defaultInGraph: 'N',
   });
   const [criteriaFormData, setCriteriaFormData] = useState({
     minValue: '',
@@ -104,18 +105,19 @@ export default function EntityTypeAttributePage() {
     if (attribute) {
       setEditingId(attribute.entityTypeAttributeId);
       setFormData({
-        entityTypeId: attribute.entityTypeId,
-        protocolId: attribute.protocolId || '',
+        entityTypeId: String(attribute.entityTypeId),
+        protocolId: attribute.protocolId ? String(attribute.protocolId) : '',
         entityTypeAttributeCode: attribute.entityTypeAttributeCode,
         entityTypeAttributeName: attribute.entityTypeAttributeName,
         entityTypeAttributeTimeAspect: attribute.entityTypeAttributeTimeAspect,
         entityTypeAttributeUnit: attribute.entityTypeAttributeUnit,
-        providerId: attribute.providerId || '',
+        providerId: attribute.providerId ? String(attribute.providerId) : '',
         providerEventType: attribute.providerEventType || '',
         active: attribute.active,
+        defaultInGraph: attribute.defaultInGraph || 'N',
       });
       if (attribute.protocolId) {
-        handleProtocolChange(attribute.protocolId);
+        handleProtocolChange(String(attribute.protocolId));
       }
     } else {
       setEditingId(null);
@@ -129,6 +131,7 @@ export default function EntityTypeAttributePage() {
         providerId: '',
         providerEventType: '',
         active: 'Y',
+        defaultInGraph: 'N',
       });
       setProtocolAttributes([]);
     }
@@ -427,6 +430,7 @@ export default function EntityTypeAttributePage() {
                 <th>Protocol</th>
                 <th>Unit</th>
                 <th>Category</th>
+                <th>Graph</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -450,6 +454,11 @@ export default function EntityTypeAttributePage() {
                     ) : (
                       <span style={{ color: 'var(--text-light)' }}>—</span>
                     )}
+                  </td>
+                  <td>
+                    <span className={`badge badge-${attr.defaultInGraph === 'Y' ? 'success' : 'secondary'}`}>
+                      {attr.defaultInGraph === 'Y' ? 'Yes' : 'No'}
+                    </span>
                   </td>
                   <td>
                     <span className={`badge badge-${attr.active === 'Y' ? 'active' : 'inactive'}`}>
@@ -662,6 +671,22 @@ export default function EntityTypeAttributePage() {
                   <option value="Y">Active</option>
                   <option value="N">Inactive</option>
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="defaultInGraph">Include in Graph by Default</label>
+                <select
+                  id="defaultInGraph"
+                  name="defaultInGraph"
+                  value={formData.defaultInGraph}
+                  onChange={handleInputChange}
+                >
+                  <option value="Y">Yes</option>
+                  <option value="N">No</option>
+                </select>
+                <small style={{ color: 'var(--text-light)', marginTop: '5px', display: 'block' }}>
+                  When enabled, this attribute will be displayed by default in graph visualizations
+                </small>
               </div>
 
               <div className="modal-footer">

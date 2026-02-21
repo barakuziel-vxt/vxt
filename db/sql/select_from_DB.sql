@@ -36,6 +36,7 @@ SELECT entityTypeId FROM EntityType WHERE entityTypeName = 'Person';
     
 select * from dbo.Event
 select * from dbo.EventAttribute
+select * from dbo.EntityTypeAttribute
 select * from dbo.EntityTypeAttributeScore
 
 update dbo.Entity set entityTypeCode = 'Person' where entityTypeCode = 'Male'
