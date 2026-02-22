@@ -84,7 +84,12 @@ export default function EntityTelemetryAnalyticsPage() {
       setEntities(data);
       setError(null);
       if (data.length > 0) {
-        setSelectedEntity(data[0].entityId);
+        // Prefer yacht/maritime entities (entityTypeId != 1) over health providers
+        // entityTypeId = 1 is Person (health vitals), others are vessels
+        const yachtEntity = data.find(e => e.entityTypeId !== 1);
+        const defaultEntityId = yachtEntity ? yachtEntity.entityId : data[0].entityId;
+        console.log(`Setting default entity to: ${defaultEntityId}`);
+        setSelectedEntity(defaultEntityId);
       }
     } catch (err) {
       console.error('Error loading entities:', err);
@@ -97,6 +102,8 @@ export default function EntityTelemetryAnalyticsPage() {
   // Load data when entity or date range changes
   useEffect(() => {
     if (selectedEntity && startDate && endDate) {
+      console.log(`Entity changed to: ${selectedEntity}, resetting selected metrics`);
+      setSelectedMetrics({}); // Reset metrics when entity changes so auto-selection triggers
       loadAnalyticsData();
     }
   }, [selectedEntity, startDate, endDate]);
