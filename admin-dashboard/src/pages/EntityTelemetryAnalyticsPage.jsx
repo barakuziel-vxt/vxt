@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import '../styles/ManagementPage.css';
 import LocationMap from '../components/LocationMap';
+import { convertValue, getUnit } from '../utils/unitConversion';
 
 export default function EntityTelemetryAnalyticsPage() {
   // State for entity selection
@@ -362,10 +363,34 @@ export default function EntityTelemetryAnalyticsPage() {
     return decimated;
   };
 
-  // When telemetry data changes, decimate it
+  // Convert telemetry records to use standardized display units
+  // This ensures consistent unit display across Last Values and Chart sections
+  const convertTelemetryRecords = (records) => {
+    if (!records || records.length === 0) return records;
+
+    return records.map(record => {
+      const converted = { ...record };
+      
+      // Get all attribute codes in this record (keys except endTimestampUTC)
+      Object.keys(record).forEach(attributeCode => {
+        if (attributeCode === 'endTimestampUTC') return;
+        
+        const value = record[attributeCode];
+        if (value !== null && value !== undefined && typeof value === 'number') {
+          // Apply unit conversion using the utility function
+          converted[attributeCode] = convertValue(value, attributeCode);
+        }
+      });
+      
+      return converted;
+    });
+  };
+
+  // When telemetry data changes, decimate it and convert units
   useEffect(() => {
     if (telemetryData.length > 0) {
-      const decimated = decimateData(telemetryData);
+      const convertedData = convertTelemetryRecords(telemetryData);
+      const decimated = decimateData(convertedData);
       setDecimatedTelemetryData(decimated);
       console.log(`Telemetry data decimated: ${telemetryData.length} points → ${decimated.length} points for display`);
     }
@@ -387,6 +412,7 @@ export default function EntityTelemetryAnalyticsPage() {
       const attributeCode = dataPoint.dataKey;
       const attributeName = getAttributeNameForCode(attributeCode);
       const value = Number(dataPoint.value);
+      const unit = getUnit(attributeCode);
       
       return (
         <div style={{ 
@@ -403,7 +429,7 @@ export default function EntityTelemetryAnalyticsPage() {
             {attributeName}
           </p>
           <p style={{ margin: '0', fontSize: '12px', color: 'var(--text-light)' }}>
-            <span style={{ fontStyle: 'italic' }}>{attributeCode}</span>: <strong>{Number.isNaN(value) ? dataPoint.value : value.toFixed(2)}</strong>
+            <span style={{ fontStyle: 'italic' }}>{attributeCode}</span>: <strong>{Number.isNaN(value) ? dataPoint.value : value.toFixed(2)}</strong> {unit}
           </p>
         </div>
       );
@@ -460,106 +486,20 @@ export default function EntityTelemetryAnalyticsPage() {
   };
 
   // Convert temperature from Kelvin to Celsius
-  const convertKelvinToCelsius = (kelvin) => {
-    if (kelvin === null || kelvin === undefined) return null;
-    return kelvin - 273.15;
-  };
-
-  // Convert pressure in Pa to bar
-  const convertPressureToBar = (pascals) => {
-    if (pascals === null || pascals === undefined) return null;
-    // 1 bar = 100,000 Pa
-    return pascals / 100000;
-  };
-
-  // Convert speed from m/s to knots
-  const convertMsToKnots = (meterPerSecond) => {
-    if (meterPerSecond === null || meterPerSecond === undefined) return null;
-    // 1 knot = 0.514444 m/s
-    return meterPerSecond / 0.514444;
-  };
-
-  // Convert angle from radians to degrees
-  const convertRadiansToDegrees = (radians) => {
-    if (radians === null || radians === undefined) return null;
-    return radians * (180 / Math.PI);
-  };
-
-  // Format value with unit conversion if needed
+  // Format value with unit conversion using centralized utility
+  // Single source of truth for all unit conversions
   const getFormattedValue = (attributeCode, numericValue, attributeUnit) => {
-    if (numericValue === null) return { value: 'N/A', unit: '' };
+    if (numericValue === null || numericValue === undefined) {
+      return { value: 'N/A', unit: '' };
+    }
 
-    // Convert Kelvin temperatures to Celsius
-    // Handle both "K" unit and mislabeled Kelvin values (250-400 range)
-    const isTempAttribute = attributeCode === 'environment.outside.temperature' ||
-                           attributeCode === 'environment.water.seawater.temperature' ||
-                           attributeCode === 'environment.water.temperature' ||
-                           attributeCode === 'propulsion.main.temperature';
+    const convertedValue = convertValue(numericValue, attributeCode);
+    const unit = getUnit(attributeCode);
     
-    if (isTempAttribute) {
-      // If unit is K, always convert
-      if (attributeUnit === 'K') {
-        const celsius = convertKelvinToCelsius(numericValue);
-        return { value: celsius.toFixed(1), unit: '°C' };
-      }
-      // If unit is C but value looks like Kelvin (250-400K range), convert it
-      else if ((attributeUnit === 'C' || attributeUnit === '') && 
-               numericValue > 200 && numericValue < 400) {
-        // Likely mislabeled Kelvin value
-        const celsius = convertKelvinToCelsius(numericValue);
-        return { value: celsius.toFixed(1), unit: '°C' };
-      }
-      // Otherwise treat as-is (already in Celsius)
-      else if (attributeUnit === 'C' || attributeUnit === '') {
-        return { value: numericValue.toFixed(1), unit: '°C' };
-      }
-    }
-
-    // Convert pressure to bar (atmospheric)
-    if (attributeCode === 'environment.outside.pressure') {
-      // Check if unit is Pa or similar, or if value is very large (indicates Pascals)
-      if (attributeUnit === 'Pa' || 
-          (numericValue > 1000 && (attributeUnit === '' || attributeUnit === null))) {
-        const bar = convertPressureToBar(numericValue);
-        return { value: bar.toFixed(2), unit: 'bar' };
-      }
-    }
-
-    // Convert pressure to bar (oil, seawater)
-    if ((attributeCode === 'environment.water.seawater.pressure' ||
-         attributeCode === 'propulsion.main.oilPressure')) {
-      // Check if unit is Pa or similar, or if value is very large (indicates Pascals)
-      if (attributeUnit === 'Pa' || 
-          (numericValue > 1000 && (attributeUnit === '' || attributeUnit === null))) {
-        const bar = convertPressureToBar(numericValue);
-        return { value: bar.toFixed(1), unit: 'bar' };
-      }
-    }
-
-    // Convert speed to knots (m/s)
-    if ((attributeCode === 'navigation.speedOverGround' ||
-         attributeCode === 'navigation.speedThroughWater' ||
-         attributeCode === 'environment.wind.speedApparent' ||
-         attributeCode === 'environment.wind.speedTrue') &&
-        attributeUnit === 'm/s') {
-      const knots = convertMsToKnots(numericValue);
-      return { value: knots.toFixed(1), unit: 'kn' };
-    }
-
-    // Convert angle from radians to degrees
-    if ((attributeCode === 'navigation.courseOverGround' ||
-         attributeCode === 'navigation.courseOverGroundMagnetic' ||
-         attributeCode === 'navigation.headingTrue' ||
-         attributeCode === 'navigation.headingMagnetic' ||
-         attributeCode === 'environment.wind.directionApparent' ||
-         attributeCode === 'environment.wind.directionTrue') &&
-        attributeUnit === 'rad') {
-      const degrees = convertRadiansToDegrees(numericValue);
-      return { value: degrees.toFixed(0), unit: '°' };
-    }
-
-    // Default: no conversion
-    return { value: numericValue.toFixed(1), unit: attributeUnit };
+    return { 
+      value: convertedValue.toFixed(1), 
+      unit: unit 
+    };
   };
 
   // Fetch event details from API
