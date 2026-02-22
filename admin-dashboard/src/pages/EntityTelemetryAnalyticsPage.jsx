@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import '../styles/ManagementPage.css';
 import LocationMap from '../components/LocationMap';
-import { convertValue, getUnit } from '../utils/unitConversion';
+import { convertValue, getUnit, getAttributeColor } from '../utils/unitConversion';
 
 export default function EntityTelemetryAnalyticsPage() {
   // State for entity selection
@@ -365,8 +365,17 @@ export default function EntityTelemetryAnalyticsPage() {
 
   // Convert telemetry records to use standardized display units
   // This ensures consistent unit display across Last Values and Chart sections
+  // Uses universal conversion rules for all unit transformations
   const convertTelemetryRecords = (records) => {
     if (!records || records.length === 0) return records;
+
+    // Build mapping of attributeCode → attributeUnit from latestValues
+    const unitMap = {};
+    latestValues.forEach(val => {
+      if (val.attributeCode) {
+        unitMap[val.attributeCode] = val.attributeUnit;
+      }
+    });
 
     return records.map(record => {
       const converted = { ...record };
@@ -377,8 +386,11 @@ export default function EntityTelemetryAnalyticsPage() {
         
         const value = record[attributeCode];
         if (value !== null && value !== undefined && typeof value === 'number') {
-          // Apply unit conversion using the utility function
-          converted[attributeCode] = convertValue(value, attributeCode);
+          // Get the source unit for this attribute (from latestValues metadata)
+          const sourceUnit = unitMap[attributeCode] || '';
+          
+          // Apply universal conversion using the utility function
+          converted[attributeCode] = convertValue(value, attributeCode, sourceUnit);
         }
       });
       
@@ -488,16 +500,23 @@ export default function EntityTelemetryAnalyticsPage() {
   // Convert temperature from Kelvin to Celsius
   // Format value with unit conversion using centralized utility
   // Single source of truth for all unit conversions
+  // Now uses universal conversion rules based on unit pairs
   const getFormattedValue = (attributeCode, numericValue, attributeUnit) => {
     if (numericValue === null || numericValue === undefined) {
       return { value: 'N/A', unit: '' };
     }
 
-    const convertedValue = convertValue(numericValue, attributeCode);
+    const convertedValue = convertValue(numericValue, attributeCode, attributeUnit);
     const unit = getUnit(attributeCode);
     
+    // Health vital attributes (Person entity) display as integers
+    // Maritime/yacht attributes display with 1 decimal place
+    const formattedValue = Number.isInteger(convertedValue) 
+      ? convertedValue.toString()
+      : convertedValue.toFixed(1);
+    
     return { 
-      value: convertedValue.toFixed(1), 
+      value: formattedValue, 
       unit: unit 
     };
   };
@@ -840,8 +859,7 @@ export default function EntityTelemetryAnalyticsPage() {
         {latestValues.length > 0 ? (
           <div className="metrics-display">
             {getSortedLatestValues().map((value, idx) => {
-              const chartIdx = getChartIndexForMetricCode(value.attributeCode);
-              const chartColor = chartIdx >= 0 ? metricColorForIndex(chartIdx) : metricColorForIndex(idx);
+              const attributeColor = getAttributeColor(value.attributeCode);
               const formatted = getFormattedValue(value.attributeCode, value.numericValue, value.attributeUnit);
               const isSelected = selectedMetrics[value.attributeCode] || false;
               
@@ -866,7 +884,7 @@ export default function EntityTelemetryAnalyticsPage() {
                   <div 
                     className="metric-val"
                     style={{ 
-                      color: chartColor,
+                      color: attributeColor,
                       fontFamily: 'Inter, Arial, sans-serif',
                       fontSize: '24px',
                       fontWeight: 'bold'
@@ -898,9 +916,8 @@ export default function EntityTelemetryAnalyticsPage() {
             <ResponsiveContainer width="100%" height={378}>
               <AreaChart data={decimatedTelemetryData} margin={{ top: 10, right: 20, left: 20, bottom: 25 }}>
                 <defs>
-                  {getMetricLabels().map((metric, idx) => {
-                    const palette = ['#ff7300', '#38a3b8', '#41b922', '#bb4c99', '#ff4d4d', '#8884d8'];
-                    const color = palette[idx % palette.length];
+                  {getMetricLabels().map((metric) => {
+                    const color = getAttributeColor(metric.code);
                     return (
                       <linearGradient key={`gradient-${metric.code}`} id={`gradient-${metric.code}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={color} stopOpacity={0.8}/>
@@ -927,8 +944,8 @@ export default function EntityTelemetryAnalyticsPage() {
                   content={<CustomTooltip />}
                   cursor={{ stroke: '#999', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
-                {getMetricLabels().map((metric, idx) => {
-                  const palette = ['#ff7300', '#38a3b8', '#41b922', '#bb4c99', '#ff4d4d', '#8884d8'];
+                {getMetricLabels().map((metric) => {
+                  const color = getAttributeColor(metric.code);
                   return (
                     <Area 
                       key={metric.code}
@@ -936,7 +953,7 @@ export default function EntityTelemetryAnalyticsPage() {
                       dataKey={metric.code}
                       name={metric.name}
                       fill={`url(#gradient-${metric.code})`}
-                      stroke={palette[idx % palette.length]}
+                      stroke={color}
                       dot={false}
                       isAnimationActive={false}
                       strokeWidth={2}
