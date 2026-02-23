@@ -25,7 +25,7 @@ delete from EventLog
 
 select * from ProtocolAttribute
 select * from dbo.EntityType
-select * from dbo.EntityTypeAttribute
+select * from dbo.EntityTypeAttribute where entityTypeAttributeId = 6
 select * from dbo.EntityType where entityCategoryId = 'Person'
 select * from dbo.ProviderEvent where loincCode = '8418-4'
 update Entity set entityTypeId = 5 where entityFirstName = 'TinyK'
@@ -42,7 +42,7 @@ select * from dbo.EntityTypeAttributeScore
 update dbo.Entity set entityTypeCode = 'Person' where entityTypeCode = 'Male'
 update dbo.Entity set entityTypeCode = 'Person' where entityTypeCode = 'Female'
 
-
+select * from CustomerGeofenceCriteria
 select * from dbo.Customers
 SELECT e.entityName, e.entityId as mmsi, e.entityTypeCode, e.year
 

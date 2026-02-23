@@ -8,6 +8,7 @@ by the subscription analysis worker for advanced event processing.
 import logging
 import json
 from datetime import datetime, timedelta
+from anomaly_calculator import calculate_anomaly_score
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,11 @@ def detect_anomaly(entity_id: str, event_id: int, event_criteria: list, telemetr
                    function_params: dict = None, event_params: dict = None, 
                    connection=None, **kwargs):
     """
-    Detect anomalies in entity data using statistical methods or ML models.
+    Detect anomalies in entity data - Worker Integration Layer.
     
-    This is a unified Python analysis function that receives complete event criteria and telemetry data.
+    This is the worker-facing function that:
+    1. Calls the pure math calculator (anomaly_calculator.calculate_anomaly_score)
+    2. Formats results for worker event registration
     
     Args:
         entity_id: The entity ID to analyze
@@ -36,7 +39,7 @@ def detect_anomaly(entity_id: str, event_id: int, event_criteria: list, telemetr
         **kwargs: Additional parameters
         
     Returns:
-        dict: Analysis results with structure:
+        dict: Analysis results formatted for worker registration:
         {
             'status': 'success' or 'error',
             'cumulative_score': 45,
@@ -44,9 +47,7 @@ def detect_anomaly(entity_id: str, event_id: int, event_criteria: list, telemetr
             'details': [
                 {'entityTypeAttributeId': 1, 'entityTelemetryId': 100, 'scoreContribution': 10, 'withinRange': 'Y'},
                 {'entityTypeAttributeId': 2, 'entityTelemetryId': 101, 'scoreContribution': 5, 'withinRange': 'N'}
-            ],
-            'risk_level': 'HIGH',
-            'analysis_notes': 'Anomaly detected...'
+            ]
         }
     """
     try:
@@ -60,74 +61,20 @@ def detect_anomaly(entity_id: str, event_id: int, event_criteria: list, telemetr
                 'error': 'Missing event criteria or telemetry data'
             }
         
-        # Calculate score based on criteria and telemetry
-        cumulative_score = 0
-        probability = 0.0
-        details = []
+        # Call pure mathematical calculator
+        calc_result = calculate_anomaly_score(event_criteria, telemetry_data)
         
-        # Process each criterion
-        for criterion in event_criteria:
-            attr_id = criterion.get('entityTypeAttributeId')
-            expected_score = criterion.get('score', 0)
-            min_value = criterion.get('minValue', 0)
-            max_value = criterion.get('maxValue', 999999)
-            
-            # Find matching telemetry
-            matching_telemetry = [t for t in telemetry_data if t['entityTypeAttributeId'] == attr_id]
-            
-            if matching_telemetry:
-                telemetry = matching_telemetry[0]  # Most recent
-                actual_value = telemetry.get('numericValue', 0)
-                
-                # Check if within range
-                within_range = 'Y' if min_value <= actual_value <= max_value else 'N'
-                
-                # Accumulate score if out of range
-                score_contrib = expected_score if within_range == 'N' else 0
-                cumulative_score += score_contrib
-                
-                # Calculate probability (1.0 if at center, 0.5 if out of range)
-                if within_range == 'Y':
-                    midpoint = (min_value + max_value) / 2.0
-                    distance_from_center = abs(actual_value - midpoint) / ((max_value - min_value) / 2.0)
-                    attr_probability = max(0.50, 1.0 - distance_from_center)
-                else:
-                    attr_probability = 0.30  # Low confidence if out of range
-                
-                probability = (probability + attr_probability) / len(event_criteria)
-                
-                details.append({
-                    'entityTypeAttributeId': attr_id,
-                    'entityTelemetryId': telemetry.get('entityTelemetryId'),
-                    'scoreContribution': score_contrib,
-                    'withinRange': within_range
-                })
-        
-        # Clamp probability to 0.00-1.00
-        probability = max(0.00, min(1.00, round(probability, 2)))
-        
-        # Determine risk level
-        if cumulative_score >= 100:
-            risk_level = 'CRITICAL'
-        elif cumulative_score >= 50:
-            risk_level = 'HIGH'
-        elif cumulative_score >= 30:
-            risk_level = 'MEDIUM'
-        else:
-            risk_level = 'LOW'
-        
+        # Format result for worker integration
         result = {
             'status': 'success',
             'entity_id': entity_id,
             'event_id': event_id,
-            'cumulative_score': cumulative_score,
-            'probability': probability,
-            'risk_level': risk_level,
-            'details': details,
-            'analysis_notes': f"Analyzed {len(event_criteria)} criteria, found {len([d for d in details if d['withinRange'] == 'N'])} out of range"
+            'cumulative_score': calc_result['cumulative_score'],
+            'probability': calc_result['probability'],
+            'details': calc_result['details']
         }
         
-        logger.info(f"Anomaly detection completed: score={cumulative_score}, probability={probability}, risk={risk_level}")
+        logger.info(f"Anomaly detection completed: score={calc_result['cumulative_score']}, probability={calc_result['probability']}, risk={calc_result['risk_level']}")
         return result
         
     except Exception as e:

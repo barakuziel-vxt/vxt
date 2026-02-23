@@ -169,6 +169,14 @@ class SignalKSimulator:
                         }
                     },
                     {
+                        'path': 'navigation.latitude',
+                        'value': self.vessel_positions[vessel_mmsi]['lat']
+                    },
+                    {
+                        'path': 'navigation.longitude',
+                        'value': self.vessel_positions[vessel_mmsi]['lon']
+                    },
+                    {
                         'path': 'navigation.headingMagnetic',
                         'value': random.uniform(0, 6.283185307179586)  # 0-2π radians
                     },
