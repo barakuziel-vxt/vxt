@@ -223,8 +223,12 @@ export const eventAPI = {
 
 // CustomerSubscription APIs
 export const customerSubscriptionAPI = {
-  getAll: async () => {
-    const response = await api.get('/customersubscriptions');
+  getAll: async (status) => {
+    let url = '/customersubscriptions';
+    if (status) {
+      url += `?status=${status}`;
+    }
+    const response = await api.get(url);
     return response.data;
   },
   getById: async (id) => {

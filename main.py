@@ -2304,12 +2304,21 @@ def get_customer(id: int):
 # ============================================
 
 @app.get("/customersubscriptions")
-def get_customer_subscriptions():
-    """Get all customer subscriptions with customer, entity, and event details"""
+def get_customer_subscriptions(status: str = None):
+    """Get customer subscriptions with customer, entity, and event details
+    
+    Args:
+        status: Filter by status ('Y' for active, 'N' for inactive, or None for all)
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
+        
+        where_clause = ""
+        if status:
+            where_clause = f"WHERE cs.active = '{status}'"
+        
+        cur.execute(f"""
             SELECT 
                 cs.customerSubscriptionId,
                 cs.customerId,
@@ -2323,7 +2332,7 @@ def get_customer_subscriptions():
             FROM CustomerSubscriptions cs
             JOIN Customers c ON cs.customerId = c.customerId
             LEFT JOIN Event e ON cs.eventId = e.eventId
-            WHERE cs.active = 'Y'
+            {where_clause}
             ORDER BY c.customerName, cs.entityId
         """)
         rows = cur.fetchall()
@@ -2363,7 +2372,7 @@ def get_customer_subscription(id: int):
                 c.customerName,
                 cs.entityId,
                 cs.eventId,
-                e.eventCode,
+                COALESCE(e.eventCode, 'Unknown Event') as eventCode,
                 cs.subscriptionStartDate,
                 cs.subscriptionEndDate,
                 cs.active
@@ -2424,23 +2433,50 @@ def create_customer_subscription(data: dict):
 
 @app.put("/customersubscriptions/{id}")
 def update_customer_subscription(id: int, data: dict):
-    """Update a customer subscription"""
+    """Update a customer subscription
+    
+    Only updates fields that are explicitly provided in the request body.
+    To clear subscriptionEndDate, pass null explicitly.
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
+        
+        # Build dynamic update statement - only include fields that were provided
+        update_fields = []
+        update_values = []
+        
+        if "customerId" in data:
+            update_fields.append("customerId = ?")
+            update_values.append(data["customerId"])
+        if "entityId" in data:
+            update_fields.append("entityId = ?")
+            update_values.append(data["entityId"])
+        if "eventId" in data:
+            update_fields.append("eventId = ?")
+            update_values.append(data["eventId"])
+        if "subscriptionStartDate" in data:
+            update_fields.append("subscriptionStartDate = ?")
+            update_values.append(data["subscriptionStartDate"])
+        if "subscriptionEndDate" in data:
+            update_fields.append("subscriptionEndDate = ?")
+            update_values.append(data["subscriptionEndDate"])
+        if "active" in data:
+            update_fields.append("active = ?")
+            update_values.append(data["active"])
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields provided to update")
+        
+        update_values.append(id)
+        
+        query = f"""
             UPDATE CustomerSubscriptions
-            SET customerId = ?, entityId = ?, eventId = ?, subscriptionStartDate = ?, subscriptionEndDate = ?, active = ?
+            SET {', '.join(update_fields)}
             WHERE customerSubscriptionId = ?
-        """, (
-            data.get("customerId"),
-            data.get("entityId"),
-            data.get("eventId"),
-            data.get("subscriptionStartDate"),
-            data.get("subscriptionEndDate"),
-            data.get("active", "Y"),
-            id
-        ))
+        """
+        
+        cur.execute(query, update_values)
         conn.commit()
         cur.close()
         conn.close()
@@ -2452,19 +2488,22 @@ def update_customer_subscription(id: int, data: dict):
 
 @app.delete("/customersubscriptions/{id}")
 def delete_customer_subscription(id: int):
-    """Soft delete a customer subscription"""
+    """Permanently delete a customer subscription"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Hard delete - permanently remove the record
         cur.execute("""
-            UPDATE CustomerSubscriptions
-            SET active = 'N'
+            DELETE FROM CustomerSubscriptions
             WHERE customerSubscriptionId = ?
         """, (id,))
+        
         conn.commit()
         cur.close()
         conn.close()
-        return {"message": "Subscription deleted successfully"}
+        
+        return {"message": "Subscription permanently deleted"}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
