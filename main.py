@@ -1810,9 +1810,13 @@ async def get_latest_telemetry(entity_id: str):
             et.numericValue,
             et.stringValue,
             et.endTimestampUTC,
+            pa.protocolAttributeCode,
+            pa.description,
             ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
           FROM dbo.EntityTelemetry et
           JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+          LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+            AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
           WHERE et.entityId = ?
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
@@ -1824,7 +1828,9 @@ async def get_latest_telemetry(entity_id: str):
           defaultInGraph,
           numericValue,
           stringValue,
-          endTimestampUTC
+          endTimestampUTC,
+          protocolAttributeCode,
+          description
         FROM LatestPerAttribute 
         WHERE rn = 1
         ORDER BY entityTypeAttributeCode
@@ -1845,7 +1851,9 @@ async def get_latest_telemetry(entity_id: str):
                 "defaultInGraph": row[4],
                 "numericValue": row[5],
                 "stringValue": row[6],
-                "endTimestampUTC": row[7]
+                "endTimestampUTC": row[7],
+                "protocolAttributeCode": row[8],
+                "description": row[9]
             })
         
         return results
@@ -2078,9 +2086,13 @@ async def get_eventlog_details(eventlog_id: int):
             eta.entityTypeAttributeUnit,
             eld.scoreContribution,
             eld.withinRange,
-            eld.entityTelemetryId
+            eld.entityTelemetryId,
+            pa.protocolAttributeCode,
+            pa.description
         FROM dbo.EventLogDetails eld
         LEFT JOIN dbo.EntityTypeAttribute eta ON eld.entityTypeAttributeId = eta.entityTypeAttributeId
+        LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+          AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
         WHERE eld.eventLogId = ?
         ORDER BY eta.entityTypeAttributeName
         """
@@ -2131,7 +2143,9 @@ async def get_eventlog_details(eventlog_id: int):
                 "scoreContribution": row[5],
                 "withinRange": row[6],
                 "entityTelemetryId": row[7],
-                "numericValue": numeric_value
+                "numericValue": numeric_value,
+                "protocolAttributeCode": row[8],
+                "description": row[9]
             })
         
         print(f"EventLog {eventlog_id} details retrieved: {len(details_list)} rows")
