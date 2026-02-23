@@ -192,10 +192,10 @@ const DISPLAY_UNIT_PREFERENCES = {
   'propulsion.main.oilPressure': 'Bar',
   'propulsion.main.revolutions': 'rpm',
   
-  // Tanks - Water and Fuel
-  'tanks.freshWaterTank.level': 'L',
-  'tanks.wasteWaterTank.level': 'L',
-  'tanks.fuelTank.level': 'L',
+  // Tanks - Water and Fuel (displayed as percentage)
+  'tanks.freshWaterTank.level': '%',
+  'tanks.wasteWaterTank.level': '%',
+  'tanks.fuelTank.level': '%',
   
   // Environment: Pressure (unified to Bar)
   'environment.outside.pressure': 'Bar',
@@ -654,6 +654,12 @@ export const convertValue = (value, attributeCode, sourceUnit) => {
       return Math.round(value);
     }
     return parseFloat(value.toFixed(2));
+  }
+
+  // Special handling for tank level attributes - multiply by 100 to convert decimal to percentage
+  if (attributeCode && attributeCode.includes('tanks') && attributeCode.includes('level') && targetUnit === '%') {
+    let converted = value * 100;
+    return Math.round(converted);
   }
 
   // Use sourceUnit from API, or fall back to assumed source unit for attribute

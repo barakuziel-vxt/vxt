@@ -758,9 +758,9 @@ export default function EntityTelemetryAnalyticsPage() {
         return !code.includes('latitude') && !code.includes('longitude') && code !== 'navigation.position';
       })
       .sort((a, b) => {
-        const nameA = (a.attributeName || a.attributeCode || '').toLowerCase();
-        const nameB = (b.attributeName || b.attributeCode || '').toLowerCase();
-        return nameA.localeCompare(nameB);
+        const codeA = (a.entityTypeAttributeCode || '').toLowerCase();
+        const codeB = (b.entityTypeAttributeCode || '').toLowerCase();
+        return codeA.localeCompare(codeB);
       });
   };
 
