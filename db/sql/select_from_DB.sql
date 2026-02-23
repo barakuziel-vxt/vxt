@@ -48,7 +48,7 @@ SELECT e.entityName, e.entityId as mmsi, e.entityTypeCode, e.year
 
 select * from CustomerSubscriptions where entityId = '033114869';
 
-delete from CustomerSubscriptions where entityId = '234567891';
+
 select * from dbo.Customers;
 
  SELECT 

@@ -29,6 +29,10 @@ export default function CustomerSubscriptionPage() {
     loadSubscriptions();
   }, []);
 
+  useEffect(() => {
+    loadSubscriptions();
+  }, [filterStatus]);
+
   const loadCustomers = async () => {
     try {
       const data = await customerAPI.getAll();
@@ -59,7 +63,7 @@ export default function CustomerSubscriptionPage() {
   const loadSubscriptions = async () => {
     setLoading(true);
     try {
-      const data = await customerSubscriptionAPI.getAll();
+      const data = await customerSubscriptionAPI.getAll(filterStatus);
       setSubscriptions(data);
       setError(null);
     } catch (err) {
@@ -154,9 +158,6 @@ export default function CustomerSubscriptionPage() {
       filtered = filtered.filter((s) =>
         s.entityId.toLowerCase().includes(filterEntity.toLowerCase())
       );
-    }
-    if (filterStatus) {
-      filtered = filtered.filter((s) => s.active === filterStatus);
     }
     
     return filtered;
@@ -259,6 +260,7 @@ export default function CustomerSubscriptionPage() {
               <option value="N">Inactive</option>
             </select>
           </div>
+
         </div>
 
         <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
@@ -293,7 +295,6 @@ export default function CustomerSubscriptionPage() {
             <tbody>
               {getFilteredSubscriptions().map((subscription) => {
                 const customer = customers.find((c) => c.customerId === subscription.customerId);
-                const event = events.find((e) => e.eventId === subscription.eventId);
                 return (
                   <tr key={subscription.customerSubscriptionId}>
                     <td>{subscription.customerSubscriptionId}</td>
@@ -304,7 +305,7 @@ export default function CustomerSubscriptionPage() {
                       <strong>{subscription.entityId}</strong>
                     </td>
                     <td>
-                      <span>{event?.eventCode || '—'}</span>
+                      <span>{subscription.eventCode || '—'}</span>
                     </td>
                     <td>
                       <span>{subscription.subscriptionStartDate?.split('T')[0] || '—'}</span>
