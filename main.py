@@ -444,7 +444,6 @@ def get_entity_categories():
         cur.execute("""
             SELECT entityCategoryId, entityCategoryName, active, createDate, lastUpdateTimestamp, lastUpdateUser
             FROM EntityCategory
-            WHERE active = 'Y'
             ORDER BY entityCategoryName
         """)
         categories = []
