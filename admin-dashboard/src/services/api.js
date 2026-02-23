@@ -251,8 +251,12 @@ export const customerSubscriptionAPI = {
 
 // CustomerEntity APIs
 export const customerEntityAPI = {
-  getAll: async () => {
-    const response = await api.get('/customerentities');
+  getAll: async (status) => {
+    let url = '/customerentities';
+    if (status) {
+      url += `?status=${status}`;
+    }
+    const response = await api.get(url);
     return response.data;
   },
   getById: async (id) => {

@@ -24,6 +24,10 @@ export default function CustomerEntitiesPage() {
     loadCustomerEntities();
   }, []);
 
+  useEffect(() => {
+    loadCustomerEntities();
+  }, [filterStatus]);
+
   const loadCustomers = async () => {
     try {
       const data = await customerAPI.getAll();
@@ -45,7 +49,7 @@ export default function CustomerEntitiesPage() {
   const loadCustomerEntities = async () => {
     setLoading(true);
     try {
-      const data = await customerEntityAPI.getAll();
+      const data = await customerEntityAPI.getAll(filterStatus);
       setEntities(data);
       setError(null);
     } catch (err) {
@@ -131,9 +135,6 @@ export default function CustomerEntitiesPage() {
       filtered = filtered.filter((e) =>
         e.entityId.toLowerCase().includes(filterEntity.toLowerCase())
       );
-    }
-    if (filterStatus) {
-      filtered = filtered.filter((e) => e.active === filterStatus);
     }
     
     return filtered;
