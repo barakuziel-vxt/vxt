@@ -25,6 +25,12 @@ export default function EntityTypeAttributePage() {
   const [criteria, setCriteria] = useState([]);
   const [filterEntityTypeId, setFilterEntityTypeId] = useState(''); // ALL by default
   const [filterComponent, setFilterComponent] = useState(''); // ALL by default
+  const [filterAttributeName, setFilterAttributeName] = useState('');
+  const [filterCode, setFilterCode] = useState('');
+  const [filterProtocol, setFilterProtocol] = useState('');
+  const [filterUnit, setFilterUnit] = useState('');
+  const [filterGraph, setFilterGraph] = useState('');
+  const [filterActive, setFilterActive] = useState('');
   const [formData, setFormData] = useState({
     entityTypeId: '',
     protocolId: '',
@@ -318,6 +324,42 @@ export default function EntityTypeAttributePage() {
       filtered = filtered.filter((attr) => attr.component === filterComponent);
     }
 
+    // Filter by Attribute Name
+    if (filterAttributeName) {
+      filtered = filtered.filter((attr) =>
+        attr.entityTypeAttributeName.toLowerCase().includes(filterAttributeName.toLowerCase())
+      );
+    }
+
+    // Filter by Code
+    if (filterCode) {
+      filtered = filtered.filter((attr) =>
+        attr.entityTypeAttributeCode.toLowerCase().includes(filterCode.toLowerCase())
+      );
+    }
+
+    // Filter by Protocol
+    if (filterProtocol) {
+      filtered = filtered.filter((attr) => attr.protocolId === parseInt(filterProtocol));
+    }
+
+    // Filter by Unit
+    if (filterUnit) {
+      filtered = filtered.filter((attr) =>
+        attr.entityTypeAttributeUnit && attr.entityTypeAttributeUnit.toLowerCase().includes(filterUnit.toLowerCase())
+      );
+    }
+
+    // Filter by Graph (defaultInGraph)
+    if (filterGraph) {
+      filtered = filtered.filter((attr) => attr.defaultInGraph === filterGraph);
+    }
+
+    // Filter by Active Status
+    if (filterActive) {
+      filtered = filtered.filter((attr) => attr.active === filterActive);
+    }
+
     return filtered;
   };
 
@@ -341,65 +383,142 @@ export default function EntityTypeAttributePage() {
         flexWrap: 'wrap',
         alignItems: 'flex-end'
       }}>
-        <div style={{ marginBottom: '0' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
-              Entity Type
-            </label>
-            <select
-              value={filterEntityTypeId}
-              onChange={(e) => {
-                setFilterEntityTypeId(e.target.value);
-                setFilterComponent(''); // Reset component filter when entity type changes
-              }}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                backgroundColor: '#353535',
-                color: 'var(--text-color)'
-              }}
-            >
-              <option value="">ALL</option>
-              {entityTypes.map((type) => (
-                <option key={type.entityTypeId} value={type.entityTypeId}>
-                  {type.entityTypeName}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Attribute Name
+          </label>
+          <input
+            type="text"
+            value={filterAttributeName}
+            onChange={(e) => setFilterAttributeName(e.target.value)}
+            placeholder="Search name..."
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          />
         </div>
 
-        <div style={{ marginBottom: '0' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
-              Category (Component)
-            </label>
-            <select
-              value={filterComponent}
-              onChange={(e) => setFilterComponent(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                backgroundColor: '#353535',
-                color: 'var(--text-color)'
-              }}
-            >
-              <option value="">ALL</option>
-              {getUniqueComponents().map((component) => (
-                <option key={component} value={component}>
-                  {component}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Code
+          </label>
+          <input
+            type="text"
+            value={filterCode}
+            onChange={(e) => setFilterCode(e.target.value)}
+            placeholder="Search code..."
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          />
+        </div>
+
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Protocol
+          </label>
+          <select
+            value={filterProtocol}
+            onChange={(e) => setFilterProtocol(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              cursor: 'pointer',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          >
+            <option value="">All</option>
+            {protocols.map((protocol) => (
+              <option key={protocol.protocolId} value={protocol.protocolId}>
+                {protocol.protocolName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Unit
+          </label>
+          <input
+            type="text"
+            value={filterUnit}
+            onChange={(e) => setFilterUnit(e.target.value)}
+            placeholder="Search unit..."
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          />
+        </div>
+
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Graph
+          </label>
+          <select
+            value={filterGraph}
+            onChange={(e) => setFilterGraph(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              cursor: 'pointer',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          >
+            <option value="">All</option>
+            <option value="Y">Yes</option>
+            <option value="N">No</option>
+          </select>
+        </div>
+
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>
+            Status
+          </label>
+          <select
+            value={filterActive}
+            onChange={(e) => setFilterActive(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              fontSize: '14px',
+              cursor: 'pointer',
+              backgroundColor: '#353535',
+              color: 'var(--text-color)'
+            }}
+          >
+            <option value="">All</option>
+            <option value="Y">Active</option>
+            <option value="N">Inactive</option>
+          </select>
         </div>
       </div>
 

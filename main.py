@@ -2658,15 +2658,17 @@ def update_customer_entity(id: int, data: dict):
 
 @app.delete("/customerentities/{id}")
 def delete_customer_entity(id: int):
-    """Soft delete a customer entity assignment"""
+    """Permanently delete a customer entity assignment"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Hard delete - permanently remove the record
         cur.execute("""
-            UPDATE CustomerEntities
-            SET active = 'N'
+            DELETE FROM CustomerEntities
             WHERE customerEntityId = ?
         """, (id,))
+        
         conn.commit()
         cur.close()
         conn.close()

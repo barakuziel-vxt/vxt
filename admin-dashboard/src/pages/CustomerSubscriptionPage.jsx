@@ -12,6 +12,7 @@ export default function CustomerSubscriptionPage() {
   const [editingId, setEditingId] = useState(null);
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterEntity, setFilterEntity] = useState('');
+  const [filterEvent, setFilterEvent] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [formData, setFormData] = useState({
     customerId: '',
@@ -159,6 +160,11 @@ export default function CustomerSubscriptionPage() {
         s.entityId.toLowerCase().includes(filterEntity.toLowerCase())
       );
     }
+    if (filterEvent) {
+      filtered = filtered.filter((s) =>
+        s.eventCode && s.eventCode.toLowerCase().includes(filterEvent.toLowerCase())
+      );
+    }
     
     return filtered;
   };
@@ -228,6 +234,40 @@ export default function CustomerSubscriptionPage() {
                 color: 'var(--text-color)',
               }}
             />
+          </div>
+
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+                color: 'var(--text-color)',
+              }}
+            >
+              Event
+            </label>
+            <select
+              value={filterEvent}
+              onChange={(e) => setFilterEvent(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                backgroundColor: '#353535',
+                color: 'var(--text-color)',
+              }}
+            >
+              <option value="">All Events</option>
+              {events.map((event) => (
+                <option key={event.eventId} value={event.eventCode}>
+                  {event.eventCode}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
