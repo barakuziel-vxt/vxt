@@ -325,4 +325,33 @@ export const entityTypeAttributeScoreAPI = {
   },
 };
 
+// CustomerGeofenceCriteria APIs
+export const customerGeofenceCriteriaAPI = {
+  getAll: async (customerId = null, status = null) => {
+    let url = '/customergeofencecriteria';
+    const params = new URLSearchParams();
+    if (customerId) params.append('customer_id', customerId);
+    if (status) params.append('status', status);
+    if (params.toString()) url += '?' + params.toString();
+    const response = await api.get(url);
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/customergeofencecriteria/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/customergeofencecriteria', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/customergeofencecriteria/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/customergeofencecriteria/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

@@ -2678,6 +2678,248 @@ def delete_customer_entity(id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ======================== GEOFENCE CRITERIA ENDPOINTS ========================
+
+@app.get("/customergeofencecriteria")
+def get_customer_geofence_criteria(customer_id: int = None, status: str = None):
+    """Get customer geofence criteria (polygons/circles)
+    
+    Args:
+        customer_id: Optional filter by customer ID
+        status: Filter by status ('Y' for active, 'N' for inactive, or None for all)
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        where_clauses = []
+        params = []
+        
+        if customer_id:
+            where_clauses.append("cgc.customerId = ?")
+            params.append(customer_id)
+        
+        if status:
+            where_clauses.append(f"cgc.active = ?")
+            params.append(status)
+        
+        where_clause = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        
+        cur.execute(f"""
+            SELECT 
+                cgc.customerGeofenceCriteriaId,
+                cgc.customerId,
+                c.customerName,
+                cgc.entityTypeAttributeId,
+                cgc.geofenceName,
+                cgc.geoType,
+                cgc.coordinates,
+                cgc.description,
+                cgc.active,
+                cgc.createdAt,
+                cgc.modifiedAt
+            FROM CustomerGeofenceCriteria cgc
+            JOIN Customers c ON cgc.customerId = c.customerId
+            {where_clause}
+            ORDER BY c.customerName, cgc.geofenceName
+        """, params)
+        
+        rows = cur.fetchall()
+        
+        geofences = []
+        for row in rows:
+            geofences.append({
+                "customerGeofenceCriteriaId": row[0],
+                "customerId": row[1],
+                "customerName": row[2],
+                "entityTypeAttributeId": row[3],
+                "geofenceName": row[4],
+                "geoType": row[5],
+                "coordinates": row[6],  # JSON string
+                "description": row[7],
+                "active": row[8],
+                "createdAt": row[9].isoformat() if row[9] else None,
+                "modifiedAt": row[10].isoformat() if row[10] else None
+            })
+        
+        cur.close()
+        conn.close()
+        return geofences
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/customergeofencecriteria/{id}")
+def get_customer_geofence_criteria_by_id(id: int):
+    """Get a specific customer geofence criteria by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                cgc.customerGeofenceCriteriaId,
+                cgc.customerId,
+                c.customerName,
+                cgc.entityTypeAttributeId,
+                cgc.geofenceName,
+                cgc.geoType,
+                cgc.coordinates,
+                cgc.description,
+                cgc.active,
+                cgc.createdAt,
+                cgc.modifiedAt
+            FROM CustomerGeofenceCriteria cgc
+            JOIN Customers c ON cgc.customerId = c.customerId
+            WHERE cgc.customerGeofenceCriteriaId = ?
+        """, (id,))
+        
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Geofence criteria not found")
+        
+        geofence = {
+            "customerGeofenceCriteriaId": row[0],
+            "customerId": row[1],
+            "customerName": row[2],
+            "entityTypeAttributeId": row[3],
+            "geofenceName": row[4],
+            "geoType": row[5],
+            "coordinates": row[6],
+            "description": row[7],
+            "active": row[8],
+            "createdAt": row[9].isoformat() if row[9] else None,
+            "modifiedAt": row[10].isoformat() if row[10] else None
+        }
+        return geofence
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/customergeofencecriteria")
+def create_customer_geofence_criteria(data: dict):
+    """Create a new customer geofence criteria
+    
+    Args:
+        customerId: Customer ID
+        entityTypeAttributeId: Entity type attribute ID
+        geofenceName: Name of the geofence
+        geoType: Type of geofence ('Polygon', 'Circle', etc.)
+        coordinates: JSON string with coordinates
+        description: Optional description
+        active: 'Y' or 'N' (default 'Y')
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO CustomerGeofenceCriteria 
+            (customerId, entityTypeAttributeId, geofenceName, geoType, coordinates, description, active, createdAt, modifiedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            data.get("customerId"),
+            data.get("entityTypeAttributeId"),
+            data.get("geofenceName"),
+            data.get("geoType"),
+            data.get("coordinates"),
+            data.get("description"),
+            data.get("active", "Y")
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Geofence criteria created successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/customergeofencecriteria/{id}")
+def update_customer_geofence_criteria(id: int, data: dict):
+    """Update a customer geofence criteria"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Build dynamic UPDATE query based on provided fields
+        update_fields = []
+        params = []
+        
+        if "entityTypeAttributeId" in data:
+            update_fields.append("entityTypeAttributeId = ?")
+            params.append(data["entityTypeAttributeId"])
+        
+        if "geofenceName" in data:
+            update_fields.append("geofenceName = ?")
+            params.append(data["geofenceName"])
+        
+        if "geoType" in data:
+            update_fields.append("geoType = ?")
+            params.append(data["geoType"])
+        
+        if "coordinates" in data:
+            update_fields.append("coordinates = ?")
+            params.append(data["coordinates"])
+        
+        if "description" in data:
+            update_fields.append("description = ?")
+            params.append(data["description"])
+        
+        if "active" in data:
+            update_fields.append("active = ?")
+            params.append(data["active"])
+        
+        if not update_fields:
+            return {"message": "No fields to update"}
+        
+        # Always update modifiedAt
+        update_fields.append("modifiedAt = GETDATE()")
+        
+        params.append(id)
+        
+        cur.execute(f"""
+            UPDATE CustomerGeofenceCriteria
+            SET {', '.join(update_fields)}
+            WHERE customerGeofenceCriteriaId = ?
+        """, params)
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Geofence criteria updated successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/customergeofencecriteria/{id}")
+def delete_customer_geofence_criteria(id: int):
+    """Permanently delete a customer geofence criteria"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Hard delete - permanently remove the record
+        cur.execute("""
+            DELETE FROM CustomerGeofenceCriteria
+            WHERE customerGeofenceCriteriaId = ?
+        """, (id,))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "Geofence criteria deleted successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

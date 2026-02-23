@@ -12,6 +12,7 @@ import ProviderPage from './pages/ProviderPage';
 import ProviderEventPage from './pages/ProviderEventPage';
 import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
+import CustomerGeofencePage from './pages/CustomerGeofencePage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('telemetry');
@@ -51,6 +52,8 @@ export default function App() {
         return <CustomerSubscriptionPage />;
       case 'customerEntities':
         return <CustomerEntitiesPage />;
+      case 'customerGeofence':
+        return <CustomerGeofencePage />;
       default:
         return <EntityTelemetryAnalyticsPage />;
     }
@@ -151,6 +154,12 @@ export default function App() {
               onClick={() => handlePageChange('customerEntities')}
             >
               🌍 Customer Entities
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'customerGeofence' ? 'active' : ''}`}
+              onClick={() => handlePageChange('customerGeofence')}
+            >
+              🗺️ Customer Geofences
             </button>
           </div>
 
