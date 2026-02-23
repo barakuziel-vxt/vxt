@@ -2513,12 +2513,21 @@ def delete_customer_subscription(id: int):
 # ============================================
 
 @app.get("/customerentities")
-def get_customer_entities():
-    """Get all customer entities with customer and entity details"""
+def get_customer_entities(status: str = None):
+    """Get customer entities with customer and entity details
+    
+    Args:
+        status: Filter by status ('Y' for active, 'N' for inactive, or None for all)
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
+        
+        where_clause = ""
+        if status:
+            where_clause = f"WHERE ce.active = '{status}'"
+        
+        cur.execute(f"""
             SELECT 
                 ce.customerEntityId,
                 ce.customerId,
@@ -2531,7 +2540,7 @@ def get_customer_entities():
             JOIN Customers c ON ce.customerId = c.customerId
             LEFT JOIN Entity e ON ce.entityId = e.entityId
             LEFT JOIN EntityType et ON e.entityTypeId = et.entityTypeId
-            WHERE ce.active = 'Y'
+            {where_clause}
             ORDER BY c.customerName, ce.entityId
         """)
         rows = cur.fetchall()

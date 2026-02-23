@@ -48,7 +48,7 @@ SELECT e.entityName, e.entityId as mmsi, e.entityTypeCode, e.year
 
 select * from CustomerSubscriptions where entityId = '033114869';
 
-
+select * from dbo.CustomerEntities
 select * from dbo.Customers;
 
  SELECT 
