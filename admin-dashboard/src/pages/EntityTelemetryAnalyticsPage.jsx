@@ -880,7 +880,7 @@ export default function EntityTelemetryAnalyticsPage() {
                     padding: 'calc(12px - 2px)' // Adjust for border width
                   }}
                 >
-                  <div className="metric-key">{value.attributeName || value.attributeCode}</div>
+                  <div className="metric-key" title={value.description || value.protocolAttributeCode || value.attributeCode}>{value.attributeName || value.attributeCode}</div>
                   <div 
                     className="metric-val"
                     style={{ 
@@ -1304,7 +1304,7 @@ export default function EntityTelemetryAnalyticsPage() {
                       <tbody>
                         {selectedEventLog.details.map((detail, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid #e0e0e0' }}>
-                            <td style={{ padding: '10px', textAlign: 'left' }}>{detail.attributeName || 'Unknown'}</td>
+                            <td style={{ padding: '10px', textAlign: 'left' }} title={detail.description || detail.protocolAttributeCode || detail.attributeCode}>{detail.attributeName || 'Unknown'}</td>
                             <td style={{ padding: '10px', textAlign: 'left', fontSize: '12px', color: 'var(--text-light)' }}>{detail.attributeCode}</td>
                             <td style={{ padding: '10px', textAlign: 'right' }}>
                               {detail.numericValue !== null && detail.numericValue !== undefined 
@@ -1437,7 +1437,7 @@ export default function EntityTelemetryAnalyticsPage() {
                 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '14px' }}>
                     <div>
-                      <strong>Attribute:</strong> {selectedScoreDetail.attributeName || 'Unknown'}
+                      <strong>Attribute:</strong> <span title={selectedScoreDetail.description || selectedScoreDetail.protocolAttributeCode || selectedScoreDetail.attributeCode}>{selectedScoreDetail.attributeName || 'Unknown'}</span>
                     </div>
                     <div>
                       <strong>Code:</strong> {selectedScoreDetail.attributeCode}
