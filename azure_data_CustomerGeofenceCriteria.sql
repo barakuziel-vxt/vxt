@@ -1,0 +1,5 @@
+-- Data for table: CustomerGeofenceCriteria
+-- Row count: 2
+
+INSERT INTO [CustomerGeofenceCriteria] ([customerGeofenceCriteriaId], [customerId], [entityTypeAttributeId], [geofenceName], [geoType], [coordinates], [description], [active], [createdAt], [modifiedAt]) VALUES (1, 1, 1052, 'Haifa port Restricted Zone 1', 'Polygon', '"\"[[[35.0099602,32.838489],[35.037323,32.8376815],[35.0399837,32.8515948],[35.0101147,32.8531806],[35.009943,32.8387629]]]\""', 'Restricted area in Haifa port area - vessels should not enter', 'Y', CAST('2026-02-23 14:48:33.567000' AS DATETIME2), CAST('2026-02-23 19:40:30.900000' AS DATETIME2));
+INSERT INTO [CustomerGeofenceCriteria] ([customerGeofenceCriteriaId], [customerId], [entityTypeAttributeId], [geofenceName], [geoType], [coordinates], [description], [active], [createdAt], [modifiedAt]) VALUES (2, 1, 1052, 'Storm Advisory Zone', 'Circle', '{"type":"Point","coordinates":[-73.85,40.75],"radius":5000}', '5km radius circle around potential storm area', 'Y', CAST('2026-02-23 14:48:33.567000' AS DATETIME2), CAST('2026-02-23 19:15:39.213000' AS DATETIME2));

@@ -1,0 +1,5 @@
+-- Data for table: Customers
+-- Row count: 2
+
+INSERT INTO [Customers] ([customerId], [customerName], [primaryContactName], [primaryContactEmail], [primaryContactPhone], [billingAddress1], [billingAddress2], [billingCity], [billingState], [billingPostalCode], [billingCountry], [propertyId], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES (1, 'Sailor', 'Amit Hari', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Y', CAST('2026-01-29 09:00:13.907000' AS DATETIME2), CAST('2026-01-29 09:00:13.907000' AS DATETIME2), 'sa');
+INSERT INTO [Customers] ([customerId], [customerName], [primaryContactName], [primaryContactEmail], [primaryContactPhone], [billingAddress1], [billingAddress2], [billingCity], [billingState], [billingPostalCode], [billingCountry], [propertyId], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES (2, 'SLMEDICAL', 'Eyal', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Y', CAST('2026-01-31 15:18:27.873000' AS DATETIME2), CAST('2026-02-01 21:04:13.630000' AS DATETIME2), 'sa');

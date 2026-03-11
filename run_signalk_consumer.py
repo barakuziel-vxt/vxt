@@ -31,8 +31,8 @@ def main():
         )
         
         logger.info("Consumer initialized successfully")
-        logger.info(f"Provider: {consumer.provider_config['TopicName']}")
-        logger.info(f"Batch Size: {consumer.provider_config['BatchSize']}")
+        logger.info(f"Provider: {consumer.processor.provider_config['TopicName']}")
+        logger.info(f"Batch Size: {consumer.processor.provider_config['BatchSize']}")
         logger.info("")
         logger.info("Starting event consumption...")
         logger.info("Listening to Kafka topic: signalk-events")
