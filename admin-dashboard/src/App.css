@@ -412,10 +412,45 @@
 .filter-bar {
   margin-bottom: 20px;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  align-items: center;
+  gap: 15px;
+  justify-content: flex-start;
+  align-items: flex-end;
   flex-wrap: wrap;
+  padding: 15px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--light-bg);
+  color: var(--text-color);
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .btn-sm {

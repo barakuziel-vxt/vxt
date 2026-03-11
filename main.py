@@ -553,7 +553,6 @@ def get_entity_types():
         cur.execute("""
             SELECT entityTypeId, entityTypeName, entityCategoryId, active, createDate, lastUpdateTimestamp, lastUpdateUser
             FROM EntityType
-            WHERE active = 'Y'
             ORDER BY entityTypeName
         """)
         types = []
@@ -2410,15 +2409,21 @@ def create_customer_subscription(data: dict):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Convert customerId to int
+        customer_id = int(data.get("customerId"))
+        # Convert eventId to int if provided, otherwise None
+        event_id = int(data.get("eventId")) if data.get("eventId") else None
+        
         cur.execute("""
             INSERT INTO CustomerSubscriptions (customerId, entityId, eventId, subscriptionStartDate, subscriptionEndDate, active)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (
-            data.get("customerId"),
+            customer_id,
             data.get("entityId"),
-            data.get("eventId"),
+            event_id,
             data.get("subscriptionStartDate"),
-            data.get("subscriptionEndDate"),
+            data.get("subscriptionEndDate") if data.get("subscriptionEndDate") else None,
             data.get("active", "Y")
         ))
         conn.commit()
@@ -2447,19 +2452,21 @@ def update_customer_subscription(id: int, data: dict):
         
         if "customerId" in data:
             update_fields.append("customerId = ?")
-            update_values.append(data["customerId"])
+            update_values.append(int(data["customerId"]))
         if "entityId" in data:
             update_fields.append("entityId = ?")
             update_values.append(data["entityId"])
         if "eventId" in data:
             update_fields.append("eventId = ?")
-            update_values.append(data["eventId"])
+            # Convert eventId to int if provided and not empty, otherwise None
+            event_id = int(data["eventId"]) if data["eventId"] else None
+            update_values.append(event_id)
         if "subscriptionStartDate" in data:
             update_fields.append("subscriptionStartDate = ?")
             update_values.append(data["subscriptionStartDate"])
         if "subscriptionEndDate" in data:
             update_fields.append("subscriptionEndDate = ?")
-            update_values.append(data["subscriptionEndDate"])
+            update_values.append(data["subscriptionEndDate"] if data["subscriptionEndDate"] else None)
         if "active" in data:
             update_fields.append("active = ?")
             update_values.append(data["active"])

@@ -26,6 +26,11 @@ export default function EntityTypePage() {
     entityCategoryId: '',
     active: 'Y',
   });
+  const [filters, setFilters] = useState({
+    entityTypeName: '',
+    entityCategoryId: '',
+    active: '',
+  });
 
   useEffect(() => {
     loadData();
@@ -113,6 +118,24 @@ export default function EntityTypePage() {
     return category ? category.entityCategoryName : 'Unknown';
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const filteredEntityTypes = entityTypes.filter((type) => {
+    const matchesName = type.entityTypeName
+      .toLowerCase()
+      .includes(filters.entityTypeName.toLowerCase());
+    const matchesCategory =
+      filters.entityCategoryId === '' || type.entityCategoryId === parseInt(filters.entityCategoryId);
+    const matchesStatus = filters.active === '' || type.active === filters.active;
+    return matchesName && matchesCategory && matchesStatus;
+  });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -128,6 +151,49 @@ export default function EntityTypePage() {
         </button>
       </div>
 
+      <div className="filter-bar">
+        <div className="filter-group">
+          <label htmlFor="filterName">Entity Type Name</label>
+          <input
+            type="text"
+            id="filterName"
+            name="entityTypeName"
+            value={filters.entityTypeName}
+            onChange={handleFilterChange}
+            placeholder="Search by type name..."
+          />
+        </div>
+        <div className="filter-group">
+          <label htmlFor="filterCategory">Category</label>
+          <select
+            id="filterCategory"
+            name="entityCategoryId"
+            value={filters.entityCategoryId}
+            onChange={handleFilterChange}
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category.entityCategoryId} value={category.entityCategoryId}>
+                {category.entityCategoryName}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label htmlFor="filterStatus">Status</label>
+          <select
+            id="filterStatus"
+            name="active"
+            value={filters.active}
+            onChange={handleFilterChange}
+          >
+            <option value="">All Status</option>
+            <option value="Y">Active</option>
+            <option value="N">Inactive</option>
+          </select>
+        </div>
+      </div>
+
       {loading ? (
         <div className="empty-state">
           <h3>Loading...</h3>
@@ -136,6 +202,11 @@ export default function EntityTypePage() {
         <div className="empty-state">
           <h3>No entity types found</h3>
           <p>Create your first entity type to get started</p>
+        </div>
+      ) : filteredEntityTypes.length === 0 ? (
+        <div className="empty-state">
+          <h3>No entity types match the filters</h3>
+          <p>Try adjusting your filter criteria</p>
         </div>
       ) : (
         <div className="table-container">
@@ -151,7 +222,7 @@ export default function EntityTypePage() {
               </tr>
             </thead>
             <tbody>
-              {entityTypes.map((type) => (
+              {filteredEntityTypes.map((type) => (
                 <tr key={type.entityTypeId}>
                   <td>{type.entityTypeId}</td>
                   <td>{type.entityTypeName}</td>
