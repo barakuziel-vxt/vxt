@@ -15,8 +15,11 @@ export default function CustomerEntitiesPage() {
   const [formData, setFormData] = useState({
     customerId: '',
     entityId: '',
+    iotDeviceId: '',
     active: 'Y',
   });
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
 
   useEffect(() => {
     loadCustomers();
@@ -65,6 +68,7 @@ export default function CustomerEntitiesPage() {
       setFormData({
         customerId: entity.customerId || '',
         entityId: entity.entityId || '',
+        iotDeviceId: entity.iotDeviceId || '',
         active: entity.active || 'Y',
       });
     } else {
@@ -72,6 +76,7 @@ export default function CustomerEntitiesPage() {
       setFormData({
         customerId: '',
         entityId: '',
+        iotDeviceId: '',
         active: 'Y',
       });
     }
@@ -84,6 +89,7 @@ export default function CustomerEntitiesPage() {
     setFormData({
       customerId: '',
       entityId: '',
+      iotDeviceId: '',
       active: 'Y',
     });
   };
@@ -119,6 +125,52 @@ export default function CustomerEntitiesPage() {
       } catch (err) {
         setError(err.message);
       }
+    }
+  };
+
+  const handleSyncSetup = async () => {
+    if (!editingId) {
+      setSyncMessage({ type: 'error', text: 'No entity selected' });
+      return;
+    }
+
+    if (!formData.iotDeviceId) {
+      setSyncMessage({ type: 'error', text: 'IoT Device ID is required to sync setup' });
+      return;
+    }
+
+    setSyncLoading(true);
+    setSyncMessage(null);
+    
+    try {
+      const baseUrl = localStorage.getItem('apiBaseUrl') || 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/customerentities/${editingId}/sync-setup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider_name: 'N2KToSignalK' // Default provider; can be made dynamic if needed
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Sync failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      setSyncMessage({ 
+        type: 'success', 
+        text: `✓ Successfully synced setup to device ${formData.iotDeviceId}` 
+      });
+    } catch (err) {
+      setSyncMessage({ 
+        type: 'error', 
+        text: `Failed to sync: ${err.message}` 
+      });
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -263,6 +315,7 @@ export default function CustomerEntitiesPage() {
                 <th>Entity ID</th>
                 <th>Entity Name</th>
                 <th>Entity Type</th>
+                <th>IoT Device ID</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -284,6 +337,11 @@ export default function CustomerEntitiesPage() {
                     </td>
                     <td>
                       <span>{entity.entityTypeCode || '—'}</span>
+                    </td>
+                    <td>
+                      <code style={{ backgroundColor: '#383838', padding: '4px 8px', borderRadius: '3px', fontSize: '12px' }}>
+                        {entity.iotDeviceId || '—'}
+                      </code>
                     </td>
                     <td>
                       <span>
@@ -357,6 +415,25 @@ export default function CustomerEntitiesPage() {
               </div>
 
               <div className="form-group">
+                <label htmlFor="iotDeviceId">IoT Device ID</label>
+                <input
+                  type="text"
+                  id="iotDeviceId"
+                  name="iotDeviceId"
+                  value={formData.iotDeviceId}
+                  onChange={handleInputChange}
+                  placeholder="e.g., TomerRefael or device-id-from-azure-iot-hub"
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '13px'
+                  }}
+                />
+                <small style={{ color: '#999', marginTop: '4px', display: 'block' }}>
+                  The device ID as registered in your Azure IoT Hub. Required for pushing setup to the device.
+                </small>
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="active">Status</label>
                 <select
                   id="active"
@@ -369,13 +446,53 @@ export default function CustomerEntitiesPage() {
                 </select>
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingId ? 'Update' : 'Create'} Entity Assignment
-                </button>
+              {syncMessage && (
+                <div style={{
+                  padding: '12px',
+                  marginBottom: '16px',
+                  borderRadius: '4px',
+                  backgroundColor: syncMessage.type === 'success' ? '#1e4d2b' : '#4d2222',
+                  color: syncMessage.type === 'success' ? '#4ade80' : '#f87171',
+                  border: `1px solid ${syncMessage.type === 'success' ? '#22c55e' : '#ef4444'}`,
+                  fontSize: '13px'
+                }}>
+                  {syncMessage.text}
+                </div>
+              )}
+
+              <div className="modal-footer" style={{
+                display: 'flex',
+                gap: '10px',
+                justifyContent: 'space-between',
+                borderTop: '1px solid var(--border-color)',
+                paddingTop: '16px'
+              }}>
+                <div style={{ flex: '1' }}>
+                  {editingId && formData.iotDeviceId && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleSyncSetup}
+                      disabled={syncLoading}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#2563eb',
+                        borderColor: '#2563eb',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {syncLoading ? '⏳ Syncing Setup...' : '🚀 SYNC to Device'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editingId ? 'Update' : 'Create'} Entity Assignment
+                  </button>
+                </div>
               </div>
             </form>
           </div>

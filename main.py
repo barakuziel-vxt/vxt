@@ -7,6 +7,9 @@ import pyodbc
 import json
 import traceback
 
+# Import setup management router (Device Twin support)
+from setup_management import router as setup_router
+
 app = FastAPI(title="VXT API")
 
 # Enable CORS for React frontends (multiple dashboards)
@@ -30,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include setup management endpoints (Device Twin support)
+app.include_router(setup_router)
 
 # SQL Server connection configuration
 SQL_CONN_STR = (
@@ -2541,6 +2547,7 @@ def get_customer_entities(status: str = None):
                 ce.entityId,
                 e.entityFirstName,
                 et.entityTypeName,
+                ce.iotDeviceId,
                 ce.active
             FROM CustomerEntities ce
             JOIN Customers c ON ce.customerId = c.customerId
@@ -2560,7 +2567,8 @@ def get_customer_entities(status: str = None):
                 "entityId": row[3],
                 "entityName": row[4],
                 "entityTypeCode": row[5],
-                "active": row[6]
+                "iotDeviceId": row[6],
+                "active": row[7]
             })
         
         cur.close()
@@ -2585,6 +2593,7 @@ def get_customer_entity(id: int):
                 ce.entityId,
                 e.entityFirstName,
                 et.entityTypeName,
+                ce.iotDeviceId,
                 ce.active
             FROM CustomerEntities ce
             JOIN Customers c ON ce.customerId = c.customerId
@@ -2606,7 +2615,8 @@ def get_customer_entity(id: int):
             "entityId": row[3],
             "entityName": row[4],
             "entityTypeCode": row[5],
-            "active": row[6]
+            "iotDeviceId": row[6],
+            "active": row[7]
         }
         return entity
         
@@ -2621,11 +2631,12 @@ def create_customer_entity(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO CustomerEntities (customerId, entityId, active)
-            VALUES (?, ?, ?)
+            INSERT INTO CustomerEntities (customerId, entityId, iotDeviceId, active)
+            VALUES (?, ?, ?, ?)
         """, (
             data.get("customerId"),
             data.get("entityId"),
+            data.get("iotDeviceId"),
             data.get("active", "Y")
         ))
         conn.commit()
@@ -2645,11 +2656,12 @@ def update_customer_entity(id: int, data: dict):
         cur = conn.cursor()
         cur.execute("""
             UPDATE CustomerEntities
-            SET customerId = ?, entityId = ?, active = ?
+            SET customerId = ?, entityId = ?, iotDeviceId = ?, active = ?
             WHERE customerEntityId = ?
         """, (
             data.get("customerId"),
             data.get("entityId"),
+            data.get("iotDeviceId"),
             data.get("active", "Y"),
             id
         ))
@@ -2680,6 +2692,64 @@ def delete_customer_entity(id: int):
         conn.close()
         return {"message": "Customer entity deleted successfully"}
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/customerentities/{id}/sync-setup")
+async def sync_entity_setup_to_device(id: int, request_data: dict = None):
+    """Sync entity's provider setup to its IoT device
+    
+    Args:
+        id: Customer entity ID
+        request_data: Optional dict with 'provider_name' (required if entity has multiple providers)
+    """
+    try:
+        # Get the entity with IOTDeviceId
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT iotDeviceId, entityId
+            FROM CustomerEntities
+            WHERE customerEntityId = ?
+        """, (id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Customer entity not found")
+        
+        iot_device_id = row[0]
+        entity_id = row[1]
+        
+        if not iot_device_id:
+            raise HTTPException(status_code=400, detail="Entity does not have an IoT Device ID assigned")
+        
+        # Get provider_name from request or use default
+        provider_name = (request_data or {}).get("provider_name", "N2KToSignalK")
+        
+        # Call the setup_management sync endpoint via HTTP
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            sync_url = f"http://localhost:8000/api/setup/sync/{provider_name}?device_id={iot_device_id}"
+            async with session.post(sync_url) as resp:
+                if resp.status != 200:
+                    error_text = await resp.text()
+                    raise HTTPException(status_code=resp.status, detail=f"Failed to sync: {error_text}")
+                result = await resp.json()
+        
+        return {
+            "status": "success",
+            "message": f"Setup synced to device {iot_device_id}",
+            "entity_id": entity_id,
+            "provider_name": provider_name,
+            "device_id": iot_device_id,
+            "sync_result": result
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

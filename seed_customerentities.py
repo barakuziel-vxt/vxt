@@ -36,7 +36,7 @@ try:
         customerEntityId INT PRIMARY KEY IDENTITY(1,1),
         customerId INT NOT NULL,
         entityId NVARCHAR(50) NOT NULL,
-
+        iotDeviceId NVARCHAR(128) NULL,
         active CHAR(1) NOT NULL CONSTRAINT DF_CustomerEntities_active DEFAULT ('Y'),
         createDate DATETIME NOT NULL CONSTRAINT DF_CustomerEntities_createDate DEFAULT (GETDATE()),
         lastUpdateTimestamp DATETIME NOT NULL CONSTRAINT DF_CustomerEntities_lastUpdateTimestamp DEFAULT (GETDATE()),
