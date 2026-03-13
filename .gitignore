@@ -28,3 +28,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Azure SQL data exports
+azure_data_*.sql
+*.msi
