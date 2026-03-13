@@ -1,0 +1,43 @@
+name: Deploy to Azure Web App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Build React Admin Dashboard
+        run: |
+          cd admin-dashboard
+          npm install
+          npm run build
+          cd ..
+      
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'vxt-admin-app'
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          package: .
+      
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment to Azure completed"
+          echo "App URL: https://vxt-admin-app.azurewebsites.net"
