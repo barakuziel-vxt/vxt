@@ -1,0 +1,10 @@
+{
+  "app_name": "vxt-admin-app",
+  "resource_group": "vxt-resources",
+  "timestamp": "2026-03-14T02:05:21.582594",
+  "components": [
+    "FastAPI Python Backend",
+    "React Admin Dashboard",
+    "Database Schema Files"
+  ]
+}
