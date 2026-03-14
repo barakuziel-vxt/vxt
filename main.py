@@ -6,29 +6,47 @@ import os
 import pyodbc
 import json
 import traceback
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import setup management router (Device Twin support)
 from setup_management import router as setup_router
 
 app = FastAPI(title="VXT API")
 
+# Get environment
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
+# Define CORS origins based on environment
+def get_cors_origins():
+    """Get CORS origins from environment or use defaults for development"""
+    if ENVIRONMENT == 'production':
+        # Production: Only allow Azure Static Web Apps
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        return [frontend_url]
+    else:
+        # Development: Allow local testing on multiple ports
+        return [
+            "http://localhost:3000",      # boat-dashboard
+            "http://localhost:3001",      # admin-dashboard
+            "http://localhost:3002",      # health-dashboard
+            "http://localhost:5173",      # Vite dev server
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:3002",
+            "http://127.0.0.1:5173",
+            "http://192.168.1.29:3000",
+            "http://192.168.1.29:3001",
+            "http://192.168.1.29:3002",
+            "http://192.168.1.29:5173"
+        ]
+
 # Enable CORS for React frontends (multiple dashboards)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",      # boat-dashboard
-        "http://localhost:3001",      # admin-dashboard
-        "http://localhost:3002",      # health-dashboard
-        "http://localhost:5173",      # Vite dev server
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002",
-        "http://127.0.0.1:5173",
-        "http://192.168.1.29:3000",
-        "http://192.168.1.29:3001",
-        "http://192.168.1.29:3002",
-        "http://192.168.1.29:5173"
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,13 +56,10 @@ app.add_middleware(
 app.include_router(setup_router)
 
 # SQL Server connection configuration
-SQL_CONN_STR = (
-    # Fallback to the older 'SQL Server' driver available on this machine
-    'DRIVER={SQL Server};'
-    'SERVER=127.0.0.1;'
-    'DATABASE=BoatTelemetryDB;'
-    'UID=sa;'
-    'PWD=YourStrongPassword123!'
+SQL_CONN_STR = os.getenv(
+    'SQL_CONNECTION_STRING',
+    # Fallback to local development connection
+    'DRIVER={SQL Server};SERVER=127.0.0.1;DATABASE=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!'
 )
 
 
