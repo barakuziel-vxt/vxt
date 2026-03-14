@@ -30,14 +30,24 @@ jobs:
           npm run build
           cd ..
       
+      - name: Prepare Deployment Package (React + APIs only)
+        run: |
+          mkdir -p deployment-pkg
+          cp main.py deployment-pkg/
+          cp requirements.txt deployment-pkg/
+          cp -r admin-dashboard/dist deployment-pkg/
+          cp -r admin-dashboard/dist deployment-pkg/public 2>/dev/null || true
+          echo "Web.config for Azure App Service" > deployment-pkg/Web.config || true
+      
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'vxt-admin-app'
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: .
+          package: deployment-pkg
       
       - name: Deployment Summary
         run: |
-          echo "✅ Deployment to Azure completed"
-          echo "App URL: https://vxt-admin-app.azurewebsites.net"
+          echo "✅ Deployment Complete!"
+          echo "Frontend (React): https://vxt-admin-app.azurewebsites.net"
+          echo "API Endpoints: https://vxt-admin-app.azurewebsites.net/api/*"
