@@ -40,9 +40,10 @@ jobs:
           mkdir -p deployment-pkg
           cp main.py deployment-pkg/
           cp requirements.txt deployment-pkg/
+          cp web.config deployment-pkg/
+          cp startup.sh deployment-pkg/
           cp -r admin-dashboard/dist deployment-pkg/
           cp -r admin-dashboard/dist deployment-pkg/public 2>/dev/null || true
-          echo "Web.config for Azure App Service" > deployment-pkg/Web.config || true
       
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
