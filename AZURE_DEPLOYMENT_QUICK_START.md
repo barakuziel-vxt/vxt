@@ -16,20 +16,48 @@
 ├─ Testing: All features verified working ✅
 └─ Documentation: Complete ✅
 
+✅ Architecture Planning
+├─ Region Strategy: North Europe (backend) + West Europe (frontend) ✅
+├─ Cost Analysis: $0-7/month (zero egress charges) ✅
+├─ Component breakdown documented ✅
+└─ Configuration strategy defined ✅
+
 ⏳ Phase 1: Azure Cloud Deployment (YOU ARE HERE)
-├─ Database Layer: SQL script ready, needs Portal execution
-├─ API Layer: Functions ready to deploy
-└─ Frontend Layer: Build & deploy to App Service
+├─ Phase 1: Database (North Europe) - SQL script ready
+├─ Phase 2: API Layer (North Europe) - Functions + Storage
+└─ Phase 3: Frontend (West Europe) - Static Web Apps
 ```
 
 ---
 
-## 🎯 The Three-Phase Deployment Plan
+## 🎯 The Three-Phase Deployment Plan (Updated Architecture)
 
-### Phase 1: Database (⏳ Pending - ~10 min)
+### Architecture Overview
+```
+🌍 REGION STRATEGY
+├─ North Europe (Backend + Database)
+│  ├─ Azure SQL Database (existing, FREE 32GB)
+│  ├─ Azure Functions API (FREE, 1M calls)
+│  ├─ Azure Storage (Function runtime, ~$1-2/mo)
+│  └─ IoT Hub (FREE, 8K msgs/day)
+│
+└─ West Europe (Frontend Only)
+   └─ Static Web Apps (FREE, global CDN)
+       ├─ React Admin Dashboard (1.59 MB)
+       └─ Served globally via CDN (zero egress)
 
-**Azure SQL Database**
+✅ Data Flow: NO INTERNAL NETWORK CHARGES
+├─ Browser → Static Web Apps CDN: FREE (ingress)
+├─ Browser → Functions API (direct): FREE (ingress)
+├─ Functions → SQL (North EU): FREE (same region)
+└─ Total cross-region egress: Negligible (~2KB/call)
+```
+
+### Phase 1: Database (✅ Ready - Already in North Europe)
+
+**Azure SQL Database - North Europe**
 - ✅ Database exists: `vxtdb.database.windows.net`  
+- ✅ Region: North Europe (confirmed)
 - ⏳ Need to: Execute SQL script to add schema
 
 **Files**:
@@ -46,76 +74,94 @@
 
 ---
 
-### Phase 2: API Layer (⏳ Pending - ~30 min)
+### Phase 2: API Layer (⏳ Pending - ~30 min) - North Europe
 
-**Azure Functions HTTP Triggers**
-- ⏳ Need to: Create Function App + 6 HTTP functions
+**Azure Functions HTTP Triggers - NORTH EUROPE**
+- ⏳ Need to: Create Function App + 6 HTTP functions in **North Europe region**
 
-**What gets deployed**:
+**Resources to Create**:
+- Storage Account: `vxtstorage`
+  - **Region: North Europe** (will auto-pair with Functions)
+  - Type: Standard, Locally-redundant storage
+  
+- Function App: `vxt-api-functions`
+  - **Region: North Europe** (MUST match SQL location)
+  - Runtime: Python 3.11
+  - Plan: Consumption (FREE)
+  - Storage: vxtstorage
+
+**What Gets Deployed**:
 - `HttpTriggerGetEntities` - GET /api/customerentities
 - `HttpTriggerGetEntity` - GET /api/customerentities/{id}
 - `HttpTriggerCreateEntity` - POST /api/customerentities
 - `HttpTriggerUpdateEntity` - PUT /api/customerentities/{id}
 - `HttpTriggerDeleteEntity` - DELETE /api/customerentities/{id}
-- `HttpTriggerSyncSetup` - POST /api/customerentities/{id}/sync-setup ⭐ NEW
+- `HttpTriggerSyncSetup` - POST /api/customerentities/{id}/sync-setup
 
-**Resources needed**:
-- Resource Group (vxt-resource-group)
-- Storage Account (vxtstorage)
-- Function App (vxt-api-functions - Consumption plan, FREE)
-- Application Insights (vxt-insights - optional)
+**Configuration & CORS Setup**:
+1. Set environment variables (connection strings)
+2. Configure CORS for Static Web Apps domain
+3. Deploy 6 functions
 
 **Files**:
-- `AZURE_API_FUNCTION_SETUP.md` - Complete deployment guide
-- Code templates in the guide (copy-paste ready)
-
-**Action**:
-Follow step-by-step in `AZURE_API_FUNCTION_SETUP.md`
+- `AZURE_API_FUNCTION_SETUP.md` - Complete step-by-step guide
+- `AZURE_FUNCTIONS_CONFIGURATION.md` - CORS & environment variables
+- Code templates (copy-paste ready)
 
 **ETA**: 20-30 minutes
 
 ---
 
-### Phase 3: Frontend Layer (⏳ Pending - ~20 min)
+### Phase 3: Frontend Layer (⏳ Pending - ~15 min) - West Europe
 
-**React Admin Dashboard on Azure App Service**
-- ⏳ Need to: Build React app + deploy to App Service
+**React Admin Dashboard on Static Web Apps - WEST EUROPE ONLY**
+- ⏳ Need to: Create Static Web Apps + deploy React app to **West Europe**
 
-**What gets deployed**:
+**Important**: Static Web Apps NOT available in North Europe (only in West Europe, East US, etc.)
+
+**Resources to Create**:
+- Static Web Apps: `vxt-admin-dashboard`
+  - **Region: West Europe** (only available option, closest to North Europe)
+  - GitHub Integration: Automatic deployment from repo
+  - Build Path: `admin-dashboard/`
+  - Output Location: `dist/`
+
+**What Gets Deployed**:
 - React admin-dashboard (built version)
-- With new IoT Device ID features:
+- IoT Device ID features:
   - Form field for editing device IDs
   - Table column showing device IDs
   - 🚀 SYNC to Device button
 
-**Resources needed**:
-- App Service Plan (vxt-app-plan - Free F1 or B1)
-- App Service (vxt-admin-dashboard - Free tier)
+**Configuration**:
+1. Build React locally: `npm run build`
+2. Configure API endpoint: `VITE_API_BASE_URL`
+3. Connect GitHub for auto-deployment
+4. Configure environment variables
 
 **Files**:
-- `AZURE_FRONTEND_DEPLOYMENT.md` - Complete deployment guide
+- `AZURE_FRONTEND_DEPLOYMENT.md` - Complete step-by-step guide
+- `AZURE_STATICWEB_CONFIGURATION.md` - Configuration & CORS
+- `.env.production` - Production environment variables
 
-**Action**:
-Follow step-by-step in `AZURE_FRONTEND_DEPLOYMENT.md`
-
-**ETA**: 15-25 minutes
+**ETA**: 15-20 minutes
 
 ---
 
-## ⏱️ Estimated Timeline
+## ⏱️ Estimated Timeline (Corrected)
 
 ```
-Total Time: ~2-3 Hours
+Total Time: ~2.5-3 Hours
 
-Phase 1 (Database)      :  5-10 min  ⏳ Simple (manual SQL execution)
+Phase 1 (Database)      :  5-10 min  ✅ Simple (manual SQL execution)
 Phase 2 (API Functions) : 20-30 min  ⏳ Moderate (create resources + deploy code)
-Phase 3 (Frontend)      : 15-25 min  ⏳ Easy (build + deploy zip)
-Testing & Verification  : 10-15 min  ⏳ Verify everything works
+Phase 3 (Frontend)      : 15-20 min  ⏳ Easy (build + deploy + configure)
+Configuration & Testing : 20-30 min  ⏳ CORS, env vars, integration testing
 ────────────────────────────────────
-Total                   : ~50-80 min
+Total                   : 60-90 min
 ```
 
-**Best approach**: Do it all in one sitting for consistency
+**Best approach**: Do all phases in one sitting for consistency
 
 ---
 
