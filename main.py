@@ -17,8 +17,27 @@ setup_router = None
 
 app = FastAPI(title="VXT API")
 
-# Get environment
+# SQL Server connection configuration with environment-specific fallbacks
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
+# Build connection string based on environment
+if ENVIRONMENT == 'production':
+    # Azure SQL Server
+    SQL_CONN_STR = os.getenv(
+        'SQL_CONNECTION_STRING',
+        'Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net;Database=free-sql-db-5949639;UID=vxtadmin;PWD=Barak1976!;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+    )
+else:
+    # Local development - try multiple driver options
+    stored_conn_str = os.getenv('SQL_CONNECTION_STRING')
+    if stored_conn_str:
+        SQL_CONN_STR = stored_conn_str
+    else:
+        # Try ODBC Driver 17 first (recommended), fall back to older driver
+        SQL_CONN_STR = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!'
+
+print(f"[INFO] Environment: {ENVIRONMENT}")
+print(f"[INFO] SQL Connection String configured (driver check will happen at first query)")
 
 # Startup event
 @app.on_event("startup")
@@ -36,7 +55,7 @@ def get_cors_origins():
     """Get CORS origins from environment or use defaults for development"""
     if ENVIRONMENT == 'production':
         # Production: Only allow Azure Static Web Apps
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        frontend_url = os.getenv('FRONTEND_URL', 'https://ambitious-sand-0b08c3f03.6.azurestaticapps.net')
         return [frontend_url]
     else:
         # Development: Allow local testing on multiple ports
@@ -55,7 +74,7 @@ def get_cors_origins():
             "http://192.168.1.29:5173"
         ]
 
-# Enable CORS for React frontends (multiple dashboards)
+# Enable CORS for React frontends
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
@@ -72,17 +91,25 @@ if setup_router:
     except Exception as e:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
-# SQL Server connection configuration
-SQL_CONN_STR = os.getenv(
-    'SQL_CONNECTION_STRING',
-    # Fallback to local development connection
-    'DRIVER={SQL Server};SERVER=127.0.0.1;DATABASE=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!'
-)
-
-
 def get_db_connection():
-    """Get database connection"""
-    return pyodbc.connect(SQL_CONN_STR)
+    """Get database connection with fallback driver options"""
+    try:
+        return pyodbc.connect(SQL_CONN_STR)
+    except pyodbc.Error as e:
+        # Log the error
+        print(f"[ERROR] Database connection failed: {str(e)}")
+        
+        # If ODBC Driver 17 failed, try with older SQL Server driver
+        if "ODBC Driver 17" in SQL_CONN_STR and ENVIRONMENT != 'production':
+            print("[WARNING] ODBC Driver 17 not found, trying legacy 'SQL Server' driver...")
+            fallback_str = SQL_CONN_STR.replace("ODBC Driver 17 for SQL Server", "SQL Server")
+            try:
+                return pyodbc.connect(fallback_str)
+            except pyodbc.Error as e2:
+                print(f"[ERROR] Fallback connection also failed: {str(e2)}")
+                raise Exception(f"Database connection failed. Please ensure: 1) SQL Server is running, 2) ODBC driver is installed, 3) Credentials are correct") from e2
+        else:
+            raise Exception(f"Database connection failed: {str(e)}")
 
 
 @app.get("/")
