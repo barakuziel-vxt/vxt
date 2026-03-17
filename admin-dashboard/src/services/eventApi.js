@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Use relative paths that will go through Vite proxy instead of direct URLs
-// This avoids CORS errors by routing through http://localhost:3002/api -> http://localhost:8000
-const API_BASE_URL = '/api';
+// API base URL - uses environment variable for production, /api proxy for development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const eventAPI = {
   // Event endpoints
