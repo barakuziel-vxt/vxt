@@ -12,10 +12,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install ODBC support for SQL Server connection
+# Install ODBC support libraries (driver will be installed on target system or via msodbcsql package)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    unixodbc \
     unixodbc-dev \
-    libodbc2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages AND executables from builder

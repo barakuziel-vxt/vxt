@@ -83,6 +83,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Custom exception handlers to preserve CORS headers in error responses
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Handle HTTPException with proper CORS headers"""
+    cors_headers = {
+        "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error": str(exc.detail)},
+        headers=cors_headers
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Handle general exceptions with proper error message and CORS headers"""
+    error_msg = str(exc)
+    if "database" in error_msg.lower() or "odbc" in error_msg.lower():
+        error_category = "Database Connection Error"
+        suggestion = "Check that Azure SQL database is accessible and schema is deployed."
+    elif "timeout" in error_msg.lower():
+        error_category = "Timeout Error"
+        suggestion = "The request took too long. Try again or check server status."
+    else:
+        error_category = "Server Error"
+        suggestion = "An unexpected error occurred. Check server logs for details."
+    
+    cors_headers = {
+        "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    
+    print(f"[ERROR] {error_category}: {error_msg}")
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": error_category,
+            "message": error_msg,
+            "suggestion": suggestion
+        },
+        headers=cors_headers
+    )
+
 # Include setup management endpoints (Device Twin support) if available
 if setup_router:
     try:
@@ -120,6 +172,47 @@ def read_root(mmsi: str = None, limit: int = 50):
         print(f"GET /telemetry?mmsi={mmsi}&limit={limit}")
         return get_boat_telemetry(mmsi, limit)
     return {"status": "Online", "message": "Boat Telemetry API is running"}
+
+
+@app.get("/health/db")
+def health_check_db():
+    """Database connectivity diagnostics endpoint"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Test basic query
+        cursor.execute("SELECT COUNT(*) AS TableCount FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+        result = cursor.fetchone()
+        table_count = result[0] if result else 0
+        
+        # Check if critical tables exist
+        critical_tables = ['EntityCategory', 'Protocol', 'Provider', 'ProviderEvent']
+        cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+        existing_tables = [row[0] for row in cursor.fetchall()]
+        
+        missing_tables = [t for t in critical_tables if t not in existing_tables]
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "status": "healthy" if not missing_tables else "degraded",
+            "database": "connected",
+            "totalTables": table_count,
+            "missingTables": missing_tables,
+            "existingCriticalTables": [t for t in critical_tables if t in existing_tables],
+            "message": "Database is ready" if not missing_tables else f"Missing tables: {', '.join(missing_tables)}"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "message": "Cannot connect to database. Check connection string and server availability.",
+            "environment": ENVIRONMENT,
+            "suggestion": "Verify Azure SQL Server is accessible and schema has been deployed."
+        }
 
 
 @app.get("/telemetry/{MMSI}")
