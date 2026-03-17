@@ -9,7 +9,7 @@ from select import select
 from kafka import KafkaConsumer
 from datetime import datetime
 import logging
-import pyodbc
+import pymssql
 from typing import List, Dict, Tuple
 import sys
 import time
@@ -87,7 +87,7 @@ class EntityTelemetryConsumer:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                connection = pyodbc.connect(self.connection_string)
+                connection = pymssql.connect(self.connection_string)
                 return connection
             except Exception as e:
                 if attempt < max_retries - 1:

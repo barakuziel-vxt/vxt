@@ -1,4 +1,25 @@
-﻿# Yacht Telemetry API - Unified for Local & Azure Deployment
+﻿# ============================================================================
+# Yacht Telemetry API - UNIFIED DEPLOYMENT FILE
+# Works for: Local Development (Docker), Laptop (.env), and Azure (App Settings)
+# ============================================================================
+# 
+# ENVIRONMENT CONFIGURATION:
+# 
+# LOCAL LAPTOP (.env file):
+#   ENVIRONMENT=local
+#   SQL_CONNECTION_STRING=Server=127.0.0.1;Database=BoatTelemetryDB;User=sa;Password=YourStrongPassword123!;
+# 
+# DOCKER/LOCAL DOCKER-COMPOSE (.env.local):
+#   ENVIRONMENT=docker
+#   SQL_CONNECTION_STRING=Server=localhost;Database=BoatTelemetryDB;User=sa;Password=YourStrongPassword123!;
+# 
+# AZURE PRODUCTION (Azure App Settings):
+#   ENVIRONMENT=azure
+#   SQL_CONNECTION_STRING=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<db>;User ID=<user>;Password=<pwd>;
+# 
+# If SQL_CONNECTION_STRING is not set, the app uses sensible defaults for local dev.
+# ============================================================================
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -9,20 +30,26 @@ import traceback
 import sys
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables from .env file (for local/docker environments)
 load_dotenv()
 
 # ============================================================================
-# CONFIGURATION - All from Environment Variables (No Hardcoded Credentials)
+# ENVIRONMENT DETECTION & CONFIGURATION
 # ============================================================================
 
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'production')
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 
 # Parse SQL_CONNECTION_STRING from environment (or use defaults for local dev)
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Parse connection string and return pymssql connection parameters"""
+    """Parse connection string and return pymssql connection parameters
+    
+    Supports three deployment modes:
+    - LOCAL: Direct connection to localhost SQL Server
+    - DOCKER: Connection to docker-compose SQL Server container
+    - AZURE: Cloud-based SQL Database with TCP endpoint
+    """
     
     if SQL_CONNECTION_STRING:
         # Parse connection string from environment
@@ -42,8 +69,8 @@ def get_db_config():
             'as_dict': False
         }
     else:
-        # Fallback for local development
-        if ENVIRONMENT.lower() in ['local', 'dev']:
+        # Fallback for local development (when SQL_CONNECTION_STRING not set)
+        if ENVIRONMENT in ['local', 'dev', 'docker']:
             return {
                 'server': 'localhost',
                 'database': 'BoatTelemetryDB',
@@ -53,11 +80,18 @@ def get_db_config():
                 'as_dict': False
             }
         else:
-            raise ValueError("Error: SQL_CONNECTION_STRING environment variable not set and not in local/dev environment. "
-                           "Set it in Azure App Settings or local .env file.")
+            raise ValueError(
+                "SQL_CONNECTION_STRING environment variable is required for this environment. "
+                "Set it in Azure App Settings or in your .env file:\n"
+                "  SQL_CONNECTION_STRING=Server=...;Database=...;User=...;Password=...;"
+            )
 
-print(f"[INFO] Environment: {ENVIRONMENT}")
-print(f"[INFO] Using pymssql (pure Python) for database connectivity")
+print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
+print(f"[INFO] Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
+if SQL_CONNECTION_STRING:
+    print(f"[INFO] Connection: {SQL_CONNECTION_STRING.split('Password')[0]}PASSWORD=***;")
+else:
+    print(f"[INFO] Connection: Using local development defaults (localhost)")
 
 # Setup management not included in minimal deployment
 setup_router = None
@@ -718,7 +752,7 @@ def delete_entity_category(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityCategory WHERE entityCategoryId = ?", (id,))
+        cur.execute("DELETE FROM EntityCategory WHERE entityCategoryId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -829,7 +863,7 @@ def delete_entity_type(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityType WHERE entityTypeId = ?", (id,))
+        cur.execute("DELETE FROM EntityType WHERE entityTypeId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -988,7 +1022,7 @@ def delete_entity_type_attribute(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityTypeAttribute WHERE entityTypeAttributeId = ?", (id,))
+        cur.execute("DELETE FROM EntityTypeAttribute WHERE entityTypeAttributeId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1168,7 +1202,7 @@ def delete_provider(provider_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM Provider WHERE providerId = ?", (provider_id,))
+        cur.execute("DELETE FROM Provider WHERE providerId = %s", (provider_id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1233,7 +1267,7 @@ def delete_protocol(protocol_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM Protocol WHERE protocolId = ?", (protocol_id,))
+        cur.execute("DELETE FROM Protocol WHERE protocolId = %s", (protocol_id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1313,7 +1347,7 @@ def delete_protocol_attribute(attribute_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = ?", (attribute_id,))
+        cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = %s", (attribute_id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1419,7 +1453,7 @@ def delete_provider_event(event_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = ?", (event_id,))
+        cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = %s", (event_id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1527,7 +1561,7 @@ def delete_entity_type_attribute_score(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityTypeAttributeScore WHERE entityTypeAttributeScoreId = ?", (id,))
+        cur.execute("DELETE FROM EntityTypeAttributeScore WHERE entityTypeAttributeScoreId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1704,7 +1738,7 @@ def delete_event(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE Event SET active = 'N' WHERE eventId = ?", (id,))
+        cur.execute("UPDATE Event SET active = 'N' WHERE eventId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1778,7 +1812,7 @@ def delete_event_attribute(eventId: int, attributeId: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE EventAttribute SET active = 'N' WHERE eventId = ? AND entityTypeAttributeId = ?", 
+        cur.execute("UPDATE EventAttribute SET active = 'N' WHERE eventId = %s AND entityTypeAttributeId = %s", 
                    (eventId, attributeId))
         conn.commit()
         cur.close()
@@ -1959,7 +1993,7 @@ def delete_entity(id: str):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE Entity SET active = 'N' WHERE entityId = ?", (id,))
+        cur.execute("UPDATE Entity SET active = 'N' WHERE entityId = %s", (id,))
         conn.commit()
         cur.close()
         conn.close()
@@ -1999,7 +2033,7 @@ async def get_latest_telemetry(entity_id: str):
           JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
           LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE et.entityId = ?
+          WHERE et.entityId = %s
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
         SELECT 
@@ -2105,9 +2139,9 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             et.longitude
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-        WHERE et.entityId = ?
-          AND et.endTimestampUTC >= CONVERT(DATETIME2, ?)
-          AND et.endTimestampUTC <= CONVERT(DATETIME2, ?)
+        WHERE et.entityId = %s
+          AND et.endTimestampUTC >= CONVERT(DATETIME2, %s)
+          AND et.endTimestampUTC <= CONVERT(DATETIME2, %s)
         ORDER BY et.endTimestampUTC ASC
         """
         
@@ -2158,13 +2192,21 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
 async def get_events_range(entity_id: str, startDate: str, endDate: str):
     """Get events for an entity within a date range, ordered by risk and date"""
     try:
+        from datetime import datetime
+        
+        # Parse ISO 8601 UTC datetime strings from frontend
+        # Frontend sends format: "2026-03-17T20:27:00.000Z"
+        start_dt = datetime.fromisoformat(startDate.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(endDate.replace('Z', '+00:00'))
+        
+        # Convert to SQL Server datetime format (YYYY-MM-DD HH:MM:SS)
+        start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+        end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        print(f"Events query range - Start: {start_sql}, End: {end_sql}")
+        
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # Parse datetime strings from frontend
-        # Frontend now sends UTC ISO format strings (e.g., "2026-02-15T12:48:00.000Z")
-        # Just use them directly for database query
-        print(f"Events query range - Start (UTC): {startDate}, End (UTC): {endDate}")
         
         # Get events with details and event information
         query = """
@@ -2181,9 +2223,9 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EventLog el
         LEFT JOIN dbo.Event e ON el.eventId = e.eventId
         LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
-        WHERE el.entityId = ?
-          AND el.triggeredAt >= CONVERT(DATETIME, ?)
-          AND el.triggeredAt <= CONVERT(DATETIME, ?)
+        WHERE el.entityId = %s
+          AND el.triggeredAt >= CAST(%s AS DATETIME)
+          AND el.triggeredAt <= CAST(%s AS DATETIME)
         GROUP BY el.eventLogId, el.eventId, e.eventCode, e.eventDescription, 
                  e.risk, el.cumulativeScore, el.probability, el.triggeredAt
         ORDER BY CASE e.risk
@@ -2195,7 +2237,7 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
                  el.triggeredAt DESC
         """
         
-        cur.execute(query, (entity_id, startDate, endDate))
+        cur.execute(query, (entity_id, start_sql, end_sql))
         rows = cur.fetchall()
         cur.close()
         conn.close()

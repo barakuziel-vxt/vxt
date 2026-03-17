@@ -1,5 +1,5 @@
 import json
-import pyodbc
+import pymssql
 from confluent_kafka import Consumer
 
 # Database Connection
@@ -14,7 +14,7 @@ CONN_STR = (
 
 def save_to_mssql(json_payload):
     try:
-        with pyodbc.connect(CONN_STR) as conn:
+        with pymssql.connect(CONN_STR) as conn:
             with conn.cursor() as cursor:
                 # We only need to insert into 'RawJson'
                 # The 'HealthVitals' table computed columns handle the rest automatically

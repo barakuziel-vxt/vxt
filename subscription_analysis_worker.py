@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import schedule
-import pyodbc
+import pymssql
 from dotenv import load_dotenv
 
 # Configure logging
@@ -47,28 +47,19 @@ class SubscriptionAnalysisWorker:
         self.processing_window_minutes = 5
         
     def connect_to_database(self):
-        """Establish database connection"""
+        """Establish database connection using pymssql (pure Python)"""
         try:
-            # Try with ODBC Driver 17 first, fallback to 'SQL Server' driver
-            drivers_to_try = [
-                f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={self.server};DATABASE={self.database};UID={self.username};PWD={self.password};',
-                f'DRIVER={{SQL Server}};SERVER={self.server};DATABASE={self.database};UID={self.username};PWD={self.password};'
-            ]
-            
-            connection_string = None
-            for driver_str in drivers_to_try:
-                try:
-                    self.connection = pyodbc.connect(driver_str)
-                    self.connection.autocommit = True
-                    logger.info(f"Connected to database: {self.database} on {self.server}")
-                    return True
-                except pyodbc.Error:
-                    continue
-            
-            # If both fail, raise error
-            raise Exception("No compatible ODBC driver found. Install 'ODBC Driver 17 for SQL Server' or 'SQL Server' driver")
-            
-        except pyodbc.Error as e:
+            self.connection = pymssql.connect(
+                server=self.server,
+                user=self.username,
+                password=self.password,
+                database=self.database,
+                timeout=30,
+                as_dict=False
+            )
+            logger.info(f"Connected to database: {self.database} on {self.server}")
+            return True
+        except pymssql.Error as e:
             logger.error(f"Database connection failed: {e}")
             return False
         except Exception as e:
@@ -138,7 +129,7 @@ class SubscriptionAnalysisWorker:
             
             return results
             
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error retrieving Python subscriptions: {e}")
             return []
     
@@ -147,7 +138,7 @@ class SubscriptionAnalysisWorker:
         Get event criteria (attributes to check) using API
         """
         try:
-            cursor = self.connection.cursor()
+            cursomssqlself.connection.cursor()
             
             query = "EXEC dbo.sp_GetEventCriteria @eventId = ?"
             cursor.execute(query, (event_id,))
@@ -168,7 +159,7 @@ class SubscriptionAnalysisWorker:
             
             return criteria
             
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error retrieving event criteria for event {event_id}: {e}")
             return []
     
@@ -204,7 +195,7 @@ class SubscriptionAnalysisWorker:
             
             return telemetry
             
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error retrieving telemetry for entity {entity_id}: {e}")
             return []
     
@@ -219,7 +210,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Analysis started logged for entity: {entity_id}")
             return True
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error logging analysis started: {e}")
             return False
     
@@ -234,7 +225,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Event found logged: {event_code} (eventLogId: {event_log_id})")
             return True
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error logging event found: {e}")
             return False
     
@@ -249,7 +240,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Analysis completed logged for entity: {entity_id} (events: {events_found})")
             return True
-        except pyodbc.Error as e:
+        except pymssql.Error as e:
             logger.error(f"Error logging analysis completed: {e}")
             return False
     
@@ -299,7 +290,7 @@ class SubscriptionAnalysisWorker:
                     entity_id, event_id, cumulative_score, probability,
                     triggered_at, analysis_window_min, processing_time_ms, analysis_metadata_json
                 ))
-            except pyodbc.Error as schema_error:
+            except pymssql.Error as schema_error:
                 # If column doesn't exist, fall back to old schema (backward compatibility)
                 if 'analysisMetadata' in str(schema_error) or 'Invalid column' in str(schema_error):
                     logger.warning(f"analysisMetadata column not found, using old schema. Migration needed.")

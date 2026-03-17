@@ -10,7 +10,7 @@ import json
 from kafka import KafkaConsumer, KafkaAdminClient
 from kafka.admin import ConfigResource, ConfigResourceType
 import logging
-import pyodbc
+import pymssql
 import time
 from datetime import datetime
 
@@ -127,7 +127,7 @@ def check_database_connection():
             )
             
             logger.info(f"Trying driver: {driver}...")
-            conn = pyodbc.connect(conn_str)
+            conn = pymssql.connect(conn_str)
             cursor = conn.cursor()
             logger.info(f"[OK] Successfully connected using {driver}")
             

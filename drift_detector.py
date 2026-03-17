@@ -242,7 +242,7 @@ def detect_entity_drift(**kwargs) -> Dict:
             'details': list of detail dicts
         }
     """
-    import pyodbc
+    import pymssql
     
     try:
         entity_id = kwargs.get('entity_id')

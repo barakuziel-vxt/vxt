@@ -11,7 +11,7 @@ import json
 import logging
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime
-import pyodbc
+import pymssql
 from importlib import import_module
 
 logger = logging.getLogger(__name__)
@@ -399,15 +399,15 @@ class TelemetryProcessor:
         return True, "OK"
     
     def _get_db_connection(self):
-        """Create database connection"""
-        connection_string = (
-            'DRIVER={SQL Server};'
-            f'SERVER={self.db_server};'
-            f'DATABASE={self.db_name};'
-            f'UID={self.db_user};'
-            f'PWD={self.db_password}'
+        """Create database connection using pymssql (pure Python)"""
+        return pymssql.connect(
+            server=self.db_server,
+            user=self.db_user,
+            password=self.db_password,
+            database=self.db_name,
+            timeout=30,
+            as_dict=False
         )
-        return pyodbc.connect(connection_string)
     
     def bulk_insert_telemetry(self, records: List[Tuple]) -> bool:
         """Bulk insert to EntityTelemetry"""
