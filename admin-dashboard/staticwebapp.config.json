@@ -1,8 +1,4 @@
 {
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,jpeg,svg,woff,woff2,ttf}"]
-  },
   "routes": [
     {
       "route": "/api/*",
@@ -10,10 +6,15 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/*.{css,scss,js,png,gif,ico,jpg,jpeg,svg,woff,woff2,ttf}",
+      "route": "/*.{js,css,svg,png,gif,ico,jpg,jpeg,woff,woff2,ttf,eot}",
       "headers": {
         "cache-control": "max-age=31536000"
       }
+    },
+    {
+      "route": "/*",
+      "serve": "/index.html",
+      "statusCode": 200
     }
   ],
   "mimeTypes": {
