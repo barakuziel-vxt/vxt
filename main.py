@@ -6,18 +6,30 @@ import os
 import pyodbc
 import json
 import traceback
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Import setup management router (Device Twin support)
-from setup_management import router as setup_router
+# Setup management not included in minimal deployment
+setup_router = None
 
 app = FastAPI(title="VXT API")
 
 # Get environment
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    try:
+        print("[INFO] ===== FastAPI Startup Started =====")
+        print(f"[INFO] Environment: {ENVIRONMENT}")
+        print("[INFO] ===== FastAPI Startup Complete =====")
+    except Exception as e:
+        print(f"[ERROR] Startup failed: {str(e)}")
+        print(f"[ERROR] {traceback.format_exc()}")
 
 # Define CORS origins based on environment
 def get_cors_origins():
@@ -52,8 +64,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include setup management endpoints (Device Twin support)
-app.include_router(setup_router)
+# Include setup management endpoints (Device Twin support) if available
+if setup_router:
+    try:
+        app.include_router(setup_router)
+        print("[INFO] Successfully included setup_management router")
+    except Exception as e:
+        print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
 # SQL Server connection configuration
 SQL_CONN_STR = os.getenv(

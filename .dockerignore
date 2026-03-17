@@ -1,0 +1,12 @@
+# Exclude everything except what we need
+**
+
+# Only include essential files
+!*.py
+!requirements.txt
+!Dockerfile
+!.dockerignore
+
+# Exclude setup management files (not using IoT Hub on Free tier)
+setup_management.py
+setup_exporter.py
