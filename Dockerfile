@@ -7,16 +7,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Stage 2: Runtime  
+# Stage 2: Runtime - Minimal image with only pyodbc (pure Python, no system ODBC drivers)
 FROM python:3.11-slim
 
 WORKDIR /app
-
-# Install ODBC support libraries (driver will be installed on target system or via msodbcsql package)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unixodbc \
-    unixodbc-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages AND executables from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages

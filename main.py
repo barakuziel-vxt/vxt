@@ -17,27 +17,41 @@ setup_router = None
 
 app = FastAPI(title="VXT API")
 
-# SQL Server connection configuration with environment-specific fallbacks
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+# SQL Server connection configuration
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'production')
 
-# Build connection string based on environment
-if ENVIRONMENT == 'production':
-    # Azure SQL Server
-    SQL_CONN_STR = os.getenv(
-        'SQL_CONNECTION_STRING',
-        'Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net;Database=free-sql-db-5949639;UID=vxtadmin;PWD=Barak1976!;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+# Azure SQL Server connection string with pyodbc
+if ENVIRONMENT.lower() in ['production', 'azure']:
+    # Production: Azure SQL Server
+    # Azure SQL requires username format: username@servername
+    SERVER = 'vxtdb.database.windows.net,1433'
+    DATABASE = 'free-sql-db-5949639'
+    USERNAME = 'vxt@vxtdb'  # Server admin: vxt (not vxtadmin)
+    PASSWORD = 'Barak1976!'
+    SQL_CONN_STR = (
+        f'Driver={{ODBC Driver 17 for SQL Server}};'
+        f'Server={SERVER};'
+        f'Database={DATABASE};'
+        f'UID={USERNAME};'
+        f'PWD={PASSWORD};'
+        f'Encrypt=yes;'
+        f'TrustServerCertificate=no;'
+        f'Connection Timeout=30;'
     )
 else:
-    # Local development - try multiple driver options
-    stored_conn_str = os.getenv('SQL_CONNECTION_STRING')
-    if stored_conn_str:
-        SQL_CONN_STR = stored_conn_str
-    else:
-        # Try ODBC Driver 17 first (recommended), fall back to older driver
-        SQL_CONN_STR = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!'
+    # Local development with SQL Server Express or LocalDB
+    SQL_CONN_STR = (
+        'Driver={ODBC Driver 17 for SQL Server};'
+        'Server=localhost;'
+        'Database=BoatTelemetryDB;'
+        'UID=sa;'
+        'PWD=YourStrongPassword123!;'
+        'Encrypt=no;'
+    )
 
 print(f"[INFO] Environment: {ENVIRONMENT}")
-print(f"[INFO] SQL Connection String configured (driver check will happen at first query)")
+print(f"[INFO] Target Server: {SERVER if ENVIRONMENT.lower() in ['production', 'azure'] else 'localhost'}") 
+print(f"[INFO] Using pyodbc with ODBC Driver 17 for SQL Server")
 
 # Startup event
 @app.on_event("startup")
@@ -45,6 +59,7 @@ async def startup_event():
     try:
         print("[INFO] ===== FastAPI Startup Started =====")
         print(f"[INFO] Environment: {ENVIRONMENT}")
+        print(f"[INFO] Connection Driver: FreeTDS")
         print("[INFO] ===== FastAPI Startup Complete =====")
     except Exception as e:
         print(f"[ERROR] Startup failed: {str(e)}")
@@ -53,26 +68,28 @@ async def startup_event():
 # Define CORS origins based on environment
 def get_cors_origins():
     """Get CORS origins from environment or use defaults for development"""
-    if ENVIRONMENT == 'production':
-        # Production: Only allow Azure Static Web Apps
+    # Always allow localhost for local development
+    local_origins = [
+        "http://localhost:3000",      # boat-dashboard
+        "http://localhost:3001",      # admin-dashboard
+        "http://localhost:3002",      # health-dashboard
+        "http://localhost:5173",      # Vite dev server
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002",
+        "http://127.0.0.1:5173",
+        "http://192.168.1.29:3000",
+        "http://192.168.1.29:3001",
+        "http://192.168.1.29:3002",
+        "http://192.168.1.29:5173"
+    ]
+    
+    if ENVIRONMENT.lower() == 'production':
+        # Production: Also allow Azure Static Web Apps
         frontend_url = os.getenv('FRONTEND_URL', 'https://ambitious-sand-0b08c3f03.6.azurestaticapps.net')
-        return [frontend_url]
-    else:
-        # Development: Allow local testing on multiple ports
-        return [
-            "http://localhost:3000",      # boat-dashboard
-            "http://localhost:3001",      # admin-dashboard
-            "http://localhost:3002",      # health-dashboard
-            "http://localhost:5173",      # Vite dev server
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001",
-            "http://127.0.0.1:3002",
-            "http://127.0.0.1:5173",
-            "http://192.168.1.29:3000",
-            "http://192.168.1.29:3001",
-            "http://192.168.1.29:3002",
-            "http://192.168.1.29:5173"
-        ]
+        local_origins.append(frontend_url)
+    
+    return local_origins
 
 # Enable CORS for React frontends
 app.add_middleware(
@@ -144,24 +161,23 @@ if setup_router:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
 def get_db_connection():
-    """Get database connection with fallback driver options"""
+    """Get database connection using pyodbc with ODBC Driver 17"""
     try:
-        return pyodbc.connect(SQL_CONN_STR)
-    except pyodbc.Error as e:
-        # Log the error
-        print(f"[ERROR] Database connection failed: {str(e)}")
-        
-        # If ODBC Driver 17 failed, try with older SQL Server driver
-        if "ODBC Driver 17" in SQL_CONN_STR and ENVIRONMENT != 'production':
-            print("[WARNING] ODBC Driver 17 not found, trying legacy 'SQL Server' driver...")
-            fallback_str = SQL_CONN_STR.replace("ODBC Driver 17 for SQL Server", "SQL Server")
-            try:
-                return pyodbc.connect(fallback_str)
-            except pyodbc.Error as e2:
-                print(f"[ERROR] Fallback connection also failed: {str(e2)}")
-                raise Exception(f"Database connection failed. Please ensure: 1) SQL Server is running, 2) ODBC driver is installed, 3) Credentials are correct") from e2
-        else:
-            raise Exception(f"Database connection failed: {str(e)}")
+        print(f"[DEBUG] Connecting to SQL Server...")
+        conn = pyodbc.connect(SQL_CONN_STR, timeout=30)
+        print(f"[DEBUG] Connection successful!")
+        return conn
+    except pyodbc.DatabaseError as e:
+        error_msg = str(e)
+        print(f"[ERROR] Database connection failed: {error_msg}")
+        if "ODBC Driver 17" in error_msg:
+            print(f"[ERROR] ODBC Driver 17 not found. Install on Windows: Microsoft ODBC Driver 17 for SQL Server")
+        raise Exception(f"Database connection failed: {error_msg}") from e
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[ERROR] Connection error: {error_msg}")
+        raise Exception(f"Database connection failed: {error_msg}") from e
+
 
 
 @app.get("/")
@@ -2699,7 +2715,6 @@ def get_customer_entities(status: str = None):
                 ce.entityId,
                 e.entityFirstName,
                 et.entityTypeName,
-                ce.iotDeviceId,
                 ce.active
             FROM CustomerEntities ce
             JOIN Customers c ON ce.customerId = c.customerId
@@ -2719,8 +2734,7 @@ def get_customer_entities(status: str = None):
                 "entityId": row[3],
                 "entityName": row[4],
                 "entityTypeCode": row[5],
-                "iotDeviceId": row[6],
-                "active": row[7]
+                "active": row[6]
             })
         
         cur.close()
@@ -2745,7 +2759,6 @@ def get_customer_entity(id: int):
                 ce.entityId,
                 e.entityFirstName,
                 et.entityTypeName,
-                ce.iotDeviceId,
                 ce.active
             FROM CustomerEntities ce
             JOIN Customers c ON ce.customerId = c.customerId
@@ -2767,8 +2780,7 @@ def get_customer_entity(id: int):
             "entityId": row[3],
             "entityName": row[4],
             "entityTypeCode": row[5],
-            "iotDeviceId": row[6],
-            "active": row[7]
+            "active": row[6]
         }
         return entity
         
@@ -2783,12 +2795,11 @@ def create_customer_entity(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO CustomerEntities (customerId, entityId, iotDeviceId, active)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO CustomerEntities (customerId, entityId, active)
+            VALUES (?, ?, ?)
         """, (
             data.get("customerId"),
             data.get("entityId"),
-            data.get("iotDeviceId"),
             data.get("active", "Y")
         ))
         conn.commit()
@@ -2808,12 +2819,11 @@ def update_customer_entity(id: int, data: dict):
         cur = conn.cursor()
         cur.execute("""
             UPDATE CustomerEntities
-            SET customerId = ?, entityId = ?, iotDeviceId = ?, active = ?
+            SET customerId = ?, entityId = ?, active = ?
             WHERE customerEntityId = ?
         """, (
             data.get("customerId"),
             data.get("entityId"),
-            data.get("iotDeviceId"),
             data.get("active", "Y"),
             id
         ))
@@ -2857,11 +2867,11 @@ async def sync_entity_setup_to_device(id: int, request_data: dict = None):
         request_data: Optional dict with 'provider_name' (required if entity has multiple providers)
     """
     try:
-        # Get the entity with IOTDeviceId
+        # Get the entity
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT iotDeviceId, entityId
+            SELECT entityId
             FROM CustomerEntities
             WHERE customerEntityId = ?
         """, (id,))
@@ -2872,11 +2882,7 @@ async def sync_entity_setup_to_device(id: int, request_data: dict = None):
         if not row:
             raise HTTPException(status_code=404, detail="Customer entity not found")
         
-        iot_device_id = row[0]
-        entity_id = row[1]
-        
-        if not iot_device_id:
-            raise HTTPException(status_code=400, detail="Entity does not have an IoT Device ID assigned")
+        entity_id = row[0]
         
         # Get provider_name from request or use default
         provider_name = (request_data or {}).get("provider_name", "N2KToSignalK")
@@ -2884,7 +2890,8 @@ async def sync_entity_setup_to_device(id: int, request_data: dict = None):
         # Call the setup_management sync endpoint via HTTP
         import aiohttp
         async with aiohttp.ClientSession() as session:
-            sync_url = f"http://localhost:8000/api/setup/sync/{provider_name}?device_id={iot_device_id}"
+            # Note: This assumes device_id is part of the entity metadata or can be derived from entityId
+            sync_url = f"http://localhost:8000/api/setup/sync/{provider_name}?entity_id={entity_id}"
             async with session.post(sync_url) as resp:
                 if resp.status != 200:
                     error_text = await resp.text()
@@ -2893,10 +2900,9 @@ async def sync_entity_setup_to_device(id: int, request_data: dict = None):
         
         return {
             "status": "success",
-            "message": f"Setup synced to device {iot_device_id}",
+            "message": f"Setup synced for entity {entity_id}",
             "entity_id": entity_id,
             "provider_name": provider_name,
-            "device_id": iot_device_id,
             "sync_result": result
         }
         

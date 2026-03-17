@@ -15,7 +15,6 @@ export default function CustomerEntitiesPage() {
   const [formData, setFormData] = useState({
     customerId: '',
     entityId: '',
-    iotDeviceId: '',
     active: 'Y',
   });
   const [syncLoading, setSyncLoading] = useState(false);
@@ -68,7 +67,6 @@ export default function CustomerEntitiesPage() {
       setFormData({
         customerId: entity.customerId || '',
         entityId: entity.entityId || '',
-        iotDeviceId: entity.iotDeviceId || '',
         active: entity.active || 'Y',
       });
     } else {
@@ -76,7 +74,6 @@ export default function CustomerEntitiesPage() {
       setFormData({
         customerId: '',
         entityId: '',
-        iotDeviceId: '',
         active: 'Y',
       });
     }
@@ -134,11 +131,6 @@ export default function CustomerEntitiesPage() {
       return;
     }
 
-    if (!formData.iotDeviceId) {
-      setSyncMessage({ type: 'error', text: 'IoT Device ID is required to sync setup' });
-      return;
-    }
-
     setSyncLoading(true);
     setSyncMessage(null);
     
@@ -162,7 +154,7 @@ export default function CustomerEntitiesPage() {
       const result = await response.json();
       setSyncMessage({ 
         type: 'success', 
-        text: `✓ Successfully synced setup to device ${formData.iotDeviceId}` 
+        text: `✓ Successfully synced setup for entity ${formData.entityId}` 
       });
     } catch (err) {
       setSyncMessage({ 
@@ -315,7 +307,6 @@ export default function CustomerEntitiesPage() {
                 <th>Entity ID</th>
                 <th>Entity Name</th>
                 <th>Entity Type</th>
-                <th>IoT Device ID</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -339,13 +330,8 @@ export default function CustomerEntitiesPage() {
                       <span>{entity.entityTypeCode || '—'}</span>
                     </td>
                     <td>
-                      <code style={{ backgroundColor: '#383838', padding: '4px 8px', borderRadius: '3px', fontSize: '12px' }}>
-                        {entity.iotDeviceId || '—'}
-                      </code>
-                    </td>
-                    <td>
                       <span>
-                        {entity.active === 'Y' ? 'Active' : 'Inactive'}
+                        {entity.active === 'Y' ? 'Active' : 'Inactive'}}
                       </span>
                     </td>
                     <td>
@@ -415,25 +401,6 @@ export default function CustomerEntitiesPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="iotDeviceId">IoT Device ID</label>
-                <input
-                  type="text"
-                  id="iotDeviceId"
-                  name="iotDeviceId"
-                  value={formData.iotDeviceId}
-                  onChange={handleInputChange}
-                  placeholder="e.g., TomerRefael or device-id-from-azure-iot-hub"
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '13px'
-                  }}
-                />
-                <small style={{ color: '#999', marginTop: '4px', display: 'block' }}>
-                  The device ID as registered in your Azure IoT Hub. Required for pushing setup to the device.
-                </small>
-              </div>
-
-              <div className="form-group">
                 <label htmlFor="active">Status</label>
                 <select
                   id="active"
@@ -468,7 +435,7 @@ export default function CustomerEntitiesPage() {
                 paddingTop: '16px'
               }}>
                 <div style={{ flex: '1' }}>
-                  {editingId && formData.iotDeviceId && (
+                  {editingId && (
                     <button
                       type="button"
                       className="btn btn-primary"

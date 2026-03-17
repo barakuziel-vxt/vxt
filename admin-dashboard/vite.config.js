@@ -38,6 +38,22 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true
       },
+      '/customersubscriptions': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/protocols': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/providers': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/providerevents': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
