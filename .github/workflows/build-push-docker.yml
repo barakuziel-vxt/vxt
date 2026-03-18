@@ -3,9 +3,7 @@ name: Build and Push Docker to ACR
 on:
   push:
     branches:
-      - main
       - prod
-      - production
   workflow_dispatch:
 
 jobs:
