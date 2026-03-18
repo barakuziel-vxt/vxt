@@ -217,94 +217,34 @@ if setup_router:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
 # ============================================================================
-# CONNECTION POOLING (Fixes idle timeout issue)
+# CONNECTION RETRY (Simple wrapper to handle first-connect timeout)
 # ============================================================================
-import threading
 import time
 
-class DatabaseConnectionPool:
-    """Simple connection pool to avoid reconnecting on every request"""
-    def __init__(self, pool_size=5):
-        self.pool = []
-        self.pool_size = pool_size
-        self.lock = threading.Lock()
-        self.last_keepalive = time.time()
-    
-    def get_connection(self):
-        """Get or create a connection, with retry on first-connect timeout"""
-        with self.lock:
-            # Try to reuse an existing connection
-            if self.pool:
-                conn = self.pool.pop(0)
-                try:
-                    # Test connection is still alive
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT 1")
-                    cursor.close()
-                    return conn
-                except:
-                    return_db_connection(conn)
-            
-            # Create new connection with retry logic
-            config = get_db_config()
-            if config is None:
-                raise Exception("Database is not configured.")
-            
-            for attempt in range(3):  # Retry up to 3 times
-                try:
-                    print(f"[DB] Connection attempt {attempt + 1}/3 to {config['server']}...")
-                    conn = pymssql.connect(**config)
-                    print(f"[DB] ? Connected!")
-                    return conn
-                except pymssql.Error as e:
-                    if attempt < 2:
-                        wait_time = 2 ** attempt  # 1s, 2s
-                        print(f"[DB] Retry in {wait_time}s: {str(e)[:50]}")
-                        time.sleep(wait_time)
-                    else:
-                        raise
-    
-    def return_connection(self, conn):
-        """Return connection to pool for reuse"""
-        with self.lock:
-            if len(self.pool) < self.pool_size:
-                self.pool.append(conn)
-            else:
-                return_db_connection(conn)
-    
-    def keep_alive(self):
-        """Keep connections warm to prevent 30-min timeout"""
-        with self.lock:
-            if time.time() - self.last_keepalive > 900:  # Every 15 minutes
-                print("[DB] Keep-alive ping...")
-                try:
-                    config = get_db_config()
-                    conn = pymssql.connect(**config)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT 1")  # Dummy query
-                    cursor.close()
-                    return_db_connection(conn)
-                    self.last_keepalive = time.time()
-                except:
-                    pass  # Ignore keep-alive errors
-
-_db_pool = DatabaseConnectionPool(pool_size=5)
-
 def get_db_connection():
-    """Get database connection from pool (reuses connections, avoids 60s timeout)"""
-    try:
-        _db_pool.keep_alive()
-        return _db_pool.get_connection()
-    except Exception as e:
-        error_msg = str(e)
-        print(f"[ERROR] Database connection failed: {error_msg}")
-        raise Exception(f"Database connection failed: {error_msg}") from e
+    """Get database connection with automatic retry on timeout"""
+    config = get_db_config()
+    if config is None:
+        raise Exception("Database is not configured. SQL_CONNECTION_STRING environment variable is missing.")
+    
+    # Retry up to 2 times on first-connect timeout
+    for attempt in range(2):
+        try:
+            conn = pymssql.connect(**config)
+            return conn
+        except Exception as e:
+            if attempt < 1:
+                # First attempt failed, wait and retry once
+                time.sleep(1)
+            else:
+                # Second attempt failed, give up
+                raise Exception(f"Database connection failed: {str(e)[:100]}")
 
 def return_db_connection(conn):
-    """Return connection to pool after use"""
+    """Close connection (no pooling - simple approach)"""
     if conn:
         try:
-            _db_pool.return_connection(conn)
+            conn.close()
         except:
             pass
 
