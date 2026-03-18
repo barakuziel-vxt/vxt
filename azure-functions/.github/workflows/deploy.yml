@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  FUNCTION_APP_NAME: vxt-telemetry-consumer
+  FUNCTION_APP_NAME: vxt-function
   RESOURCE_GROUP: VXT-IoT-Hub
   PYTHON_VERSION: '3.11'
 
@@ -41,39 +41,14 @@ jobs:
     
     - name: Create Function App if not exists
       run: |
-        exists=$(az functionapp show --name ${{ env.FUNCTION_APP_NAME }} \
-          --resource-group ${{ env.RESOURCE_GROUP }} --query id -o tsv 2>/dev/null)
-        
-        if [ -z "$exists" ]; then
-          echo "Creating Function App: ${{ env.FUNCTION_APP_NAME }}"
-          
-          # Ensure storage account exists in northeurope
-          az storage account create \
-            --name vxtfnstore \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --location northeurope \
-            --sku Standard_LRS \
-            --access-tier Hot \
-            --kind StorageV2 2>/dev/null || true
-          
-          # Create function app with Python runtime in northeurope
-          az functionapp create \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --runtime python \
-            --runtime-version ${{ env.PYTHON_VERSION }} \
-            --functions-version 4 \
-            --os-type Linux \
-            --storage-account vxtfnstore \
-            --consumption-plan-location northeurope
-        else
-          echo "Function App already exists"
-        fi
+        # Using existing vxt-function app - no need to create
+        echo "Using existing Function App: vxt-function"
+        echo "Using existing Storage Account: vxtstorage"
     
     - name: Configure App Settings
       run: |
         az functionapp config appsettings set \
-          --name ${{ env.FUNCTION_APP_NAME }} \
+          --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --settings \
             PROVIDER_NAME="N2KToSignalK" \
@@ -85,9 +60,9 @@ jobs:
     
     - name: Deploy to Azure Function
       run: |
-        # Use az functionapp up for simpler deployment without publish profile
+        # Deploy to existing vxt-function app
         az functionapp up \
-          --name ${{ env.FUNCTION_APP_NAME }} \
+          --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --runtime python \
           --runtime-version ${{ env.PYTHON_VERSION }} \
@@ -107,7 +82,7 @@ jobs:
         for i in {1..5}; do
           echo "Attempt $i: Testing function health..."
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api/health)
+            https://vxt-function.azurewebsites.net/api/health)
           
           if [ "$response" = "200" ]; then
             echo "✓ Function is healthy (HTTP $response)"
