@@ -82,6 +82,7 @@ def get_db_config():
         }
     else:
         # Fallback for local development (when SQL_CONNECTION_STRING not set)
+        # This is OK for local dev - app will still start, /health/db will show disconnected
         if ENVIRONMENT in ['local', 'dev', 'docker']:
             return {
                 'server': 'localhost',
@@ -92,11 +93,9 @@ def get_db_config():
                 'as_dict': False
             }
         else:
-            raise ValueError(
-                "SQL_CONNECTION_STRING environment variable is required for this environment. "
-                "Set it in Azure App Settings or in your .env file:\n"
-                "  SQL_CONNECTION_STRING=Server=...;Database=...;User=...;Password=...;"
-            )
+            # Production: Return a config that will fail gracefully when actually called
+            print(f"[WARNING] SQL_CONNECTION_STRING not set. Database features will be unavailable.")
+            return None
 
 print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
 print(f"[INFO] Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
@@ -221,6 +220,8 @@ def get_db_connection():
     """Get database connection using pymssql (pure Python, no system ODBC needed)"""
     try:
         config = get_db_config()
+        if config is None:
+            raise Exception("Database is not configured. SQL_CONNECTION_STRING environment variable is missing.")
         print(f"[DEBUG] Connecting to {config['server']},{config['port']}\\{config['database']}...")
         conn = pymssql.connect(**config)
         print(f"[DEBUG] Connection successful!")
