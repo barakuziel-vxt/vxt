@@ -47,16 +47,16 @@ jobs:
         if [ -z "$exists" ]; then
           echo "Creating Function App: ${{ env.FUNCTION_APP_NAME }}"
           
-          # Ensure storage account exists
+          # Ensure storage account exists in northeurope
           az storage account create \
             --name vxtfnstore \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --location westeurope \
+            --location northeurope \
             --sku Standard_LRS \
             --access-tier Hot \
             --kind StorageV2 2>/dev/null || true
           
-          # Try creating with Python runtime on westeurope (more likely to have capacity)
+          # Create function app with Python runtime in northeurope
           az functionapp create \
             --name ${{ env.FUNCTION_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -65,26 +65,7 @@ jobs:
             --functions-version 4 \
             --os-type Linux \
             --storage-account vxtfnstore \
-            --consumption-plan-location westeurope 2>/dev/null || \
-          # Fallback: try northeurope
-          az functionapp create \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --runtime python \
-            --runtime-version ${{ env.PYTHON_VERSION }} \
-            --functions-version 4 \
-            --os-type Linux \
-            --storage-account vxtfnstore \
-            --consumption-plan-location northeurope 2>/dev/null || \
-          # Last resort: use Node.js which is more widely supported
-          az functionapp create \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --runtime node \
-            --runtime-version 24 \
-            --functions-version 4 \
-            --storage-account vxtfnstore \
-            --consumption-plan-location westeurope || true
+            --consumption-plan-location northeurope
         else
           echo "Function App already exists"
         fi
