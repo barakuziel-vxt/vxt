@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 # Yacht Telemetry API - UNIFIED DEPLOYMENT FILE
 # Works for: Local Development (Docker), Laptop (.env), and Azure (App Settings)
 # ============================================================================
@@ -216,24 +216,97 @@ if setup_router:
     except Exception as e:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
+# ============================================================================
+# CONNECTION POOLING (Fixes idle timeout issue)
+# ============================================================================
+import threading
+import time
+
+class DatabaseConnectionPool:
+    """Simple connection pool to avoid reconnecting on every request"""
+    def __init__(self, pool_size=5):
+        self.pool = []
+        self.pool_size = pool_size
+        self.lock = threading.Lock()
+        self.last_keepalive = time.time()
+    
+    def get_connection(self):
+        """Get or create a connection, with retry on first-connect timeout"""
+        with self.lock:
+            # Try to reuse an existing connection
+            if self.pool:
+                conn = self.pool.pop(0)
+                try:
+                    # Test connection is still alive
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT 1")
+                    cursor.close()
+                    return conn
+                except:
+                    return_db_connection(conn)
+            
+            # Create new connection with retry logic
+            config = get_db_config()
+            if config is None:
+                raise Exception("Database is not configured.")
+            
+            for attempt in range(3):  # Retry up to 3 times
+                try:
+                    print(f"[DB] Connection attempt {attempt + 1}/3 to {config['server']}...")
+                    conn = pymssql.connect(**config)
+                    print(f"[DB] ? Connected!")
+                    return conn
+                except pymssql.Error as e:
+                    if attempt < 2:
+                        wait_time = 2 ** attempt  # 1s, 2s
+                        print(f"[DB] Retry in {wait_time}s: {str(e)[:50]}")
+                        time.sleep(wait_time)
+                    else:
+                        raise
+    
+    def return_connection(self, conn):
+        """Return connection to pool for reuse"""
+        with self.lock:
+            if len(self.pool) < self.pool_size:
+                self.pool.append(conn)
+            else:
+                return_db_connection(conn)
+    
+    def keep_alive(self):
+        """Keep connections warm to prevent 30-min timeout"""
+        with self.lock:
+            if time.time() - self.last_keepalive > 900:  # Every 15 minutes
+                print("[DB] Keep-alive ping...")
+                try:
+                    config = get_db_config()
+                    conn = pymssql.connect(**config)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT 1")  # Dummy query
+                    cursor.close()
+                    return_db_connection(conn)
+                    self.last_keepalive = time.time()
+                except:
+                    pass  # Ignore keep-alive errors
+
+_db_pool = DatabaseConnectionPool(pool_size=5)
+
 def get_db_connection():
-    """Get database connection using pymssql (pure Python, no system ODBC needed)"""
+    """Get database connection from pool (reuses connections, avoids 60s timeout)"""
     try:
-        config = get_db_config()
-        if config is None:
-            raise Exception("Database is not configured. SQL_CONNECTION_STRING environment variable is missing.")
-        print(f"[DEBUG] Connecting to {config['server']},{config['port']}\\{config['database']}...")
-        conn = pymssql.connect(**config)
-        print(f"[DEBUG] Connection successful!")
-        return conn
-    except pymssql.Error as e:
+        _db_pool.keep_alive()
+        return _db_pool.get_connection()
+    except Exception as e:
         error_msg = str(e)
         print(f"[ERROR] Database connection failed: {error_msg}")
         raise Exception(f"Database connection failed: {error_msg}") from e
-    except Exception as e:
-        error_msg = str(e)
-        print(f"[ERROR] Connection error: {error_msg}")
-        raise Exception(f"Database connection failed: {error_msg}") from e
+
+def return_db_connection(conn):
+    """Return connection to pool after use"""
+    if conn:
+        try:
+            _db_pool.return_connection(conn)
+        except:
+            pass
 
 
 
@@ -267,7 +340,7 @@ def health_check_db():
         missing_tables = [t for t in critical_tables if t not in existing_tables]
         
         cursor.close()
-        conn.close()
+        return_db_connection(conn)
         
         return {
             "status": "healthy" if not missing_tables else "degraded",
@@ -379,7 +452,7 @@ def get_boat_telemetry(MMSI: str, limit: int = 50):
             })
         
         cursor.close()
-        conn.close()
+        return_db_connection(conn)
         
         # Return in chronological order (ascending)
         return result[::-1]
@@ -513,7 +586,7 @@ def get_health_vitals_new(ID: str, limit: int = 50):
             result.append(row_data)
 
         cursor.close()
-        conn.close()
+        return_db_connection(conn)
 
         return result
 
@@ -610,7 +683,7 @@ def get_health_vitals(ID: str, limit: int = 50):
             })
 
         cursor.close()
-        conn.close()
+        return_db_connection(conn)
 
         return result[::-1]
 
@@ -655,7 +728,7 @@ def get_properties_by_customer_name(customerName: str):
                 "year": r[3]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -688,7 +761,7 @@ def get_entity_categories():
                 "lastUpdateUser": row[5]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return categories
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -707,7 +780,7 @@ def get_entity_category(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         if not row:
             raise HTTPException(status_code=404, detail="Category not found")
         return {
@@ -734,7 +807,7 @@ def create_entity_category(data: dict):
         """, (data.get("entityCategoryName"), data.get("active", "Y")))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Category created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -753,7 +826,7 @@ def update_entity_category(id: int, data: dict):
         """, (data.get("entityCategoryName"), data.get("active", "Y"), id))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Category updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -768,7 +841,7 @@ def delete_entity_category(id: int):
         cur.execute("DELETE FROM EntityCategory WHERE entityCategoryId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Category deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -798,7 +871,7 @@ def get_entity_types():
                 "lastUpdateUser": row[6]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return types
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -817,7 +890,7 @@ def get_entity_type(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         if not row:
             raise HTTPException(status_code=404, detail="Entity type not found")
         return {
@@ -845,7 +918,7 @@ def create_entity_type(data: dict):
         """, (data.get("entityTypeName"), data.get("entityCategoryId"), data.get("active", "Y")))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity type created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -864,7 +937,7 @@ def update_entity_type(id: int, data: dict):
         """, (data.get("entityTypeName"), data.get("entityCategoryId"), data.get("active", "Y"), id))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity type updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -879,7 +952,7 @@ def delete_entity_type(id: int):
         cur.execute("DELETE FROM EntityType WHERE entityTypeId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity type deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -923,7 +996,7 @@ def get_entity_type_attributes():
                 "defaultInGraph": row[14]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return attributes
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -947,7 +1020,7 @@ def get_entity_type_attribute(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         if not row:
             raise HTTPException(status_code=404, detail="Attribute not found")
         return {
@@ -993,7 +1066,7 @@ def create_entity_type_attribute(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Attribute created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1023,7 +1096,7 @@ def update_entity_type_attribute(id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Attribute updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1038,7 +1111,7 @@ def delete_entity_type_attribute(id: int):
         cur.execute("DELETE FROM EntityTypeAttribute WHERE entityTypeAttributeId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Attribute deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1068,7 +1141,7 @@ def get_protocols():
                 "active": row[5]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return protocols
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1113,7 +1186,7 @@ def get_protocol_attributes(protocolId: int = None):
                 "active": row[10]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return attributes
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1145,7 +1218,7 @@ def get_providers():
                 "active": row[7]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return providers
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1173,7 +1246,7 @@ def create_provider(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1203,7 +1276,7 @@ def update_provider(provider_id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider updated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1218,7 +1291,7 @@ def delete_provider(provider_id: int):
         cur.execute("DELETE FROM Provider WHERE providerId = %s", (provider_id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1244,7 +1317,7 @@ def create_protocol(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1268,7 +1341,7 @@ def update_protocol(protocol_id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol updated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1283,7 +1356,7 @@ def delete_protocol(protocol_id: int):
         cur.execute("DELETE FROM Protocol WHERE protocolId = %s", (protocol_id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1315,7 +1388,7 @@ def create_protocol_attribute(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol attribute created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1348,7 +1421,7 @@ def update_protocol_attribute(attribute_id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol attribute updated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1363,7 +1436,7 @@ def delete_protocol_attribute(attribute_id: int):
         cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = %s", (attribute_id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Protocol attribute deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1396,7 +1469,7 @@ def get_provider_events():
                 "active": row[8]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return events
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1424,7 +1497,7 @@ def create_provider_event(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider event created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1454,7 +1527,7 @@ def update_provider_event(event_id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider event updated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1469,7 +1542,7 @@ def delete_provider_event(event_id: int):
         cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = %s", (event_id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"status": "success", "message": "Provider event deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1512,7 +1585,7 @@ def get_entity_type_attribute_score(attributeId: int = None):
                 "lastUpdateTimestamp": row[8].isoformat() if row[8] else None
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return criteria
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1537,7 +1610,7 @@ def create_entity_type_attribute_score(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Attribute score created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1562,7 +1635,7 @@ def update_entity_type_attribute_score(id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Attribute score updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1577,7 +1650,7 @@ def delete_entity_type_attribute_score(id: int):
         cur.execute("DELETE FROM EntityTypeAttributeScore WHERE entityTypeAttributeScoreId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Criterion deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1629,7 +1702,7 @@ def get_events(entityTypeId: int = None):
                 "lastUpdateTimestamp": row[15].isoformat() if row[15] else None
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return events
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1671,7 +1744,7 @@ def get_event(id: int):
             "lastUpdateTimestamp": row[15].isoformat() if row[15] else None
         }
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return event
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1704,7 +1777,7 @@ def create_event(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Event created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1739,7 +1812,7 @@ def update_event(id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Event updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1754,7 +1827,7 @@ def delete_event(id: int):
         cur.execute("UPDATE Event SET active = 'N' WHERE eventId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Event deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1792,7 +1865,7 @@ def get_event_attributes(eventId: int = None):
                 "entityTypeAttributeName": row[3]
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return attributes
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1813,7 +1886,7 @@ def create_event_attribute(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Event attribute created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1829,7 +1902,7 @@ def delete_event_attribute(eventId: int, attributeId: int):
                    (eventId, attributeId))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Event attribute deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1860,7 +1933,7 @@ def get_analyze_functions():
                 "lastUpdateTimestamp": row[6].isoformat() if row[6] else None
             })
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return functions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1902,7 +1975,7 @@ def get_entities(entityTypeId: int = None):
             entities.append(entity)
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         return entities
         
@@ -1925,7 +1998,7 @@ def get_entity(id: str):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         if not row:
             raise HTTPException(status_code=404, detail="Entity not found")
         
@@ -1967,7 +2040,7 @@ def create_entity(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1994,7 +2067,7 @@ def update_entity(id: str, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2009,7 +2082,7 @@ def delete_entity(id: str):
         cur.execute("UPDATE Entity SET active = 'N' WHERE entityId = %s", (id,))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Entity deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2068,7 +2141,7 @@ async def get_latest_telemetry(entity_id: str):
         cur.execute(query, (entity_id,))
         rows = cur.fetchall()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         results = []
         for row in rows:
@@ -2162,7 +2235,7 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         rows = cur.fetchall()
         print(f"OK: Query executed. Raw row count: {len(rows)}")
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         # Transform data for charting: pivot by timestamp
         data_dict = {}
@@ -2253,7 +2326,7 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
         cur.execute(query, (entity_id, start_sql, end_sql))
         rows = cur.fetchall()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         results = []
         for row in rows:
@@ -2391,7 +2464,7 @@ async def get_eventlog_details(eventlog_id: int):
         
         lookup_cur.close()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         return {
             "eventLogId": header_row[0],
@@ -2434,7 +2507,7 @@ async def get_entity_attribute_scores(attribute_code: str):
         
         if not attr_row:
             cur.close()
-            conn.close()
+            return_db_connection(conn)
             return []
         
         attr_id = attr_row[0]
@@ -2453,7 +2526,7 @@ async def get_entity_attribute_scores(attribute_code: str):
         cur.execute(score_query, (attr_id,))
         rows = cur.fetchall()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         # Transform to list of dicts
         scores = []
@@ -2498,7 +2571,7 @@ def get_customers():
             })
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return customers
         
     except Exception as e:
@@ -2518,7 +2591,7 @@ def get_customer(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         if not row:
             raise HTTPException(status_code=404, detail="Customer not found")
@@ -2589,7 +2662,7 @@ def get_customer_subscriptions(status: str = None):
             })
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return subscriptions
         
     except Exception as e:
@@ -2620,7 +2693,7 @@ def get_customer_subscription(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         if not row:
             raise HTTPException(status_code=404, detail="Subscription not found")
@@ -2667,7 +2740,7 @@ def create_customer_subscription(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Subscription created successfully"}
         
     except Exception as e:
@@ -2724,7 +2797,7 @@ def update_customer_subscription(id: int, data: dict):
         cur.execute(query, update_values)
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Subscription updated successfully"}
         
     except Exception as e:
@@ -2746,7 +2819,7 @@ def delete_customer_subscription(id: int):
         
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         return {"message": "Subscription permanently deleted"}
         
@@ -2803,7 +2876,7 @@ def get_customer_entities(status: str = None):
             })
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return entities
         
     except Exception as e:
@@ -2833,7 +2906,7 @@ def get_customer_entity(id: int):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         if not row:
             raise HTTPException(status_code=404, detail="Customer entity not found")
@@ -2869,7 +2942,7 @@ def create_customer_entity(data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Customer entity created successfully"}
         
     except Exception as e:
@@ -2894,7 +2967,7 @@ def update_customer_entity(id: int, data: dict):
         ))
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Customer entity updated successfully"}
         
     except Exception as e:
@@ -2916,7 +2989,7 @@ def delete_customer_entity(id: int):
         
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Customer entity deleted successfully"}
         
     except Exception as e:
@@ -2942,7 +3015,7 @@ async def sync_entity_setup_to_device(id: int, request_data: dict = None):
         """, (id,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         if not row:
             raise HTTPException(status_code=404, detail="Customer entity not found")
@@ -3042,7 +3115,7 @@ def get_customer_geofence_criteria(customer_id: int = None, status: str = None):
             })
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return geofences
         
     except Exception as e:
@@ -3075,7 +3148,7 @@ def get_customer_geofence_criteria_by_id(id: int):
         
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         
         if not row:
             raise HTTPException(status_code=404, detail="Geofence criteria not found")
@@ -3132,7 +3205,7 @@ def create_customer_geofence_criteria(data: dict):
         
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Geofence criteria created successfully"}
         
     except Exception as e:
@@ -3190,7 +3263,7 @@ def update_customer_geofence_criteria(id: int, data: dict):
         
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Geofence criteria updated successfully"}
         
     except Exception as e:
@@ -3212,7 +3285,7 @@ def delete_customer_geofence_criteria(id: int):
         
         conn.commit()
         cur.close()
-        conn.close()
+        return_db_connection(conn)
         return {"message": "Geofence criteria deleted successfully"}
         
     except Exception as e:
@@ -3222,4 +3295,5 @@ def delete_customer_geofence_criteria(id: int):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
