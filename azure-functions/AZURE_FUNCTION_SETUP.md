@@ -57,26 +57,20 @@ Add these secrets:
    }
    ```
    
-   **How to get these:**
+   **How to create:**
    ```bash
    az ad sp create-for-rbac --name "vxt-function-deployer" \
      --role Contributor \
      --scopes /subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/VXT-IoT-Hub
    ```
 
-2. **AZURE_FUNCTIONAPP_PUBLISH_PROFILE**
-   ```bash
-   az functionapp deployment list-publishing-profiles \
-     --name vxt-telemetry-consumer \
-     --resource-group VXT-IoT-Hub \
-     --xml
-   ```
-   Copy the entire XML output as the secret value.
-
-3. **DB_PASSWORD**
+2. **DB_PASSWORD**
    - Your Azure SQL database password (for vxtadmin user)
+   - Example: `Barak1008!`
 
-4. **IOT_HUB_CONNECTION_STRING** (optional)
+### Optional Secrets
+
+3. **IOT_HUB_CONNECTION_STRING** (only needed if your function code references it)
    ```bash
    az iot hub connection-string show \
      --hub-name vxt-iot-hub \

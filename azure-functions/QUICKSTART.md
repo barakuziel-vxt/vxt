@@ -15,10 +15,8 @@ Go to repo **Settings → Secrets and variables → Actions**
 
 | Secret Name | Value |
 |---|---|
-| **AZURE_CREDENTIALS** | JSON from `az ad sp create-for-rbac --name "vxt-function-deployer" --role Contributor` |
+| **AZURE_CREDENTIALS** | JSON from `az ad sp create-for-rbac --name "vxt-function-deployer" --role Contributor --scopes /subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/VXT-IoT-Hub` |
 | **DB_PASSWORD** | Your Azure SQL password |
-| **AZURE_FUNCTIONAPP_PUBLISH_PROFILE** | From `az functionapp deployment list-publishing-profiles --name vxt-telemetry-consumer --resource-group VXT-IoT-Hub --xml` |
-| **IOT_HUB_CONNECTION_STRING** | From `az iot hub connection-string show --hub-name vxt-iot-hub --policy-name "service"` |
 
 ### 3. Push to New Repo
 ```bash
@@ -35,12 +33,11 @@ git push origin prod
 ## What Happens on Every `git push origin prod`
 
 1. ✓ GitHub triggers workflow
-2. ✓ Installs Python dependencies
-3. ✓ Logs into Azure with secrets
-4. ✓ Creates Function App (if needed)
-5. ✓ Deploys your code
-6. ✓ Runs health check
-7. ✓ Done! Function is live
+2. ✓ Logs into Azure with AZURE_CREDENTIALS
+3. ✓ Creates Function App (if needed) - tries Python first, falls back to Node.js if needed
+4. ✓ Deploys your code automatically
+5. ✓ Runs health check
+6. ✓ Done! Function is live
 
 ## Troubleshooting
 
