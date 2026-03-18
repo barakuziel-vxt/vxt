@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - prod
       - production
   workflow_dispatch:
 
