@@ -36,13 +36,19 @@ jobs:
           package: .
           startup-file: 'gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 main:app'
       
-      - name: Set App Settings
+      - name: Verify App Settings
         run: |
+          az webapp config appsettings list \
+            --name vxt-web-app \
+            --resource-group VXT-IoT-Hub \
+            --query "[?name=='SQL_CONNECTION_STRING']" \
+            -o table
+          
+          # Set any missing app settings
           az webapp config appsettings set \
             --name vxt-web-app \
             --resource-group VXT-IoT-Hub \
             --settings \
-            SQL_CONNECTION_STRING="${{ secrets.SQL_CONNECTION_STRING }}" \
             ENVIRONMENT="production" \
             PYTHONIOENCODING="utf-8"
       
