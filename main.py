@@ -60,8 +60,20 @@ def get_db_config():
                 key, value = item.split('=', 1)
                 config[key.strip()] = value.strip()
         
+        # Extract server and port separately (Azure format: Server=hostname,port)
+        server_with_port = config.get('Server', 'localhost')
+        if ',' in server_with_port:
+            # Format: vxtdb.database.windows.net,1433
+            server, port = server_with_port.split(',')
+            port = int(port)
+        else:
+            # Format: localhost or vxtdb.database.windows.net
+            server = server_with_port
+            port = 1433  # Default SQL Server port
+        
         return {
-            'server': config.get('Server', 'localhost'),
+            'server': server,
+            'port': port,
             'database': config.get('Database', 'BoatTelemetryDB'),
             'user': config.get('User', 'sa'),
             'password': config.get('Password', ''),
@@ -209,7 +221,7 @@ def get_db_connection():
     """Get database connection using pymssql (pure Python, no system ODBC needed)"""
     try:
         config = get_db_config()
-        print(f"[DEBUG] Connecting to {config['server']}\\{config['database']}...")
+        print(f"[DEBUG] Connecting to {config['server']},{config['port']}\\{config['database']}...")
         conn = pymssql.connect(**config)
         print(f"[DEBUG] Connection successful!")
         return conn
