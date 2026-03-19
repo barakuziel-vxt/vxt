@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { customerEntityAPI, customerAPI, entityAPI } from '../services/api';
 
+// Get API base URL from environment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 export default function CustomerEntitiesPage() {
   const [entities, setEntities] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -135,7 +138,7 @@ export default function CustomerEntitiesPage() {
     setSyncMessage(null);
     
     try {
-      const baseUrl = localStorage.getItem('apiBaseUrl') || 'http://localhost:8000';
+      const baseUrl = API_BASE_URL;
       const response = await fetch(`${baseUrl}/customerentities/${editingId}/sync-setup`, {
         method: 'POST',
         headers: {
