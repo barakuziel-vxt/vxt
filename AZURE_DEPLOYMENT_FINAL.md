@@ -1,14 +1,14 @@
-# Azure Deployment Guide - Complete Instructions
+# Azure Deployment Guide - File-Based Deployment
 
 ## Status: Application Ready for GitHub Actions Deployment
 
-Your VXT application (Python APIs + React dashboards) is now ready to deploy to Azure.
+Your VXT application (Python APIs + React dashboards) is now ready to deploy to Azure using file-based deployment.
 
 ### What's Included
 
 1. **FastAPI Backend** - All 6 IoT-enabled endpoints
-   - GET /api/customerentities
-   - POST /api/providers
+   - GET /entitycategories
+   - POST /entities
    - And more...
 
 2. **React Admin Dashboard** - Built and optimized
@@ -21,15 +21,26 @@ Your VXT application (Python APIs + React dashboards) is now ready to deploy to 
    - Event logging tables
    - Protocol configuration
 
+### Deployment Method: File-Based (NOT Docker)
+
+Files are deployed directly to Azure App Service using the Azure Web Apps Deploy action. No Docker containers required.
+
+### Prerequisites
+
+Your Azure Web App must have:
+- Python 3.11 runtime
+- App Service plan (Linux or Windows)
+- Publish profile configured in GitHub Secrets
+
 ### Deployment Steps
 
 #### Step 1: Get Azure Publish Profile
 
 1. Go to Azure Portal (https://portal.azure.com)
-2. Navigate to: App Services > vxt-admin-app
+2. Navigate to: App Services > vxt-web-app
 3. Click "Get publish profile" button (top right)
-4. Open the .PublishSettings file that downloads
-5. Copy ALL the XML content (the entire file)
+4. A .PublishSettings file will download
+5. Open the file and copy ALL the XML content
 
 #### Step 2: Add GitHub Secret
 
@@ -38,16 +49,64 @@ Your VXT application (Python APIs + React dashboards) is now ready to deploy to 
 3. Go to Secrets and variables > Actions
 4. Click "New repository secret"
 5. Create secret with:
-   - Name: AZURE_PUBLISH_PROFILE
+   - Name: `AZURE_PUBLISH_PROFILE`
    - Value: [Paste the entire .PublishSettings XML]
 6. Click "Add secret"
 
 #### Step 3: Trigger Deployment
 
-Push code to GitHub to auto-deploy:
+Push code to the `prod` branch to auto-deploy:
 
+```bash
+git push origin prod
 ```
-cd C:\VXT
+
+The GitHub Actions workflow will:
+1. Checkout the code
+2. Set up Python 3.11
+3. Install requirements.txt dependencies
+4. Deploy files directly to Azure App Service
+5. Application starts automatically
+
+### Deployment Configuration
+
+**Workflow File:** `.github/workflows/deploy-to-azure.yml`
+
+The workflow triggers on:
+- Push to `prod` branch (automatic)
+- Manual workflow dispatch
+
+### Post-Deployment
+
+After deployment completes:
+
+1. **Check Deployment Status:**
+   - GitHub Actions tab shows workflow status
+   - Azure Portal: App Services > vxt-web-app > Deployments
+
+2. **Verify API is Running:**
+   ```
+   curl https://vxt-web-app.azurewebsites.net/health/db
+   ```
+
+3. **Check Logs:**
+   - Azure Portal: vxt-web-app > Deployment slots > Production > App Service logs
+
+### Troubleshooting
+
+**If deployment fails:**
+
+1. Check GitHub Actions workflow logs
+2. Verify AZURE_PUBLISH_PROFILE secret is correctly set
+3. Ensure publish profile XML is complete and valid
+4. Check requirements.txt has all necessary packages
+
+**If app doesn't start:**
+
+1. Check Azure App Service logs
+2. Verify Python version is 3.11
+3. Check environment variables are set (SQL_CONNECTION_STRING, ENVIRONMENT, etc.)
+4. Verify pymssql can connect to database
 git push origin main
 ```
 
