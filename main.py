@@ -179,7 +179,7 @@ def get_db_config():
         'database': database_key,
         'user': user_key,
         'password': password_key,
-        'timeout': 30,
+        'timeout': 120,
         'as_dict': False
     }
 
@@ -387,38 +387,41 @@ log_info("===== APP INITIALIZATION COMPLETE =====")
 import time
 
 def get_db_connection():
-    """Get database connection with automatic retry on timeout and detailed logging"""
+    """Get database connection with exponential backoff retry for cold start Azure SQL"""
     config = get_db_config()
     if config is None:
         error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
         log_error(error_msg)
         raise Exception(error_msg)
     
-    # Retry up to 2 times on first-connect timeout
-    for attempt in range(2):
+    # Retry up to 5 times with exponential backoff for Azure SQL cold start
+    max_attempts = 5
+    backoff_seconds = [2, 5, 10, 20, 30]  # Exponential backoff delays
+    
+    for attempt in range(max_attempts):
         try:
             attempt_num = attempt + 1
-            log_info(f"Attempting database connection (attempt {attempt_num}/2)")
+            log_info(f"Attempting database connection (attempt {attempt_num}/{max_attempts})")
             log_info(f"  Server: {config.get('server')}:{config.get('port')}")
             log_info(f"  Database: {config.get('database')}")
             log_info(f"  User: {config.get('user')}")
-            log_info(f"  Timeout: {config.get('timeout')}s")
+            log_info(f"  Timeout: {config.get('timeout')}s (for cold start tolerance)")
             
             conn = pymssql.connect(**config)
-            log_info("Database connection successful")
+            log_info(f"✓ Database connection successful on attempt {attempt_num}")
             return conn
         except Exception as e:
             error_msg = str(e)[:150]
             attempt_num = attempt + 1
             log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
             
-            if attempt < 1:
-                # First attempt failed, wait and retry once
-                log_info("Waiting 1 second before retry...")
-                time.sleep(1)
+            if attempt < max_attempts - 1:
+                wait_time = backoff_seconds[attempt]
+                log_info(f"Waiting {wait_time} seconds before retry (exponential backoff)...")
+                time.sleep(wait_time)
             else:
-                # Second attempt failed, give up
-                final_error = f"Database connection failed after 2 attempts: {str(e)[:150]}"
+                # All attempts exhausted
+                final_error = f"Database connection failed after {max_attempts} attempts: {str(e)[:150]}"
                 log_error(final_error, e)
                 raise Exception(final_error)
 
