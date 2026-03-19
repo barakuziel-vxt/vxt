@@ -8,6 +8,9 @@ import '../styles/ManagementPage.css';
 import LocationMap from '../components/LocationMap';
 import { convertValue, getUnit, getAttributeColor } from '../utils/unitConversion';
 
+// Get API base URL from environment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 export default function EntityTelemetryAnalyticsPage() {
   // State for entity selection
   const [entities, setEntities] = useState([]);
@@ -64,8 +67,8 @@ export default function EntityTelemetryAnalyticsPage() {
   const loadEntities = async () => {
     try {
       setLoading(true);
-      console.log('Fetching entities from /entities...');
-      const response = await fetch('/entities', {
+      console.log(`Fetching entities from ${API_BASE_URL}/entities...`);
+      const response = await fetch(`${API_BASE_URL}/entities`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -276,7 +279,7 @@ export default function EntityTelemetryAnalyticsPage() {
 
       // Load latest values
       const latestRes = await fetch(
-        `/api/telemetry/latest/${selectedEntity}`,
+        `${API_BASE_URL}/api/telemetry/latest/${selectedEntity}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!latestRes.ok) {
@@ -288,7 +291,7 @@ export default function EntityTelemetryAnalyticsPage() {
       }
 
       // Load telemetry data for chart
-      const telemetryUrl = `/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
+      const telemetryUrl = `${API_BASE_URL}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
       console.log(`Fetching telemetry from: ${telemetryUrl}`);
       const telemetryRes = await fetch(telemetryUrl, { headers: { 'Content-Type': 'application/json' } });
       if (!telemetryRes.ok) {
@@ -306,7 +309,7 @@ export default function EntityTelemetryAnalyticsPage() {
       }
 
       // Load events
-      const eventsUrl = `/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
+      const eventsUrl = `${API_BASE_URL}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
       console.log(`Fetching events from: ${eventsUrl}`);
       const eventsRes = await fetch(eventsUrl, { headers: { 'Content-Type': 'application/json' } });
       if (!eventsRes.ok) {
@@ -582,7 +585,7 @@ export default function EntityTelemetryAnalyticsPage() {
       }
       
       // For TSQL/NEWS functions: fetch predefined scoring rules
-      const response = await fetch(`http://localhost:8000/api/entity-attributes/${attributeCode}/scores`);
+      const response = await fetch(`${API_BASE_URL}/api/entity-attributes/${attributeCode}/scores`);
       if (!response.ok) {
         throw new Error(`Failed to load score details: HTTP ${response.status}`);
       }
