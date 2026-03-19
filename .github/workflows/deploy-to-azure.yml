@@ -7,53 +7,34 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy-to-web-app:
     runs-on: ubuntu-latest
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Log in to Azure
+        uses: azure/login@v2
         with:
-          node-version: '20'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install Python dependencies
+      - name: Deploy Docker image to Web App
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          az webapp config container set \
+            --name vxt-web-app \
+            --resource-group VXT-IoT-Hub \
+            --docker-custom-image-name vxtacr.azurecr.io/vxt-web-app:latest \
+            --docker-registry-server-url https://vxtacr.azurecr.io \
+            --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
+            --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
       
-      - name: Build React Admin Dashboard
+      - name: Restart Web App
         run: |
-          cd admin-dashboard
-          npm install
-          npm run build
-          cd ..
-      
-      - name: Prepare Deployment Package (React + APIs only)
-        run: |
-          mkdir -p deployment-pkg
-          cp main.py deployment-pkg/
-          cp requirements.txt deployment-pkg/
-          cp web.config deployment-pkg/
-          cp startup.sh deployment-pkg/
-          cp -r admin-dashboard/dist deployment-pkg/
-          cp -r admin-dashboard/dist deployment-pkg/public 2>/dev/null || true
-      
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: 'vxt-admin-app'
-          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: deployment-pkg
+          az webapp restart --name vxt-web-app --resource-group VXT-IoT-Hub
       
       - name: Deployment Summary
         run: |
           echo "✅ Deployment Complete!"
-          echo "Frontend (React): https://vxt-admin-app.azurewebsites.net"
-          echo "API Endpoints: https://vxt-admin-app.azurewebsites.net/api/*"
+          echo "Web App: https://vxt-web-app.azurewebsites.net"
+          echo "API Endpoints: https://vxt-web-app.azurewebsites.net/api/*"
+          echo "Health Check: https://vxt-web-app.azurewebsites.net/health/db"
