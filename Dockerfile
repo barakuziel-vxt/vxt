@@ -12,10 +12,15 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     find /usr/local/lib/python3.11 -type f -name "*.pyc" -delete && \
     find /usr/local/lib/python3.11 -type f -name "*.pyo" -delete
 
-# Stage 2: Runtime (Lean image - no ODBC system packages)
+# Stage 2: Runtime (Lean image - with FreeTDS for pymssql)
 FROM python:3.11-slim
 
 WORKDIR /app
+
+# Install FreeTDS (required for pymssql to connect to SQL Server)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    freetds-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set UTF-8 encoding to support special characters and proper console output in Azure
 ENV PYTHONIOENCODING=utf-8

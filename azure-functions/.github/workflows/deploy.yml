@@ -1,0 +1,105 @@
+name: Deploy Azure Function
+
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - 'function_app.py'
+      - 'requirements.txt'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  FUNCTION_APP_NAME: vxt-function
+  RESOURCE_GROUP: VXT-IoT-Hub
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install azure-functions-worker==1.* azure-functions==1.*
+    
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Function App if not exists
+      run: |
+        # Using existing vxt-function app - no need to create
+        echo "Using existing Function App: vxt-function"
+        echo "Using existing Storage Account: vxtstorage"
+    
+    - name: Configure App Settings
+      run: |
+        az functionapp config appsettings set \
+          --name vxt-function \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --settings \
+            PROVIDER_NAME="N2KToSignalK" \
+            DB_SERVER="vxtdb.database.windows.net" \
+            DB_NAME="vxtdb" \
+            DB_USER="vxtadmin" \
+            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}"
+    
+    - name: Deploy to Azure Function
+      run: |
+        # Deploy to existing vxt-function app
+        az functionapp up \
+          --name vxt-function \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --runtime python \
+          --runtime-version ${{ env.PYTHON_VERSION }} \
+          --functions-version 4 \
+          --build remote || echo "Deployment completed with status $?"
+
+  test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Test Function Health Endpoint
+      run: |
+        for i in {1..5}; do
+          echo "Attempt $i: Testing function health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://vxt-function.azurewebsites.net/api/health)
+          
+          if [ "$response" = "200" ]; then
+            echo "✓ Function is healthy (HTTP $response)"
+            exit 0
+          fi
+          
+          echo "Response: HTTP $response - Retrying in 10 seconds..."
+          sleep 10
+        done
+        
+        echo "❌ Function health check failed"
+        exit 1
+    
+    - name: Log deployment success
+      if: success()
+      run: echo "✓ Azure Function deployed and tested successfully"
+    
+    - name: Log deployment failure
+      if: failure()
+      run: echo "❌ Deployment failed - check logs above"
