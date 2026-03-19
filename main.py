@@ -30,8 +30,33 @@ import traceback
 import sys
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (for local/docker environments)
-load_dotenv()
+# CRITICAL: Ensure stderr and stdout are unbuffered so errors are captured immediately
+sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
+sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
+
+print("[INFO] ===== APP INITIALIZATION STARTED =====", flush=True)
+print(f"[INFO] PID: {os.getpid()}", flush=True)
+print(f"[INFO] Python version: {sys.version}", flush=True)
+
+try:
+    # Load environment variables from .env file (for local/docker environments)
+    load_dotenv()
+    print(f"[INFO] Environment variables loaded", flush=True)
+except Exception as e:
+    print(f"[ERROR] Failed to load environment variables: {str(e)}", file=sys.stderr, flush=True)
+    raise
+
+# ============================================================================
+# ERROR LOGGING HELPER - Ensures errors are captured by Azure logging
+# ============================================================================
+def log_error(error_msg: str, exc=None):
+    """Log error to both stdout and stderr with traceback"""
+    print(f"[ERROR] {error_msg}", file=sys.stdout, flush=True)
+    print(f"[ERROR] {error_msg}", file=sys.stderr, flush=True)
+    if exc:
+        tb_str = traceback.format_exc()
+        print(f"[ERROR] Exception traceback:\n{tb_str}", file=sys.stdout, flush=True)
+        print(f"[ERROR] Exception traceback:\n{tb_str}", file=sys.stderr, flush=True)
 
 # ============================================================================
 # ENVIRONMENT DETECTION & CONFIGURATION
@@ -116,114 +141,147 @@ print(f"[INFO] ===== END DATABASE CONFIGURATION =====")
 # Setup management not included in minimal deployment
 setup_router = None
 
-app = FastAPI(title="VXT API")
+try:
+    print(f"[INFO] Creating FastAPI app...", flush=True)
+    app = FastAPI(title="VXT API")
+    print(f"[INFO] FastAPI app created successfully", flush=True)
+except Exception as e:
+    log_error(f"FATAL: Failed to create FastAPI app: {str(e)}", e)
+    raise
 
 # Startup event
 @app.on_event("startup")
 async def startup_event():
     try:
-        print("[INFO] ===== FastAPI Startup Started =====")
-        print(f"[INFO] Environment: {ENVIRONMENT}")
-        print(f"[INFO] Connection Driver: FreeTDS")
-        print("[INFO] ===== FastAPI Startup Complete =====")
+        print("[INFO] ===== FastAPI Startup Started =====", flush=True)
+        print(f"[INFO] Environment: {ENVIRONMENT}", flush=True)
+        print(f"[INFO] Connection Driver: FreeTDS", flush=True)
+        print(f"[INFO] PID: {os.getpid()}", flush=True)
+        print("[INFO] ===== FastAPI Startup Complete =====", flush=True)
     except Exception as e:
-        print(f"[ERROR] Startup failed: {str(e)}")
-        print(f"[ERROR] {traceback.format_exc()}")
+        log_error(f"Startup failed: {str(e)}", e)
+        # Re-raise to prevent app from starting in broken state
+        raise
 
 # Define CORS origins based on environment
 def get_cors_origins():
     """Get CORS origins from environment or use defaults for development"""
-    # Always allow localhost for local development
-    local_origins = [
-        "http://localhost:3000",      # boat-dashboard
-        "http://localhost:3001",      # admin-dashboard
-        "http://localhost:3002",      # health-dashboard
-        "http://localhost:5173",      # Vite dev server
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002",
-        "http://127.0.0.1:5173",
-        "http://192.168.1.29:3000",
-        "http://192.168.1.29:3001",
-        "http://192.168.1.29:3002",
-        "http://192.168.1.29:5173"
-    ]
-    
-    if ENVIRONMENT.lower() == 'production':
-        # Production: Also allow Azure Static Web Apps
-        frontend_url = os.getenv('FRONTEND_URL', 'https://ambitious-sand-0b08c3f03.6.azurestaticapps.net')
-        local_origins.append(frontend_url)
-    
-    return local_origins
+    try:
+        # Always allow localhost for local development
+        local_origins = [
+            "http://localhost:3000",      # boat-dashboard
+            "http://localhost:3001",      # admin-dashboard
+            "http://localhost:3002",      # health-dashboard
+            "http://localhost:5173",      # Vite dev server
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:3002",
+            "http://127.0.0.1:5173",
+            "http://192.168.1.29:3000",
+            "http://192.168.1.29:3001",
+            "http://192.168.1.29:3002",
+            "http://192.168.1.29:5173"
+        ]
+        
+        if ENVIRONMENT.lower() == 'production':
+            # Production: Also allow Azure Static Web Apps
+            frontend_url = os.getenv('FRONTEND_URL', 'https://ambitious-sand-0b08c3f03.6.azurestaticapps.net')
+            local_origins.append(frontend_url)
+            print(f"[DEBUG] Added production frontend: {frontend_url}", flush=True)
+        
+        return local_origins
+    except Exception as e:
+        log_error(f"Error in get_cors_origins: {str(e)}", e)
+        # Return minimal safe defaults if CORS config fails
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 # Enable CORS for React frontends
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+try:
+    print(f"[INFO] Setting up CORS middleware...", flush=True)
+    cors_origins = get_cors_origins()
+    print(f"[DEBUG] CORS origins configured: {len(cors_origins)} origins", flush=True)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    print(f"[INFO] CORS middleware added successfully", flush=True)
+except Exception as e:
+    log_error(f"FATAL: Failed to add CORS middleware: {str(e)}", e)
+    raise
 
 # Custom exception handlers to preserve CORS headers in error responses
-from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
+try:
+    print(f"[INFO] Setting up exception handlers...", flush=True)
+    from fastapi.responses import JSONResponse
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request, exc):
+        """Handle HTTPException with proper CORS headers"""
+        log_error(f"HTTPException: {exc.detail}")
+        cors_headers = {
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail, "error": str(exc.detail)},
+            headers=cors_headers
+        )
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    """Handle HTTPException with proper CORS headers"""
-    cors_headers = {
-        "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-    }
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail, "error": str(exc.detail)},
-        headers=cors_headers
-    )
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    """Handle general exceptions with proper error message and CORS headers"""
-    error_msg = str(exc)
-    if "database" in error_msg.lower() or "pymssql" in error_msg.lower():
-        error_category = "Database Connection Error"
-        suggestion = "Check that Azure SQL database is accessible and schema is deployed."
-    elif "timeout" in error_msg.lower():
-        error_category = "Timeout Error"
-        suggestion = "The request took too long. Try again or check server status."
-    else:
-        error_category = "Server Error"
-        suggestion = "An unexpected error occurred. Check server logs for details."
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request, exc):
+        """Handle general exceptions with proper error message and CORS headers"""
+        error_msg = str(exc)
+        if "database" in error_msg.lower() or "pymssql" in error_msg.lower():
+            error_category = "Database Connection Error"
+            suggestion = "Check that Azure SQL database is accessible and schema is deployed."
+        elif "timeout" in error_msg.lower():
+            error_category = "Timeout Error"
+            suggestion = "The request took too long. Try again or check server status."
+        else:
+            error_category = "Server Error"
+            suggestion = "An unexpected error occurred. Check server logs for details."
+        
+        cors_headers = {
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+        
+        log_error(f"{error_category}: {error_msg}", exc)
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_category,
+                "message": error_msg,
+                "suggestion": suggestion
+            },
+            headers=cors_headers
+        )
     
-    cors_headers = {
-        "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-    }
-    
-    print(f"[ERROR] {error_category}: {error_msg}")
-    
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": error_category,
-            "message": error_msg,
-            "suggestion": suggestion
-        },
-        headers=cors_headers
-    )
+    print(f"[INFO] Exception handlers registered successfully", flush=True)
+except Exception as e:
+    log_error(f"FATAL: Failed to register exception handlers: {str(e)}", e)
+    raise
 
 # Include setup management endpoints (Device Twin support) if available
 if setup_router:
     try:
+        print(f"[INFO] Including setup_management router...", flush=True)
         app.include_router(setup_router)
-        print("[INFO] Successfully included setup_management router")
+        print("[INFO] Successfully included setup_management router", flush=True)
     except Exception as e:
-        print(f"[WARNING] Failed to include setup_management router: {str(e)}")
+        log_error(f"WARNING: Failed to include setup_management router: {str(e)}", e)
+
+print("[INFO] ===== APP INITIALIZATION COMPLETE =====", flush=True)
 
 # ============================================================================
 # CONNECTION RETRY (Simple wrapper to handle first-connect timeout)
@@ -235,45 +293,44 @@ def get_db_connection():
     config = get_db_config()
     if config is None:
         error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
-        print(f"[ERROR] {error_msg}")
+        log_error(error_msg)
         raise Exception(error_msg)
     
     # Retry up to 2 times on first-connect timeout
     for attempt in range(2):
         try:
             attempt_num = attempt + 1
-            print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)")
-            print(f"[DEBUG]   Server: {config.get('server')}:{config.get('port')}")
-            print(f"[DEBUG]   Database: {config.get('database')}")
-            print(f"[DEBUG]   User: {config.get('user')}")
-            print(f"[DEBUG]   Timeout: {config.get('timeout')}s")
+            print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)", flush=True)
+            print(f"[DEBUG]   Server: {config.get('server')}:{config.get('port')}", flush=True)
+            print(f"[DEBUG]   Database: {config.get('database')}", flush=True)
+            print(f"[DEBUG]   User: {config.get('user')}", flush=True)
+            print(f"[DEBUG]   Timeout: {config.get('timeout')}s", flush=True)
             
             conn = pymssql.connect(**config)
-            print(f"[INFO] Database connection successful")
+            print(f"[INFO] Database connection successful", flush=True)
             return conn
         except Exception as e:
-            error_msg = str(e)
-            print(f"[ERROR] Connection attempt {attempt_num} failed: {error_msg[:150]}")
-            print(f"[ERROR] Full traceback:")
-            print(traceback.format_exc())
+            error_msg = str(e)[:150]
+            attempt_num = attempt + 1
+            log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
             
             if attempt < 1:
                 # First attempt failed, wait and retry once
-                print(f"[INFO] Waiting 1 second before retry...")
+                print(f"[INFO] Waiting 1 second before retry...", flush=True)
                 time.sleep(1)
             else:
                 # Second attempt failed, give up
-                error_msg = f"Database connection failed after 2 attempts: {str(e)[:150]}"
-                print(f"[ERROR] {error_msg}")
-                raise Exception(error_msg)
+                final_error = f"Database connection failed after 2 attempts: {str(e)[:150]}"
+                log_error(final_error, e)
+                raise Exception(final_error)
 
 def return_db_connection(conn):
     """Close connection (no pooling - simple approach)"""
     if conn:
         try:
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            log_error(f"Error closing database connection: {str(e)}", e)
 
 
 
@@ -290,36 +347,36 @@ def read_root(mmsi: str = None, limit: int = 50):
 @app.get("/health/db")
 def health_check_db():
     """Database connectivity diagnostics endpoint with detailed logging"""
+    conn = None
+    cursor = None
     try:
-        print(f"[DEBUG] Health check initiated")
-        print(f"[DEBUG] Environment: {ENVIRONMENT}")
+        print(f"[DEBUG] Health check initiated", flush=True)
+        print(f"[DEBUG] Environment: {ENVIRONMENT}", flush=True)
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Test basic query
-        print(f"[DEBUG] Executing: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES")
+        print(f"[DEBUG] Executing: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES", flush=True)
         cursor.execute("SELECT COUNT(*) AS TableCount FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         result = cursor.fetchone()
         table_count = result[0] if result else 0
-        print(f"[DEBUG] Table count: {table_count}")
+        print(f"[DEBUG] Table count: {table_count}", flush=True)
         
         # Check if critical tables exist
         critical_tables = ['EntityCategory', 'Protocol', 'Provider', 'ProviderEvent', 'Entity', 'EntityType', 'EntityTypeAttribute', 'EntityTelemetry']
-        print(f"[DEBUG] Checking for critical tables: {critical_tables}")
+        print(f"[DEBUG] Checking for critical tables: {critical_tables}", flush=True)
         cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         existing_tables = [row[0] for row in cursor.fetchall()]
-        print(f"[DEBUG] Found {len(existing_tables)} tables total")
+        print(f"[DEBUG] Found {len(existing_tables)} tables total", flush=True)
         
         missing_tables = [t for t in critical_tables if t not in existing_tables]
         if missing_tables:
-            print(f"[WARNING] Missing tables: {missing_tables}")
+            print(f"[WARNING] Missing tables: {missing_tables}", flush=True)
         else:
-            print(f"[INFO] All critical tables present")
+            print(f"[INFO] All critical tables present", flush=True)
         
-        cursor.close()
-        return_db_connection(conn)
-        
+        print(f"[INFO] Health check completed successfully", flush=True)
         return {
             "status": "healthy" if not missing_tables else "degraded",
             "database": "connected",
@@ -330,9 +387,7 @@ def health_check_db():
         }
     except Exception as e:
         error_msg = str(e)
-        print(f"[ERROR] Health check failed: {error_msg}")
-        print(f"[ERROR] Traceback:")
-        print(traceback.format_exc())
+        log_error(f"Health check failed: {error_msg}", e)
         return {
             "status": "unhealthy",
             "database": "disconnected",
@@ -341,6 +396,14 @@ def health_check_db():
             "environment": ENVIRONMENT,
             "suggestion": "Verify Azure SQL Server is accessible and schema has been deployed."
         }
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception as e:
+                log_error(f"Error closing cursor in /health/db: {str(e)}", e)
+        if conn:
+            return_db_connection(conn)
 
 
 @app.get("/telemetry/{MMSI}")
@@ -760,54 +823,72 @@ def get_properties_by_customer_name(customerName: str):
 @app.get("/entitycategories")
 def get_entity_categories():
     """Get all entity categories"""
+    conn = None
+    cur = None
     try:
-        print(f"[INFO] GET /entitycategories called")
+        print(f"[INFO] GET /entitycategories called", flush=True)
         
         conn = get_db_connection()
         cur = conn.cursor()
+        print(f"[DEBUG] Executing query for entity categories", flush=True)
         cur.execute("""
             SELECT entityCategoryId, entityCategoryName, active, createDate, lastUpdateTimestamp, lastUpdateUser
             FROM EntityCategory
             ORDER BY entityCategoryName
         """)
+        rows = cur.fetchall()
+        print(f"[DEBUG] Query returned {len(rows)} rows", flush=True)
+        
         categories = []
-        for row in cur.fetchall():
-            categories.append({
-                "entityCategoryId": row[0],
-                "entityCategoryName": row[1],
-                "active": row[2],
-                "createDate": row[3].isoformat() if row[3] else None,
-                "lastUpdateTimestamp": row[4].isoformat() if row[4] else None,
-                "lastUpdateUser": row[5]
-            })
-        cur.close()
-        return_db_connection(conn)
-        print(f"[INFO] Returning {len(categories)} entity categories")
+        for row in rows:
+            try:
+                categories.append({
+                    "entityCategoryId": row[0],
+                    "entityCategoryName": row[1],
+                    "active": row[2],
+                    "createDate": row[3].isoformat() if row[3] else None,
+                    "lastUpdateTimestamp": row[4].isoformat() if row[4] else None,
+                    "lastUpdateUser": row[5]
+                })
+            except Exception as row_error:
+                log_error(f"Error processing category row: {str(row_error)}", row_error)
+                continue
+        
+        print(f"[INFO] Returning {len(categories)} entity categories", flush=True)
         return categories
     except Exception as e:
-        error_msg = str(e)
-        print(f"[ERROR] get_entity_categories failed: {error_msg}")
-        print(f"[ERROR] Full traceback:")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=error_msg)
+        log_error(f"Error in /entitycategories: {str(e)}", e)
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)[:200]}")
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except Exception as e:
+                log_error(f"Error closing cursor in /entitycategories: {str(e)}", e)
+        if conn:
+            return_db_connection(conn)
 
 
 @app.get("/entitycategories/{id}")
 def get_entity_category(id: int):
     """Get single entity category by ID"""
+    conn = None
+    cur = None
     try:
+        print(f"[INFO] GET /entitycategories/{id} called", flush=True)
         conn = get_db_connection()
         cur = conn.cursor()
+        print(f"[DEBUG] Executing query for category ID: {id}", flush=True)
         cur.execute("""
             SELECT entityCategoryId, entityCategoryName, active, createDate, lastUpdateTimestamp, lastUpdateUser
             FROM EntityCategory
             WHERE entityCategoryId = ?
         """, (id,))
         row = cur.fetchone()
-        cur.close()
-        return_db_connection(conn)
         if not row:
+            print(f"[DEBUG] Category not found for ID: {id}", flush=True)
             raise HTTPException(status_code=404, detail="Category not found")
+        print(f"[DEBUG] Successfully retrieved category: {row[1]}", flush=True)
         return {
             "entityCategoryId": row[0],
             "entityCategoryName": row[1],
@@ -816,8 +897,19 @@ def get_entity_category(id: int):
             "lastUpdateTimestamp": row[4].isoformat() if row[4] else None,
             "lastUpdateUser": row[5]
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log_error(f"Error in /entitycategories/{id}: {str(e)}", e)
+        raise HTTPException(status_code=500, detail=f"Error fetching category: {str(e)[:200]}")
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except Exception as e:
+                log_error(f"Error closing cursor in /entitycategories/{id}: {str(e)}", e)
+        if conn:
+            return_db_connection(conn)
 
 
 @app.post("/entitycategories")
@@ -876,30 +968,50 @@ def delete_entity_category(id: int):
 @app.get("/entitytypes")
 def get_entity_types():
     """Get all entity types"""
+    conn = None
+    cur = None
     try:
+        print(f"[INFO] GET /entitytypes called", flush=True)
         conn = get_db_connection()
         cur = conn.cursor()
+        print(f"[DEBUG] Executing query for entity types", flush=True)
         cur.execute("""
             SELECT entityTypeId, entityTypeName, entityCategoryId, active, createDate, lastUpdateTimestamp, lastUpdateUser
             FROM EntityType
             ORDER BY entityTypeName
         """)
+        rows = cur.fetchall()
+        print(f"[DEBUG] Query returned {len(rows)} rows", flush=True)
+        
         types = []
-        for row in cur.fetchall():
-            types.append({
-                "entityTypeId": row[0],
-                "entityTypeName": row[1],
-                "entityCategoryId": row[2],
-                "active": row[3],
-                "createDate": row[4].isoformat() if row[4] else None,
-                "lastUpdateTimestamp": row[5].isoformat() if row[5] else None,
-                "lastUpdateUser": row[6]
-            })
-        cur.close()
-        return_db_connection(conn)
+        for row in rows:
+            try:
+                types.append({
+                    "entityTypeId": row[0],
+                    "entityTypeName": row[1],
+                    "entityCategoryId": row[2],
+                    "active": row[3],
+                    "createDate": row[4].isoformat() if row[4] else None,
+                    "lastUpdateTimestamp": row[5].isoformat() if row[5] else None,
+                    "lastUpdateUser": row[6]
+                })
+            except Exception as row_error:
+                log_error(f"Error processing entity type row: {str(row_error)}", row_error)
+                continue
+        
+        print(f"[INFO] Returning {len(types)} entity types", flush=True)
         return types
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log_error(f"Error in /entitytypes: {str(e)}", e)
+        raise HTTPException(status_code=500, detail=f"Error fetching entity types: {str(e)[:200]}")
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except Exception as e:
+                log_error(f"Error closing cursor in /entitytypes: {str(e)}", e)
+        if conn:
+            return_db_connection(conn)
 
 
 @app.get("/entitytypes/{id}")
@@ -1968,7 +2080,13 @@ def get_analyze_functions():
 @app.get("/entities")
 def get_entities(entityTypeId: int = None):
     """Get all entities, optionally filtered by entityTypeId"""
+    conn = None
+    cur = None
     try:
+        print("[INFO] GET /entities endpoint called", flush=True)
+        if entityTypeId:
+            print(f"[DEBUG] Filter entityTypeId: {entityTypeId}", flush=True)
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
@@ -1982,30 +2100,44 @@ def get_entities(entityTypeId: int = None):
         if entityTypeId:
             sql += f" WHERE e.entityTypeId = {entityTypeId}"
         
+        print("[DEBUG] Executing SQL query for entities", flush=True)
         cur.execute(sql)
         rows = cur.fetchall()
+        print(f"[DEBUG] Query returned {len(rows)} rows", flush=True)
         
         entities = []
         for row in rows:
-            entity = {
-                "entityId": str(row[0]) if row[0] else None,
-                "entityFirstName": str(row[1]) if row[1] else None,
-                "entityLastName": str(row[2]) if row[2] else None,
-                "entityTypeId": int(row[3]) if row[3] else None,
-                "entityTypeName": str(row[4]) if row[4] else None,
-                "gender": str(row[5]) if row[5] else None,
-                "birthDate": str(row[6]) if row[6] else None,
-                "active": str(row[7]) if row[7] else None
-            }
-            entities.append(entity)
+            try:
+                entity = {
+                    "entityId": str(row[0]) if row[0] else None,
+                    "entityFirstName": str(row[1]) if row[1] else None,
+                    "entityLastName": str(row[2]) if row[2] else None,
+                    "entityTypeId": int(row[3]) if row[3] else None,
+                    "entityTypeName": str(row[4]) if row[4] else None,
+                    "gender": str(row[5]) if row[5] else None,
+                    "birthDate": str(row[6]) if row[6] else None,
+                    "active": str(row[7]) if row[7] else None
+                }
+                entities.append(entity)
+            except Exception as row_error:
+                log_error(f"Error processing entity row: {str(row_error)}", row_error)
+                # Continue processing other rows instead of failing completely
+                continue
         
-        cur.close()
-        return_db_connection(conn)
-        
+        print(f"[INFO] Successfully processed {len(entities)} entities", flush=True)
         return entities
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        log_error(f"Error in /entities endpoint: {str(e)}", e)
+        raise HTTPException(status_code=500, detail=f"Error fetching entities: {str(e)[:200]}")
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except Exception as e:
+                log_error(f"Error closing cursor in /entities: {str(e)}", e)
+        if conn:
+            return_db_connection(conn)
 
 
 @app.get("/entities/{id}")
