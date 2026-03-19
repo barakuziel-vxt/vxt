@@ -31,13 +31,64 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION (from environment variables)
 # ============================================================================
+import time
+
 PROVIDER_NAME = os.environ.get('PROVIDER_NAME', 'N2KToSignalK')
 
-# Database configuration
-DB_SERVER = os.environ.get('DB_SERVER', 'vxtdb.database.windows.net')
-DB_NAME = os.environ.get('DB_NAME', 'vxtdb')
-DB_USER = os.environ.get('DB_USER', 'vxtadmin')
-DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+# Database configuration - UNIFIED approach (same as Web App)
+# Read from SQL_CONNECTION_STRING environment variable (set in Azure Function settings)
+SQL_CONNECTION_STRING = os.environ.get('SQL_CONNECTION_STRING', '')
+
+def parse_connection_string(conn_str: str) -> Dict:
+    """Parse SQL_CONNECTION_STRING and return pymssql connection parameters"""
+    if not conn_str:
+        # Fallback to individual parameters (backward compatibility)
+        db_server = os.environ.get('DB_SERVER', 'vxtdb.database.windows.net')
+        db_name = os.environ.get('DB_NAME', 'free-sql-db-5949639')
+        db_user = os.environ.get('DB_USER', 'vxt')
+        db_password = os.environ.get('DB_PASSWORD', '')
+        
+        return {
+            'server': db_server.split(',')[0] if ',' in db_server else db_server,
+            'port': int(db_server.split(',')[1]) if ',' in db_server else 1433,
+            'database': db_name,
+            'user': db_user,
+            'password': db_password,
+            'timeout': 120,
+        }
+    
+    # Parse connection string
+    config = {}
+    for item in conn_str.split(';'):
+        if '=' in item:
+            key, value = item.split('=', 1)
+            config[key.strip()] = value.strip()
+    
+    # Get required values (handle both 'User' and 'User Id')
+    server_key = config.get('Server', '')
+    database_key = config.get('Database', '')
+    user_key = config.get('User') or config.get('User Id', '')
+    password_key = config.get('Password', '')
+    
+    # Parse server and port
+    if ',' in server_key:
+        server, port = server_key.split(',')
+        port = int(port)
+    else:
+        server = server_key
+        port = 1433
+    
+    return {
+        'server': server,
+        'port': port,
+        'database': database_key,
+        'user': user_key,
+        'password': password_key,
+        'timeout': 120,
+    }
+
+# Parse connection string once at startup
+DB_CONFIG = parse_connection_string(SQL_CONNECTION_STRING)
 
 # IoT Hub device twin connection (optional, for reading setup config)
 IOT_HUB_CONNECTION_STRING = os.environ.get('IOT_HUB_CONNECTION_STRING', '')
@@ -48,11 +99,8 @@ IOT_HUB_CONNECTION_STRING = os.environ.get('IOT_HUB_CONNECTION_STRING', '')
 class SimpleEventProcessor:
     """Process telemetry events and insert to database"""
     
-    def __init__(self, db_server: str, db_name: str, db_user: str, db_password: str, provider_name: str):
-        self.db_server = db_server
-        self.db_name = db_name
-        self.db_user = db_user
-        self.db_password = db_password
+    def __init__(self, db_config: Dict, provider_name: str):
+        self.db_config = db_config
         self.provider_name = provider_name
         self.stats = {
             'events_processed': 0,
@@ -62,24 +110,36 @@ class SimpleEventProcessor:
         }
     
     def get_db_connection(self):
-        """Get database connection with retry"""
-        for attempt in range(2):
+        """Get database connection with exponential backoff retry (same as Web App)"""
+        max_attempts = 5
+        backoff_seconds = [2, 5, 10, 20, 30]
+        
+        for attempt in range(max_attempts):
             try:
+                attempt_num = attempt + 1
+                logger.info(f"DB connection attempt {attempt_num}/{max_attempts} ({self.db_config['server']})")
+                
                 conn = pymssql.connect(
-                    server=self.db_server,
-                    user=self.db_user,
-                    password=self.db_password,
-                    database=self.db_name,
-                    port=1433,
-                    timeout=30
+                    server=self.db_config['server'],
+                    user=self.db_config['user'],
+                    password=self.db_config['password'],
+                    database=self.db_config['database'],
+                    port=self.db_config['port'],
+                    timeout=self.db_config['timeout']
                 )
+                logger.info(f"Database connection successful on attempt {attempt_num}")
                 return conn
             except Exception as e:
-                if attempt < 1:
-                    import time
-                    time.sleep(1)
+                error_msg = str(e)[:150]
+                logger.error(f"Connection attempt {attempt_num} failed: {error_msg}")
+                
+                if attempt < max_attempts - 1:
+                    wait_time = backoff_seconds[attempt]
+                    logger.info(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
                 else:
-                    raise Exception(f"DB connection failed: {str(e)[:100]}")
+                    logger.error(f"Database connection failed after {max_attempts} attempts")
+                    raise Exception(f"DB connection failed: {error_msg}")
     
     def process_event(self, event: Dict) -> int:
         """
@@ -101,12 +161,46 @@ class SimpleEventProcessor:
                 self.stats['records_skipped'] += 1
                 return 0
             
-            # Extract core fields
-            entity_id = event.get('entityId') or event.get('mmsi')
-            timestamp = event.get('timestamp', datetime.utcnow().isoformat())
+            # PARSE SignalK format: Extract from context and updates
+            # Handle SignalK format: context='vessels.urn:mrn:imo:mmsi:234567890'
+            context = event.get('context', '')
+            entity_id = None
+            
+            # Try to extract MMSI from context
+            if 'mmsi:' in context:
+                entity_id = context.split('mmsi:')[-1]
+            else:
+                # Fallback to direct entityId or mmsi fields
+                entity_id = event.get('entityId') or event.get('mmsi')
             
             if not entity_id:
-                logger.warning("Event missing entityId/mmsi")
+                logger.warning(f"Event missing entityId/mmsi: {json.dumps(event)[:100]}")
+                self.stats['records_skipped'] += 1
+                return 0
+            
+            # Extract telemetry timestamp
+            timestamp = event.get('timestamp', datetime.utcnow().isoformat())
+            
+            # Parse SignalK updates structure
+            telemetry_data = {}
+            
+            # Handle SignalK format with updates array
+            if 'updates' in event and isinstance(event['updates'], list):
+                for update in event['updates']:
+                    if isinstance(update, dict) and 'values' in update:
+                        for value_item in update.get('values', []):
+                            if isinstance(value_item, dict):
+                                # SignalK value format: {'path': '...', 'value': ...}
+                                path = value_item.get('path', '')
+                                value = value_item.get('value')
+                                if path and value is not None:
+                                    telemetry_data[path] = value
+            else:
+                # Fallback to direct values/data structure
+                telemetry_data = event.get('values', {}) or event.get('data', {})
+            
+            if not telemetry_data:
+                logger.info(f"No telemetry data in event for entity {entity_id}")
                 self.stats['records_skipped'] += 1
                 return 0
             
@@ -115,15 +209,6 @@ class SimpleEventProcessor:
             cursor = conn.cursor()
             
             try:
-                # Extract telemetry values from SignalK format
-                # Standard SignalK structure: event['values'] = {...} or event['data'] = {...}
-                telemetry_data = event.get('values', {}) or event.get('data', {})
-                
-                if not telemetry_data:
-                    logger.info(f"No telemetry data in event for entity {entity_id}")
-                    cursor.close()
-                    return 0
-                
                 # Insert each telemetry value
                 for key, value in telemetry_data.items():
                     if value is not None:
@@ -147,7 +232,7 @@ class SimpleEventProcessor:
                 cursor.close()
                 conn.close()
             
-            logger.info(f"Entity {entity_id}: Inserted {inserted_count} records")
+            logger.info(f"Entity {entity_id}: Inserted {inserted_count} records from {len(telemetry_data)} values")
                 
         except Exception as e:
             logger.error(f"Error processing event: {str(e)[:100]}")
@@ -169,13 +254,11 @@ def get_processor():
     global processor
     if processor is None:
         processor = SimpleEventProcessor(
-            db_server=DB_SERVER,
-            db_name=DB_NAME,
-            db_user=DB_USER,
-            db_password=DB_PASSWORD,
+            db_config=DB_CONFIG,
             provider_name=PROVIDER_NAME
         )
         logger.info(f"[INIT] Processor initialized for {PROVIDER_NAME}")
+        logger.info(f"[INIT] Database: {DB_CONFIG['server']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
     return processor
 
 
