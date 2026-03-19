@@ -1,10 +1,12 @@
 name: Build and Push Docker to ACR
 
-on:
-  push:
-    branches:
-      - prod
-  workflow_dispatch:
+# DISABLED: Using file-based deployment instead of Docker containers
+# This workflow is not triggered
+# on:
+#   push:
+#     branches:
+#       - prod
+#   workflow_dispatch:
 
 jobs:
   build-and-push:
