@@ -24,36 +24,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Verify imports
+        run: |
+          python -c "import fastapi; import uvicorn; import pymssql; print('✓ All dependencies loaded')"
       
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: vxt-web-app
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           package: .
-          startup-file: 'gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 main:app'
-      
-      - name: Verify App Settings
-        run: |
-          az webapp config appsettings list \
-            --name vxt-web-app \
-            --resource-group VXT-IoT-Hub \
-            --query "[?name=='SQL_CONNECTION_STRING']" \
-            -o table
-          
-          # Set any missing app settings
-          az webapp config appsettings set \
-            --name vxt-web-app \
-            --resource-group VXT-IoT-Hub \
-            --settings \
-            ENVIRONMENT="production" \
-            PYTHONIOENCODING="utf-8"
       
       - name: Deployment Summary
         run: |
-          echo "✅ Python Code Deployment Complete!"
-          echo "Web App: https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net"
-          echo "Health Check: https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net/health/db"
+          echo "✅ Deployment Complete"
+          echo "App: https://vxt-web-app.azurewebsites.net"
+          echo "Health Check: https://vxt-web-app.azurewebsites.net/health/db"
+          echo "Note: Startup is configured in Azure App Service settings"
