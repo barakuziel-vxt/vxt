@@ -34,17 +34,76 @@ from dotenv import load_dotenv
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
 sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
 
-print("[INFO] ===== APP INITIALIZATION STARTED =====", flush=True)
-print(f"[INFO] PID: {os.getpid()}", flush=True)
-print(f"[INFO] Python version: {sys.version}", flush=True)
+log_info("===== APP INITIALIZATION STARTED =====")
+log_info(f"PID: {os.getpid()}")
+log_info(f"Python version: {sys.version}")
+
+log_info("===== YACHT TELEMETRY API INITIALIZATION STARTED =====")
+log_info(f"Process ID (PID): {os.getpid()}")
+log_info(f"Timestamp: {dt.now().isoformat()}")
+log_info(f"Python: {sys.version.split()[0]}")
 
 try:
     # Load environment variables from .env file (for local/docker environments)
     load_dotenv()
-    print(f"[INFO] Environment variables loaded", flush=True)
+    log_info("Environment variables loaded successfully")
 except Exception as e:
-    print(f"[ERROR] Failed to load environment variables: {str(e)}", file=sys.stderr, flush=True)
+    log_error_detailed("Failed to load environment variables", e)
     raise
+
+# ============================================================================
+# LOGGING UTILITIES - Captures all logs for Azure Activity Log Stream
+# ============================================================================
+
+import logging
+from datetime import datetime as dt
+
+# Configure Python logging to write to stdout (captured by Azure)
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+app_logger = logging.getLogger("VXT-API")
+
+def log_message(level: str, message: str, exc_info=None):
+    """Log message to both print statements and Python logging (for Azure capture)"""
+    timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S')
+    formatted = f"[{timestamp}] [{level}] {message}"
+    
+    # Print to stdout (Azure Log Stream captures this)
+    print(formatted, flush=True)
+    
+    # Also use Python logging (some Azure integrations use this)
+    if level == "ERROR":
+        if exc_info:
+            app_logger.exception(message)
+        else:
+            app_logger.error(message)
+    elif level == "WARNING":
+        app_logger.warning(message)
+    else:  # INFO, DEBUG
+        app_logger.info(message)
+
+def log_info(msg: str):
+    """Log info message"""
+    log_message("INFO", msg)
+
+def log_warn(msg: str):
+    """Log warning message"""
+    log_message("WARNING", msg)
+
+def log_error_detailed(msg: str, exc=None):
+    """Log error with full traceback for debugging"""
+    log_message("ERROR", msg, exc_info=exc)
+    if exc:
+        tb_lines = traceback.format_exc().split('\n')
+        for line in tb_lines:
+            if line.strip():
+                print(f"[{dt.now().strftime('%Y-%m-%d %H:%M:%S')}] [TRACEBACK] {line}", flush=True)
 
 # ============================================================================
 # ERROR LOGGING HELPER - Ensures errors are captured by Azure logging
@@ -53,10 +112,7 @@ def log_error(error_msg: str, exc=None):
     """Log error to both stdout and stderr with traceback"""
     print(f"[ERROR] {error_msg}", file=sys.stdout, flush=True)
     print(f"[ERROR] {error_msg}", file=sys.stderr, flush=True)
-    if exc:
-        tb_str = traceback.format_exc()
-        print(f"[ERROR] Exception traceback:\n{tb_str}", file=sys.stdout, flush=True)
-        print(f"[ERROR] Exception traceback:\n{tb_str}", file=sys.stderr, flush=True)
+    log_error_detailed(error_msg, exc)
 
 # ============================================================================
 # ENVIRONMENT DETECTION & CONFIGURATION
@@ -119,32 +175,32 @@ def get_db_config():
             }
         else:
             # Production: Return a config that will fail gracefully when actually called
-            print(f"[WARNING] SQL_CONNECTION_STRING not set. Database features will be unavailable.")
+            log_warn("SQL_CONNECTION_STRING not set. Database features will be unavailable.")
             return None
 
-print(f"[INFO] ===== DATABASE CONFIGURATION =====")
-print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
-print(f"[INFO] Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
+log_info("===== DATABASE CONFIGURATION =====")
+log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
+log_info("Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
     conn_info = SQL_CONNECTION_STRING.split('Password')[0]
-    print(f"[INFO] Connection String Configured: {conn_info}PASSWORD=***;")
+    log_info(f"Connection String Configured: {conn_info}PASSWORD=***;")
     # Parse and log individual components
     for item in SQL_CONNECTION_STRING.split(';'):
         if '=' in item and 'Password' not in item:
             key, value = item.split('=', 1)
-            print(f"[INFO]   {key.strip()}: {value.strip()}")
+            log_info(f"  {key.strip()}: {value.strip()}")
 else:
-    print(f"[INFO] No SQL_CONNECTION_STRING set - using local development defaults")
-print(f"[INFO] ===== END DATABASE CONFIGURATION =====")
+    log_info("No SQL_CONNECTION_STRING set - using local development defaults")
+log_info("===== END DATABASE CONFIGURATION =====")
 
 # Setup management not included in minimal deployment
 setup_router = None
 
 try:
-    print(f"[INFO] Creating FastAPI app...", flush=True)
+    log_info("Creating FastAPI app...")
     app = FastAPI(title="VXT API")
-    print(f"[INFO] FastAPI app created successfully", flush=True)
+    log_info("FastAPI app created successfully")
 except Exception as e:
     log_error(f"FATAL: Failed to create FastAPI app: {str(e)}", e)
     raise
@@ -153,11 +209,11 @@ except Exception as e:
 @app.on_event("startup")
 async def startup_event():
     try:
-        print("[INFO] ===== FastAPI Startup Started =====", flush=True)
-        print(f"[INFO] Environment: {ENVIRONMENT}", flush=True)
-        print(f"[INFO] Connection Driver: FreeTDS", flush=True)
-        print(f"[INFO] PID: {os.getpid()}", flush=True)
-        print("[INFO] ===== FastAPI Startup Complete =====", flush=True)
+        log_info("===== FastAPI Startup Started =====")
+        log_info(f"Environment: {ENVIRONMENT}")
+        log_info(f"Connection Driver: FreeTDS")
+        log_info(f"PID: {os.getpid()}")
+        log_info("===== FastAPI Startup Complete =====")
     except Exception as e:
         log_error(f"Startup failed: {str(e)}", e)
         # Re-raise to prevent app from starting in broken state
@@ -187,7 +243,7 @@ def get_cors_origins():
             # Production: Also allow Azure Static Web Apps
             frontend_url = os.getenv('FRONTEND_URL', 'https://ambitious-sand-0b08c3f03.6.azurestaticapps.net')
             local_origins.append(frontend_url)
-            print(f"[DEBUG] Added production frontend: {frontend_url}", flush=True)
+            log_info(f"Added production frontend: {frontend_url}")
         
         return local_origins
     except Exception as e:
@@ -197,9 +253,9 @@ def get_cors_origins():
 
 # Enable CORS for React frontends
 try:
-    print(f"[INFO] Setting up CORS middleware...", flush=True)
+    log_info("Setting up CORS middleware...")
     cors_origins = get_cors_origins()
-    print(f"[DEBUG] CORS origins configured: {len(cors_origins)} origins", flush=True)
+    log_info(f"CORS origins configured: {len(cors_origins)} origins")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
@@ -207,14 +263,51 @@ try:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    print(f"[INFO] CORS middleware added successfully", flush=True)
+    log_info("CORS middleware added successfully")
 except Exception as e:
     log_error(f"FATAL: Failed to add CORS middleware: {str(e)}", e)
     raise
 
+# Add request logging middleware for better observability
+try:
+    log_info("Setting up request logging middleware...")
+    import time
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+    from starlette.responses import Response
+    
+    class RequestLoggingMiddleware(BaseHTTPMiddleware):
+        """Log every HTTP request and response for Azure observability"""
+        async def dispatch(self, request: Request, call_next):
+            start_time = time.time()
+            
+            # Log request
+            log_info(f"[REQUEST] {request.method} {request.url.path} | Query: {request.url.query}")
+            
+            try:
+                # Call the next middleware/handler
+                response = await call_next(request)
+                
+                # Log response
+                duration = time.time() - start_time
+                log_info(f"[RESPONSE] {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s")
+                
+                return response
+            except Exception as e:
+                # Log any unhandled exceptions
+                duration = time.time() - start_time
+                log_error(f"[ERROR] {request.method} {request.url.path} | Duration: {duration:.3f}s | {str(e)}", e)
+                raise
+    
+    app.add_middleware(RequestLoggingMiddleware)
+    log_info("Request logging middleware added successfully")
+except Exception as e:
+    log_error(f"FATAL: Failed to add request logging middleware: {str(e)}", e)
+    raise
+
 # Custom exception handlers to preserve CORS headers in error responses
 try:
-    print(f"[INFO] Setting up exception handlers...", flush=True)
+    log_info("Setting up exception handlers...")
     from fastapi.responses import JSONResponse
     from starlette.exceptions import HTTPException as StarletteHTTPException
     
@@ -267,7 +360,7 @@ try:
             headers=cors_headers
         )
     
-    print(f"[INFO] Exception handlers registered successfully", flush=True)
+    log_info("Exception handlers registered successfully")
 except Exception as e:
     log_error(f"FATAL: Failed to register exception handlers: {str(e)}", e)
     raise
@@ -275,13 +368,13 @@ except Exception as e:
 # Include setup management endpoints (Device Twin support) if available
 if setup_router:
     try:
-        print(f"[INFO] Including setup_management router...", flush=True)
+        log_info("Including setup_management router...")
         app.include_router(setup_router)
-        print("[INFO] Successfully included setup_management router", flush=True)
+        log_info("Successfully included setup_management router")
     except Exception as e:
         log_error(f"WARNING: Failed to include setup_management router: {str(e)}", e)
 
-print("[INFO] ===== APP INITIALIZATION COMPLETE =====", flush=True)
+log_info("===== APP INITIALIZATION COMPLETE =====")
 
 # ============================================================================
 # CONNECTION RETRY (Simple wrapper to handle first-connect timeout)
@@ -300,14 +393,14 @@ def get_db_connection():
     for attempt in range(2):
         try:
             attempt_num = attempt + 1
-            print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)", flush=True)
-            print(f"[DEBUG]   Server: {config.get('server')}:{config.get('port')}", flush=True)
-            print(f"[DEBUG]   Database: {config.get('database')}", flush=True)
-            print(f"[DEBUG]   User: {config.get('user')}", flush=True)
-            print(f"[DEBUG]   Timeout: {config.get('timeout')}s", flush=True)
+            log_info(f"Attempting database connection (attempt {attempt_num}/2)")
+            log_info(f"  Server: {config.get('server')}:{config.get('port')}")
+            log_info(f"  Database: {config.get('database')}")
+            log_info(f"  User: {config.get('user')}")
+            log_info(f"  Timeout: {config.get('timeout')}s")
             
             conn = pymssql.connect(**config)
-            print(f"[INFO] Database connection successful", flush=True)
+            log_info("Database connection successful")
             return conn
         except Exception as e:
             error_msg = str(e)[:150]
@@ -316,7 +409,7 @@ def get_db_connection():
             
             if attempt < 1:
                 # First attempt failed, wait and retry once
-                print(f"[INFO] Waiting 1 second before retry...", flush=True)
+                log_info("Waiting 1 second before retry...")
                 time.sleep(1)
             else:
                 # Second attempt failed, give up
@@ -350,33 +443,33 @@ def health_check_db():
     conn = None
     cursor = None
     try:
-        print(f"[DEBUG] Health check initiated", flush=True)
-        print(f"[DEBUG] Environment: {ENVIRONMENT}", flush=True)
+        log_info("Health check initiated")
+        log_info(f"Environment: {ENVIRONMENT}")
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Test basic query
-        print(f"[DEBUG] Executing: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES", flush=True)
+        log_info("Executing: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES")
         cursor.execute("SELECT COUNT(*) AS TableCount FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         result = cursor.fetchone()
         table_count = result[0] if result else 0
-        print(f"[DEBUG] Table count: {table_count}", flush=True)
+        log_info(f"Table count: {table_count}")
         
         # Check if critical tables exist
         critical_tables = ['EntityCategory', 'Protocol', 'Provider', 'ProviderEvent', 'Entity', 'EntityType', 'EntityTypeAttribute', 'EntityTelemetry']
-        print(f"[DEBUG] Checking for critical tables: {critical_tables}", flush=True)
+        log_info(f"Checking for critical tables: {critical_tables}")
         cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         existing_tables = [row[0] for row in cursor.fetchall()]
-        print(f"[DEBUG] Found {len(existing_tables)} tables total", flush=True)
+        log_info(f"Found {len(existing_tables)} tables total")
         
         missing_tables = [t for t in critical_tables if t not in existing_tables]
         if missing_tables:
-            print(f"[WARNING] Missing tables: {missing_tables}", flush=True)
+            log_warn(f"Missing tables: {missing_tables}")
         else:
-            print(f"[INFO] All critical tables present", flush=True)
+            log_info("All critical tables present")
         
-        print(f"[INFO] Health check completed successfully", flush=True)
+        log_info("Health check completed successfully")
         return {
             "status": "healthy" if not missing_tables else "degraded",
             "database": "connected",
