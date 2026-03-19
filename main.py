@@ -97,12 +97,21 @@ def get_db_config():
             print(f"[WARNING] SQL_CONNECTION_STRING not set. Database features will be unavailable.")
             return None
 
+print(f"[INFO] ===== DATABASE CONFIGURATION =====")
 print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
 print(f"[INFO] Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
 if SQL_CONNECTION_STRING:
-    print(f"[INFO] Connection: {SQL_CONNECTION_STRING.split('Password')[0]}PASSWORD=***;")
+    # Log connection string without exposing password
+    conn_info = SQL_CONNECTION_STRING.split('Password')[0]
+    print(f"[INFO] Connection String Configured: {conn_info}PASSWORD=***;")
+    # Parse and log individual components
+    for item in SQL_CONNECTION_STRING.split(';'):
+        if '=' in item and 'Password' not in item:
+            key, value = item.split('=', 1)
+            print(f"[INFO]   {key.strip()}: {value.strip()}")
 else:
-    print(f"[INFO] Connection: Using local development defaults (localhost)")
+    print(f"[INFO] No SQL_CONNECTION_STRING set - using local development defaults")
+print(f"[INFO] ===== END DATABASE CONFIGURATION =====")
 
 # Setup management not included in minimal deployment
 setup_router = None
@@ -222,23 +231,41 @@ if setup_router:
 import time
 
 def get_db_connection():
-    """Get database connection with automatic retry on timeout"""
+    """Get database connection with automatic retry on timeout and detailed logging"""
     config = get_db_config()
     if config is None:
-        raise Exception("Database is not configured. SQL_CONNECTION_STRING environment variable is missing.")
+        error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
+        print(f"[ERROR] {error_msg}")
+        raise Exception(error_msg)
     
     # Retry up to 2 times on first-connect timeout
     for attempt in range(2):
         try:
+            attempt_num = attempt + 1
+            print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)")
+            print(f"[DEBUG]   Server: {config.get('server')}:{config.get('port')}")
+            print(f"[DEBUG]   Database: {config.get('database')}")
+            print(f"[DEBUG]   User: {config.get('user')}")
+            print(f"[DEBUG]   Timeout: {config.get('timeout')}s")
+            
             conn = pymssql.connect(**config)
+            print(f"[INFO] Database connection successful")
             return conn
         except Exception as e:
+            error_msg = str(e)
+            print(f"[ERROR] Connection attempt {attempt_num} failed: {error_msg[:150]}")
+            print(f"[ERROR] Full traceback:")
+            print(traceback.format_exc())
+            
             if attempt < 1:
                 # First attempt failed, wait and retry once
+                print(f"[INFO] Waiting 1 second before retry...")
                 time.sleep(1)
             else:
                 # Second attempt failed, give up
-                raise Exception(f"Database connection failed: {str(e)[:100]}")
+                error_msg = f"Database connection failed after 2 attempts: {str(e)[:150]}"
+                print(f"[ERROR] {error_msg}")
+                raise Exception(error_msg)
 
 def return_db_connection(conn):
     """Close connection (no pooling - simple approach)"""
@@ -262,22 +289,33 @@ def read_root(mmsi: str = None, limit: int = 50):
 
 @app.get("/health/db")
 def health_check_db():
-    """Database connectivity diagnostics endpoint"""
+    """Database connectivity diagnostics endpoint with detailed logging"""
     try:
+        print(f"[DEBUG] Health check initiated")
+        print(f"[DEBUG] Environment: {ENVIRONMENT}")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Test basic query
+        print(f"[DEBUG] Executing: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES")
         cursor.execute("SELECT COUNT(*) AS TableCount FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         result = cursor.fetchone()
         table_count = result[0] if result else 0
+        print(f"[DEBUG] Table count: {table_count}")
         
         # Check if critical tables exist
-        critical_tables = ['EntityCategory', 'Protocol', 'Provider', 'ProviderEvent']
+        critical_tables = ['EntityCategory', 'Protocol', 'Provider', 'ProviderEvent', 'Entity', 'EntityType', 'EntityTypeAttribute', 'EntityTelemetry']
+        print(f"[DEBUG] Checking for critical tables: {critical_tables}")
         cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
         existing_tables = [row[0] for row in cursor.fetchall()]
+        print(f"[DEBUG] Found {len(existing_tables)} tables total")
         
         missing_tables = [t for t in critical_tables if t not in existing_tables]
+        if missing_tables:
+            print(f"[WARNING] Missing tables: {missing_tables}")
+        else:
+            print(f"[INFO] All critical tables present")
         
         cursor.close()
         return_db_connection(conn)
@@ -291,10 +329,14 @@ def health_check_db():
             "message": "Database is ready" if not missing_tables else f"Missing tables: {', '.join(missing_tables)}"
         }
     except Exception as e:
+        error_msg = str(e)
+        print(f"[ERROR] Health check failed: {error_msg}")
+        print(f"[ERROR] Traceback:")
+        print(traceback.format_exc())
         return {
             "status": "unhealthy",
             "database": "disconnected",
-            "error": str(e),
+            "error": error_msg[:200],
             "message": "Cannot connect to database. Check connection string and server availability.",
             "environment": ENVIRONMENT,
             "suggestion": "Verify Azure SQL Server is accessible and schema has been deployed."
@@ -305,6 +347,10 @@ def health_check_db():
 def get_boat_telemetry(MMSI: str, limit: int = 50):
     """Retrieve latest telemetry data for a specific boat"""
     try:
+        print(f"[INFO] GET /telemetry endpoint called")
+        print(f"[INFO]   MMSI: {MMSI}")
+        print(f"[INFO]   Limit: {limit}")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -342,8 +388,10 @@ def get_boat_telemetry(MMSI: str, limit: int = 50):
         #else:
         #    MMSI = MMSI
         
+        print(f"[DEBUG] Executing SQL query for MMSI: {MMSI}")
         cursor.execute(query, MMSI, limit)
         rows = cursor.fetchall()
+        print(f"[DEBUG] Query returned {len(rows)} rows")
         
         # Convert results to objects for React
         result = []
@@ -394,19 +442,26 @@ def get_boat_telemetry(MMSI: str, limit: int = 50):
         cursor.close()
         return_db_connection(conn)
         
+        print(f"[INFO] Returning {len(result)} telemetry records")
         # Return in chronological order (ascending)
         return result[::-1]
         
     except Exception as e:
-        print(f"ERROR in get_boat_telemetry: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"[ERROR] get_boat_telemetry failed for MMSI={MMSI}: {error_msg}")
+        print(f"[ERROR] Full traceback:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 # new API endpoint that retrieves from EntityTelemetry
 @app.get("/health/new/{ID}")
 def get_health_vitals_new(ID: str, limit: int = 50):
     """Retrieve latest individual health telemetry samples (time-series format for live dashboard)"""
     try:
+        print(f"[INFO] GET /health/new endpoint called")
+        print(f"[INFO]   Entity ID: {ID}")
+        print(f"[INFO]   Limit: {limit}")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -456,8 +511,10 @@ def get_health_vitals_new(ID: str, limit: int = 50):
             FETCH NEXT ? ROWS ONLY
         """
 
+        print(f"[DEBUG] Executing EntityTelemetry query for entity: {ID}")
         cursor.execute(query, (ID, limit))
         rows = cursor.fetchall()
+        print(f"[DEBUG] EntityTelemetry query returned {len(rows)} rows")
 
         result = []
         seen_timestamps = {}
@@ -528,18 +585,25 @@ def get_health_vitals_new(ID: str, limit: int = 50):
         cursor.close()
         return_db_connection(conn)
 
+        print(f"[INFO] Returning {len(result)} health telemetry records")
         return result
 
     except Exception as e:
-        print(f"ERROR in get_health_vitals_new: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"[ERROR] get_health_vitals_new failed for ID={ID}: {error_msg}")
+        print(f"[ERROR] Full traceback:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @app.get("/health/{ID}")
 def get_health_vitals(ID: str, limit: int = 50):
     """Retrieve latest health vitals for a specific patient"""
     try:
+        print(f"[INFO] GET /health endpoint called")
+        print(f"[INFO]   ID: {ID}")
+        print(f"[INFO]   Limit: {limit}")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -625,12 +689,15 @@ def get_health_vitals(ID: str, limit: int = 50):
         cursor.close()
         return_db_connection(conn)
 
+        print(f"[INFO] Returning {len(result)} health vitals records")
         return result[::-1]
 
     except Exception as e:
-        print(f"ERROR in get_health_vitals: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"[ERROR] get_health_vitals failed for ID={ID}: {error_msg}")
+        print(f"[ERROR] Full traceback:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @app.get("/customers/{customerName}/properties")
@@ -639,6 +706,9 @@ def get_properties_by_customer_name(customerName: str):
     Returns customer's properties (customerName and Customer subscriptions entities).
     """
     try:
+        print(f"[INFO] GET /customers/{{customerName}}/properties called")
+        print(f"[INFO]   Customer Name: {customerName}")
+        
         conn = get_db_connection()
         cur = conn.cursor()
         sql = """
@@ -658,9 +728,12 @@ def get_properties_by_customer_name(customerName: str):
             ORDER BY e.birthdate;
         """
   
+        print(f"[DEBUG] Executing query for customer: {customerName}")
         cur.execute(sql, customerName)
         rows = []
-        for r in cur.fetchall():
+        fetched = cur.fetchall()
+        print(f"[DEBUG] Query returned {len(fetched)} rows")
+        for r in fetched:
             rows.append({
                 "customerPropertyName": r[0],
                 "entityId": r[1],
@@ -669,9 +742,14 @@ def get_properties_by_customer_name(customerName: str):
             })
         cur.close()
         return_db_connection(conn)
+        print(f"[INFO] Returning {len(rows)} customer properties")
         return rows
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"[ERROR] get_properties_by_customer_name failed for {customerName}: {error_msg}")
+        print(f"[ERROR] Full traceback:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 # ============================================
@@ -683,6 +761,8 @@ def get_properties_by_customer_name(customerName: str):
 def get_entity_categories():
     """Get all entity categories"""
     try:
+        print(f"[INFO] GET /entitycategories called")
+        
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -702,9 +782,14 @@ def get_entity_categories():
             })
         cur.close()
         return_db_connection(conn)
+        print(f"[INFO] Returning {len(categories)} entity categories")
         return categories
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"[ERROR] get_entity_categories failed: {error_msg}")
+        print(f"[ERROR] Full traceback:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @app.get("/entitycategories/{id}")
