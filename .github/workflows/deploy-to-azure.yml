@@ -18,6 +18,18 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name vxtacr --username ${{ secrets.ACR_USERNAME }} --password ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Build Docker image
+        run: |
+          docker build -t vxtacr.azurecr.io/vxt-web-app:latest .
+      
+      - name: Push image to Azure Container Registry
+        run: |
+          docker push vxtacr.azurecr.io/vxt-web-app:latest
+      
       - name: Deploy Docker image to Web App
         run: |
           az webapp config container set \
