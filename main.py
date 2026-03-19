@@ -147,15 +147,23 @@ def get_db_config():
             key, value = item.split('=', 1)
             config[key.strip()] = value.strip()
     
-    # Verify required keys are present
-    required_keys = ['Server', 'Database', 'User', 'Password']
-    missing_keys = [k for k in required_keys if k not in config]
-    if missing_keys:
-        raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing_keys}. "
-                        f"Required format: Server=...;Database=...;User=...;Password=...;")
+    # Verify required keys are present (handle both 'User' and 'User Id' formats)
+    server_key = config.get('Server')
+    database_key = config.get('Database')
+    user_key = config.get('User') or config.get('User Id')
+    password_key = config.get('Password')
+    
+    if not server_key or not database_key or not user_key or not password_key:
+        missing = []
+        if not server_key: missing.append('Server')
+        if not database_key: missing.append('Database')
+        if not user_key: missing.append('User or User Id')
+        if not password_key: missing.append('Password')
+        raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}. "
+                        f"Required format: Server=...;Database=...;User(or User Id)=...;Password=...;")
     
     # Extract server and port separately (Azure format: Server=hostname,port)
-    server_with_port = config.get('Server', '')
+    server_with_port = server_key
     if ',' in server_with_port:
         # Format: vxtdb.database.windows.net,1433
         server, port = server_with_port.split(',')
@@ -168,9 +176,9 @@ def get_db_config():
     return {
         'server': server,
         'port': port,
-        'database': config.get('Database'),
-        'user': config.get('User'),
-        'password': config.get('Password'),
+        'database': database_key,
+        'user': user_key,
+        'password': password_key,
         'timeout': 30,
         'as_dict': False
     }
