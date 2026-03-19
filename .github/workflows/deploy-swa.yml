@@ -39,13 +39,13 @@ jobs:
         working-directory: admin-dashboard
         run: npm run build
 
-      # Deploy health-dashboard (main root)
-      - name: Deploy health-dashboard to Static Web Apps
+      # Deploy admin-dashboard (main root)
+      - name: Deploy admin-dashboard to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATICWEBAPP_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'health-dashboard/dist'
+          app_location: 'admin-dashboard/dist'
           api_location: ''
           output_location: ''
