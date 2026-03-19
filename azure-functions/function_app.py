@@ -209,24 +209,75 @@ class SimpleEventProcessor:
             cursor = conn.cursor()
             
             try:
-                # Insert each telemetry value
+                # Insert each telemetry value into EntityTelemetry
+                # Table schema: entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC, 
+                #              ingestionTimestampUTC, providerEventInterpretation, providerDevice,
+                #              numericValue, latitude, longitude, stringValue
+                
                 for key, value in telemetry_data.items():
                     if value is not None:
                         try:
-                            # Generic insert into EntityTelemetry
+                            # Map SignalK paths to specific columns
+                            num_val = None
+                            lat_val = None
+                            lon_val = None
+                            str_val = str(value)
+                            
+                            # Extract GPS coordinates
+                            if key == 'navigation.position' and isinstance(value, dict):
+                                lat_val = value.get('latitude')
+                                lon_val = value.get('longitude')
+                                continue  # Skip this item, handled with coordinates
+                            
+                            # Extract numeric values from known paths
+                            if key in ['navigation.courseOverGround', 'navigation.speedOverGround', 
+                                      'propulsion.0.revolutions', 'propulsion.0.temperature',
+                                      'environment.water.temperature', 'environment.wind.speedApparent']:
+                                try:
+                                    num_val = float(value)
+                                except:
+                                    num_val = None
+                            
+                            # If value is numeric, store as numericValue
+                            try:
+                                num_val = float(value)
+                            except:
+                                num_val = None
+                            
+                            # Use generic entityTypeAttributeId (1) as we don't have type mapping
+                            entity_type_attr_id = 1
+                            
                             cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry 
-                            (entityId, attributeName, attributeValue, timestamp)
-                            VALUES (?, ?, ?, ?)
-                            """, (entity_id, key, str(value), timestamp))
+                            (entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC,
+                             ingestionTimestampUTC, providerEventInterpretation, providerDevice,
+                             numericValue, latitude, longitude, stringValue)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (
+                                entity_id,           # entityId
+                                entity_type_attr_id, # entityTypeAttributeId
+                                timestamp,           # startTimestampUTC
+                                timestamp,           # endTimestampUTC
+                                datetime.utcnow().isoformat(), # ingestionTimestampUTC
+                                key,                 # providerEventInterpretation (attribute path)
+                                self.provider_name,  # providerDevice
+                                num_val,             # numericValue
+                                lat_val,             # latitude
+                                lon_val,             # longitude
+                                str_val              # stringValue
+                            ))
                             
                             inserted_count += 1
                             self.stats['records_inserted'] += 1
+                            logger.debug(f"Inserted {key}={value}")
+                            
                         except Exception as e:
-                            logger.warning(f"Failed to insert {key}: {str(e)[:50]}")
+                            error_msg = str(e)[:100]
+                            logger.warning(f"Failed to insert {key}={value}: {error_msg}")
                             self.stats['records_skipped'] += 1
                 
                 conn.commit()
+                logger.info(f"Committed {inserted_count} records")
                 
             finally:
                 cursor.close()
