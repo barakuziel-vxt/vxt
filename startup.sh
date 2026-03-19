@@ -1,8 +1,25 @@
 #!/bin/bash
 set -e
 
-echo "Installing dependencies..."
-pip install -r requirements.txt
+echo "===== VXT API STARTUP SCRIPT ====="
+echo "Python version:"
+python --version
+echo ""
 
-echo "Starting FastAPI with Uvicorn..."
-exec gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 main:app
+echo "Current directory: $(pwd)"
+echo "Files in directory:"
+ls -la | head -20
+echo ""
+
+echo "Installing/Verifying dependencies from requirements.txt..."
+pip install -r requirements.txt 2>&1 | tail -10
+echo ""
+
+echo "Dependency check:"
+python -c "import fastapi; import pymssql; import uvicorn; print('[OK] All dependencies loaded')" 2>&1
+
+echo ""
+echo "Starting FastAPI application with Uvicorn..."
+echo "Listening on 0.0.0.0:8000"
+echo "===== Starting server ====="
+exec uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
