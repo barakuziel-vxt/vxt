@@ -7,32 +7,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-to-web-app:
+  deploy-web-app:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      - name: Set up Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
-      - name: Install dependencies
+      - name: Verify Python and dependencies
         run: |
-          python -m pip install --upgrade pip
+          echo "Python version:"
+          python --version
+          echo ""
+          echo "Installing pip dependencies..."
+          pip install --upgrade pip
           pip install -r requirements.txt
+          echo ""
+          echo "Verifying imports..."
+          python -c "import fastapi; import uvicorn; import pymssql; print('✓ All dependencies loaded successfully')"
       
-      - name: Deploy to Azure Web App
+      - name: Azure Web App Deploy
         uses: azure/webapps-deploy@v2
         with:
           app-name: vxt-web-app
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           package: .
       
-      - name: Deployment Summary
+      - name: Configure startup (Post-Deploy)
         run: |
-          echo "✅ Deployment Complete!"
-          echo "Web App: https://vxt-web-app.azurewebsites.net"
-          echo "API Endpoints: https://vxt-web-app.azurewebsites.net/api/*"
+          echo "✅ Web App deployed successfully"
+          echo "App Name: vxt-web-app"
+          echo "API URL: https://vxt-web-app.azurewebsites.net"
           echo "Health Check: https://vxt-web-app.azurewebsites.net/health/db"
