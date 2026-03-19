@@ -4,7 +4,7 @@
 
 **Server Name**: vxtdb (need to confirm full name like vxtdb.database.windows.net)  
 **Database Name**: `free-sql-db-5949639`  
-**Username**: `vxtadmin`  
+**Username**: `vxt`  
 **Password**: `Barak1976!`  
 **Port**: 1433  
 
@@ -14,12 +14,12 @@
 
 ### For Web App & Function App (.NET Connection String)
 ```
-Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxtadmin;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxt;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
 ```
 
 ### For ODBC Driver (Python)
 ```
-Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Uid=vxtadmin;Pwd=Barak1976!;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
+Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Uid=vxt;Pwd=Barak1976!;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
 ```
 
 ---
@@ -31,7 +31,7 @@ Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net,1433;Da
 Add these settings:
 1. **WEBSITES_PORT** = `8000`
 2. **ENVIRONMENT** = `production`
-3. **SQL_CONNECTION_STRING** = `Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxtadmin;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
+3. **SQL_CONNECTION_STRING** = `Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxt;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
 4. **DOCKER_REGISTRY_SERVER_URL** = `https://index.docker.io`
 5. **DOCKER_REGISTRY_SERVER_USERNAME** = `barakdoc` (or your Docker Hub username)
 6. **DOCKER_REGISTRY_SERVER_PASSWORD** = (your Docker Hub password)
@@ -45,7 +45,7 @@ Add these settings:
 Add these settings:
 1. **WEBSITES_PORT** = `8000`
 2. **ENVIRONMENT** = `production`
-3. **SQL_CONNECTION_STRING** = `Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxtadmin;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
+3. **SQL_CONNECTION_STRING** = `Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;User Id=vxt;Password=Barak1976!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
 4. **IOTHUB_CONNECTION_STRING** = (Get from Azure Portal → vxt-iot-hub → Shared Access Policies → owner → Connection string)
 5. **DOCKER_REGISTRY_SERVER_URL** = `https://index.docker.io`
 6. **DOCKER_REGISTRY_SERVER_USERNAME** = `barakdoc` (or your Docker Hub username)
