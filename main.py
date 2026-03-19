@@ -126,57 +126,54 @@ SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 def get_db_config():
     """Parse connection string and return pymssql connection parameters
     
-    Supports three deployment modes:
-    - LOCAL: Direct connection to localhost SQL Server
-    - DOCKER: Connection to docker-compose SQL Server container
-    - AZURE: Cloud-based SQL Database with TCP endpoint
+    Uses SQL_CONNECTION_STRING environment variable in all deployment modes:
+    - LOCAL: Set SQL_CONNECTION_STRING in .env file
+    - DOCKER: Set SQL_CONNECTION_STRING in docker-compose.yml environment
+    - AZURE: Set SQL_CONNECTION_STRING in Azure App Service Configuration
+    
+    Expected format: Server=hostname;Database=dbname;User=username;Password=password;
+    or Azure format: Server=hostname,1433;Database=dbname;User=username;Password=password;
     """
     
-    if SQL_CONNECTION_STRING:
-        # Parse connection string from environment
-        # Expected format: Server=...;Database=...;User=...;Password=...;
-        config = {}
-        for item in SQL_CONNECTION_STRING.split(';'):
-            if '=' in item:
-                key, value = item.split('=', 1)
-                config[key.strip()] = value.strip()
-        
-        # Extract server and port separately (Azure format: Server=hostname,port)
-        server_with_port = config.get('Server', 'localhost')
-        if ',' in server_with_port:
-            # Format: vxtdb.database.windows.net,1433
-            server, port = server_with_port.split(',')
-            port = int(port)
-        else:
-            # Format: localhost or vxtdb.database.windows.net
-            server = server_with_port
-            port = 1433  # Default SQL Server port
-        
-        return {
-            'server': server,
-            'port': port,
-            'database': config.get('Database', 'BoatTelemetryDB'),
-            'user': config.get('User', 'sa'),
-            'password': config.get('Password', ''),
-            'timeout': 30,
-            'as_dict': False
-        }
+    if not SQL_CONNECTION_STRING:
+        log_warn("SQL_CONNECTION_STRING environment variable not set. Database features will be unavailable.")
+        return None
+    
+    # Parse connection string from environment variable
+    # Expected format: Server=...;Database=...;User=...;Password=...;
+    config = {}
+    for item in SQL_CONNECTION_STRING.split(';'):
+        if '=' in item:
+            key, value = item.split('=', 1)
+            config[key.strip()] = value.strip()
+    
+    # Verify required keys are present
+    required_keys = ['Server', 'Database', 'User', 'Password']
+    missing_keys = [k for k in required_keys if k not in config]
+    if missing_keys:
+        raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing_keys}. "
+                        f"Required format: Server=...;Database=...;User=...;Password=...;")
+    
+    # Extract server and port separately (Azure format: Server=hostname,port)
+    server_with_port = config.get('Server', '')
+    if ',' in server_with_port:
+        # Format: vxtdb.database.windows.net,1433
+        server, port = server_with_port.split(',')
+        port = int(port)
     else:
-        # Fallback for local development (when SQL_CONNECTION_STRING not set)
-        # This is OK for local dev - app will still start, /health/db will show disconnected
-        if ENVIRONMENT in ['local', 'dev', 'docker']:
-            return {
-                'server': 'localhost',
-                'database': 'BoatTelemetryDB',
-                'user': 'sa',
-                'password': 'YourStrongPassword123!',
-                'timeout': 30,
-                'as_dict': False
-            }
-        else:
-            # Production: Return a config that will fail gracefully when actually called
-            log_warn("SQL_CONNECTION_STRING not set. Database features will be unavailable.")
-            return None
+        # Format: localhost or vxtdb.database.windows.net
+        server = server_with_port
+        port = 1433  # Default SQL Server port
+    
+    return {
+        'server': server,
+        'port': port,
+        'database': config.get('Database'),
+        'user': config.get('User'),
+        'password': config.get('Password'),
+        'timeout': 30,
+        'as_dict': False
+    }
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
