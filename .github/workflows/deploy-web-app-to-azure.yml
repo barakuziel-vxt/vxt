@@ -35,7 +35,7 @@ jobs:
           pip install -r requirements.txt
           echo ""
           echo "Verifying imports..."
-          python -c "import fastapi; import uvicorn; import pymssql; print('✓ All dependencies loaded successfully')"
+          python -c "import fastapi; import uvicorn; import pyodbc; print('✓ All dependencies loaded successfully')"
       
       - name: Azure Web App Deploy
         uses: azure/webapps-deploy@v2
