@@ -28,6 +28,22 @@ Thumbs.db
 
 # Logs
 *.log
+*_output.txt
+*_trace.log
+simulator.log
+consumer.log
+api.log
+deployment_output.txt
+
+# Build artifacts & temporary files
+*.zip
+temp_*.txt
+deploy_temp/
+crash_logs/
+app_logs/
+latest_logs/
+web_logs/
+vxt_logs/
 
 # Azure SQL data exports
 azure_data_*.sql
