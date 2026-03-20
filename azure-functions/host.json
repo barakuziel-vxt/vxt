@@ -16,5 +16,10 @@
   "healthMonitor": {
     "enabled": true,
     "healthCheckInterval": "00:00:10"
+  },
+  "pythonWorker": {
+    "httpLoggingEnabled": true,
+    "logLevel": "info",
+    "workerDirectory": ""
   }
 }
