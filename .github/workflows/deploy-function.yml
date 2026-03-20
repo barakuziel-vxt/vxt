@@ -79,6 +79,33 @@ jobs:
           --src /tmp/function.zip
         
         echo "✓ Deployment completed"
+    
+    - name: Configure Function App Settings
+      run: |
+        echo "Step: Configuring Azure Function environment variables..."
+        echo "Setting database and IoT Hub connection configuration..."
+        
+        az functionapp config appsettings set \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.FUNCTION_APP_NAME }} \
+          --settings \
+            DB_SERVER="vxtdb.database.windows.net" \
+            DB_NAME="free-sql-db-5949639" \
+            DB_USER="${{ secrets.DB_USER }}" \
+            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
+            PROVIDER_NAME="N2KToSignalK" \
+            FUNCTIONS_WORKER_RUNTIME="python"
+        
+        echo "✓ Function app settings configured successfully"
+        echo ""
+        echo "Settings applied:"
+        echo "  - DB_SERVER=vxtdb.database.windows.net"
+        echo "  - DB_NAME=free-sql-db-5949639"
+        echo "  - DB_USER=*** (from secrets)"
+        echo "  - DB_PASSWORD=*** (from secrets)"
+        echo "  - IoTHubConnectionString=*** (from secrets)"
+        echo "  - PROVIDER_NAME=N2KToSignalK"
 
   test:
     needs: deploy
