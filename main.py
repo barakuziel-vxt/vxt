@@ -24,13 +24,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
-import pyodbc
+import pymssql
 import json
 import traceback
 import sys
 from dotenv import load_dotenv
 import logging
 from datetime import datetime as dt
+import time
 
 # CRITICAL: Ensure stderr and stdout are unbuffered so errors are captured immediately
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
@@ -121,16 +122,12 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Parse connection string and return pyodbc connection string with Managed Identity
+    """Parse connection string and return pymssql connection parameters
     
     Uses SQL_CONNECTION_STRING environment variable in all deployment modes.
-    For Azure App Service, uses Managed Identity authentication (no password needed).
+    Supports both Azure SQL and local SQL Server with password-based authentication.
     
-    Azure format with Managed Identity:
-    Server=hostname.database.windows.net,1433;Database=dbname;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;ConnectionTimeout=30
-    
-    For local testing with password:
-    Server=hostname;Database=dbname;User Id=username;Password=password;
+    Format: Server=hostname[,port];Database=dbname;User Id=username;Password=password;
     """
     
     if not SQL_CONNECTION_STRING:
@@ -146,54 +143,29 @@ def get_db_config():
     
     server_key = config.get('Server')
     database_key = config.get('Database')
+    user_key = config.get('User') or config.get('User Id')
+    password_key = config.get('Password')
     
-    if not server_key or not database_key:
+    if not server_key or not database_key or not user_key or not password_key:
         missing = []
         if not server_key: missing.append('Server')
         if not database_key: missing.append('Database')
+        if not user_key: missing.append('User Id')
+        if not password_key: missing.append('Password')
         raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}")
     
-    # Check if this is Azure SQL (use Managed Identity) or local SQL (use password)
-    is_azure = '.database.windows.net' in server_key
-    
-    if is_azure:
-        # Azure App Service: Use Managed Identity (automatic token exchange)
-        conn_str = (
-            f"Driver={{ODBC Driver 17 for SQL Server}};"
-            f"Server={server_key};"
-            f"Database={database_key};"
-            f"Authentication=ActiveDirectoryMSI;"
-            f"Encrypt=yes;"
-            f"TrustServerCertificate=no;"
-            f"ConnectionTimeout=30"
-        )
-        log_info(f"Azure SQL Server detected: {server_key}")
-        log_info("Using Managed Identity authentication (no password required)")
-    else:
-        # Local testing: Use password-based authentication
-        user_key = config.get('User') or config.get('User Id')
-        password_key = config.get('Password')
-        
-        if not user_key or not password_key:
-            raise ValueError("Local SQL requires 'User Id' and 'Password' in connection string")
-        
-        conn_str = (
-            f"Driver={{ODBC Driver 17 for SQL Server}};"
-            f"Server={server_key};"
-            f"Database={database_key};"
-            f"UID={user_key};"
-            f"PWD={password_key};"
-            f"Encrypt=yes;"
-            f"TrustServerCertificate=no;"
-            f"ConnectionTimeout=30"
-        )
-        log_info(f"Local/network SQL Server detected: {server_key}")
-    
-    return conn_str
+    # Return dict with connection parameters for pymssql
+    return {
+        'server': server_key,
+        'user': user_key,
+        'password': password_key,
+        'database': database_key,
+        'timeout': 30
+    }
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
-log_info("Database Driver: mssql-python 1.4.0 with Direct Database Connectivity (TDS protocol)")
+log_info("Database Driver: pymssql 2.3.13 (Pure Python, Direct TDS Protocol)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
     conn_info = SQL_CONNECTION_STRING.split('Password')[0]
@@ -224,7 +196,7 @@ async def startup_event():
     try:
         log_info("===== FastAPI Startup Started =====")
         log_info(f"Environment: {ENVIRONMENT}")
-        log_info(f"Connection Driver: ODBC Driver 17 for SQL Server (via pyodbc)")
+        log_info(f"Connection Driver: pymssql 2.3.13 (Pure Python, TDS Protocol)")
         log_info(f"PID: {os.getpid()}")
         log_info("===== FastAPI Startup Complete =====")
     except Exception as e:
@@ -396,15 +368,13 @@ import time
 
 def get_db_connection():
     """Get database connection with exponential backoff retry for cold start Azure SQL"""
-    conn_str = get_db_config()
-    if conn_str is None:
+    conn_config = get_db_config()
+    if conn_config is None:
         error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
         log_error(error_msg)
         raise Exception(error_msg)
     
-    # Check available ODBC drivers for diagnostics
-    try:
-    log_info(f"Using mssql-python driver (no external ODBC driver dependencies required)")
+    log_info(f"Using pymssql driver (pure Python, no external ODBC driver dependencies required)")
     
     # Retry up to 5 times with exponential backoff for Azure SQL cold start
     max_attempts = 5
@@ -414,7 +384,15 @@ def get_db_connection():
         try:
             attempt_num = attempt + 1
             log_info(f"Attempting database connection (attempt {attempt_num}/{max_attempts})")
-            conn = mssql_python.connect(conn_str
+            conn = pymssql.connect(
+                server=conn_config['server'],
+                user=conn_config['user'],
+                password=conn_config['password'],
+                database=conn_config['database'],
+                timeout=conn_config['timeout']
+            )
+            log_info(f"Database connection successful on attempt {attempt_num}")
+            return conn
         except Exception as e:
             error_msg = str(e)[:200]
             attempt_num = attempt + 1
