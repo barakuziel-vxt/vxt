@@ -10,7 +10,6 @@ on:
       - 'azure-functions/host.json'
       - '.github/workflows/deploy-function.yml'
   workflow_dispatch:
-  workflow_dispatch:
 
 env:
   FUNCTION_APP_NAME: vxt-function
