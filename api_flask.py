@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 import pyodbc
 
 # Web App: v5.0 - Production ready deployment
+# [ Trigger: Manual deploy signal ]
 app = Flask(__name__)
 
 @app.route('/')
