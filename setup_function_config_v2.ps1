@@ -1,18 +1,6 @@
 #!/usr/bin/env pwsh
-<#
-.SYNOPSIS
-Configure Azure Function App Settings for vxt-function
-
-.DESCRIPTION
-This script sets up all required environment variables for the Azure Function App.
-Run this after deployment to configure the function properly.
-
-.EXAMPLE
-.\setup_function_config.ps1 -IotHubConnectionString "HostName=...;SharedAccessKey=..."
-#>
-
 param(
-    [Parameter(Mandatory=$true, HelpMessage="IoT Hub connection string (get from Azure Portal)")]
+    [Parameter(Mandatory=$true)]
     [string]$IotHubConnectionString,
     
     [Parameter(Mandatory=$false)]
@@ -42,56 +30,70 @@ Write-Host "Azure Function Configuration Setup" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Validate IoT Hub connection string format
+# Validate connection string
 if (-not ($IotHubConnectionString -match 'HostName=.*?;.*?SharedAccessKey=.*')) {
     Write-Host "ERROR: Invalid IoT Hub connection string format" -ForegroundColor Red
-    Write-Host "Expected format: HostName=...;SharedAccessKeyName=service;SharedAccessKey=..." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "Step 1: Checking Azure CLI login..." -ForegroundColor Yellow
+Write-Host "Configuration Parameters:" -ForegroundColor Yellow
+Write-Host "  Function App: $FunctionAppName"
+Write-Host "  Resource Group: $ResourceGroup"
+Write-Host "  DB Server: $DbServer"
+Write-Host "  DB Name: $DbName"
+Write-Host "  DB User: $DbUser"
+Write-Host "  IoT Hub Connection: HostName=VXT-IoT-Hub.azure-devices.net;..."
+Write-Host ""
+
+Write-Host "Step 1: Validating Azure authentication..." -ForegroundColor Yellow
 try {
-    $account = az account show -o json | ConvertFrom-Json
-    Write-Host "✓ Logged in as: $($account.user.name)" -ForegroundColor Green
-} catch {
-    Write-Host "✗ Not logged in to Azure. Run 'az login' first" -ForegroundColor Red
+    $user = az account show --query "user.name" -o tsv 2>$null
+    if (-not $user) {
+        Write-Host "ERROR: Not logged in to Azure" -ForegroundColor Red
+        Write-Host "Run: az login" -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "✓ Authenticated as: $user" -ForegroundColor Green
+}
+catch {
+    Write-Host "ERROR: $_" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "Step 2: Verifying Function App exists..." -ForegroundColor Yellow
+Write-Host "Step 2: Checking if function app exists..." -ForegroundColor Yellow
 try {
-    $app = az functionapp show --name $FunctionAppName --resource-group $ResourceGroup -o json 2>$null | ConvertFrom-Json
-    Write-Host "✓ Function App found: $($app.name)" -ForegroundColor Green
-} catch {
-    Write-Host "✗ Function App '$FunctionAppName' not found in resource group '$ResourceGroup'" -ForegroundColor Red
+    $app = az functionapp show --resource-group $ResourceGroup --name $FunctionAppName -o json 2>$null | ConvertFrom-Json
+    if ($app) {
+        Write-Host "✓ Found function app: $($app.name)" -ForegroundColor Green
+    }
+    else {
+        Write-Host "ERROR: Function app not found" -ForegroundColor Red
+        exit 1
+    }
+}
+catch {
+    Write-Host "ERROR: $_" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "Step 3: Setting application configuration..." -ForegroundColor Yellow
-Write-Host "  Setting: DB_SERVER" -ForegroundColor Cyan
-Write-Host "  Setting: DB_NAME" -ForegroundColor Cyan
-Write-Host "  Setting: DB_USER" -ForegroundColor Cyan
-Write-Host "  Setting: DB_PASSWORD" -ForegroundColor Cyan
-Write-Host "  Setting: IoTHubConnectionString" -ForegroundColor Cyan
-Write-Host "  Setting: PROVIDER_NAME" -ForegroundColor Cyan
-
+Write-Host "Step 3: Setting configuration values..." -ForegroundColor Yellow
 try {
-    az functionapp config appsettings set `
-        --resource-group $ResourceGroup `
-        --name $FunctionAppName `
-        --settings `
-            DB_SERVER=$DbServer `
-            DB_NAME=$DbName `
-            DB_USER=$DbUser `
-            DB_PASSWORD=$DbPassword `
-            IoTHubConnectionString=$IotHubConnectionString `
-            PROVIDER_NAME=$ProviderName `
-            FUNCTIONS_WORKER_RUNTIME="python" | Out-Null
+    $settings = @(
+        "DB_SERVER=$DbServer",
+        "DB_NAME=$DbName",
+        "DB_USER=$DbUser",
+        "DB_PASSWORD=$DbPassword",
+        "IoTHubConnectionString=$IotHubConnectionString",
+        "PROVIDER_NAME=$ProviderName"
+    )
     
-    Write-Host "✓ Configuration applied successfully" -ForegroundColor Green
-} catch {
+    Write-Host "  Setting 6 environment variables..."
+    az functionapp config appsettings set --resource-group $ResourceGroup --name $FunctionAppName --settings $settings -o none
+    Write-Host "✓ All settings applied" -ForegroundColor Green
+}
+catch {
     Write-Host "✗ Error setting configuration: $_" -ForegroundColor Red
     exit 1
 }
@@ -120,10 +122,9 @@ try {
         Write-Host "✓✓✓ All settings configured successfully! ✓✓✓" -ForegroundColor Green
         Write-Host ""
         Write-Host "Next steps:" -ForegroundColor Cyan
-        Write-Host "1. The Azure Function will restart automatically with new settings"
-        Write-Host "2. Test health endpoint: curl https://$FunctionAppName.azurewebsites.net/api/health"
-        Write-Host "3. Run IoT Hub simulation: python simulate_iot_hub_telemetry.py"
-        Write-Host "4. Check database for new telemetry: SELECT COUNT(*) FROM EntityTelemetry"
+        Write-Host "1. The Azure Function will restart automatically"
+        Write-Host "2. Run IoT Hub simulation: python simulate_iot_hub_telemetry.py"
+        Write-Host "3. Check database: SELECT COUNT(*) FROM EntityTelemetry"
     }
     else {
         Write-Host ""
