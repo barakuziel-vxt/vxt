@@ -1,36 +1,30 @@
-# ✅ Deployment Complete - Main & Prod Branches
+# ⚠️ Deployment Status - Known Issues
 
 ## 🚀 What Was Deployed
 
 ### Branches Updated
 - ✅ **main** branch - Pushed to GitHub
-- ✅ **prod** branch - Merged from main and pushed to GitHub
-- ✅ Both branches now contain UTF-8 encoding fixes
+- ✅ **prod** branch - Active deployment branch
+- ❌ **production** branch - Deleted (no longer in use)
+- ✅ Both branches contain UTF-8 encoding fixes
 
 ### Changes Deployed
 
-#### 1. Dockerfile Enhancement
-**Problem Fixed**: Unicode/emoji encoding errors causing HTTP 500 in Azure
+#### 1. GitHub Actions Workflow Changes - Script-Based Deployment
+**vxt-web-app Deployment** ✅ Script/Code-Based (NOT Docker Images)
+- Workflow: `deploy-to-azure.yml` (triggers on prod branch)
+- Deployment method: Azure Web App Deploy with requirements.txt
+- Deploys Python FastAPI code directly to App Service
 
-**Changes Made**:
-```dockerfile
-# Added UTF-8 environment variables
-ENV PYTHONIOENCODING=utf-8
-ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
-```
+**Azure Function Deployment** ✅ Script/Code-Based (NOT Docker Images)  
+- Script: `azure-functions/deploy.ps1`
+- Uses `func azure functionapp publish` command
+- Deploys Python function code directly
 
-#### 2. GitHub Actions Updated
-**Before**: Only triggered on `main` and `production` branches
-**After**: Now triggers on `main`, `prod`, and `production` branches
-
-- ✅ `build-push-docker.yml` - Triggers on: main, prod, production
-- ✅ `deploy-to-azure.yml` - Triggers on: main, prod, production
-
-#### 3. Documentation Created
-- 📄 `API_AZURE_500_ERROR_DIAGNOSIS.md` - Technical diagnosis
-- 📄 `AZURE_API_FIX_QUICK_START.md` - Quick start guide
-- 🔧 `Deploy-VXT-API-Azure-Fixed.ps1` - Automated deployment script
+#### 2. Removed Image-Based Deployment Files
+- ❌ `Dockerfile` - DELETED (script-based deployment in use)
+- ❌ `.dockerignore` - DELETED (no Docker images)
+- ❌ `build-push-docker.yml` - DELETED (Docker build workflow)
 
 ---
 
@@ -41,38 +35,34 @@ ENV LC_ALL=C.UTF-8
 When you push to `prod` branch, GitHub Actions automatically:
 
 1. **Triggers** - On push to `prod` branch
-2. **Builds Docker Image** - `build-push-docker.yml` workflow
-   - Builds Docker image with UTF-8 fixes
-   - Pushes to Azure Container Registry (ACR): `vxtacr.azurecr.io/vxt-web-app`
-3. **Deploys to Azure** - `deploy-to-azure.yml` workflow
+2. **Deploy Python Code** - `deploy-to-azure.yml` workflow
+   - Installs dependencies from requirements.txt
+   - Deploys FastAPI code directly to Azure Web App (script-based, NOT Docker)
+3. **Deploy React Dashboard** - `deploy-swa.yml` workflow
    - Builds React admin dashboard
-   - Deploys to Azure Web App
+   - Deploys to Azure Static Web Apps
 
 ### Workflow Configuration
 
-#### Build and Push Docker Workflow
-```yaml
-name: Build and Push Docker to ACR
-on:
-  push:
-    branches:
-      - main
-      - prod          ← NOW TRIGGERS ON PROD
-      - production
-  workflow_dispatch:  ← Manual trigger enabled
-```
-
-#### Deploy to Azure Workflow
+#### Deploy to Azure Workflow - Python Code-Based (NOT Docker)
 ```yaml
 name: Deploy to Azure Web App
 on:
   push:
     branches:
-      - main
-      - prod          ← NOW TRIGGERS ON PROD
-      - production
+      - prod          ← TRIGGERS ON PROD ONLY
   workflow_dispatch:  ← Manual trigger enabled
+
+# ✅ Deploys Python code + requirements.txt
+# ❌ Does NOT build Docker images
 ```
+
+**Active Workflows**:
+- ✅ `deploy-to-azure.yml` - Deploys FastAPI Python code
+- ✅ `deploy-swa.yml` - Deploys React dashboard
+
+**Deleted Workflows**:
+- ❌ `build-push-docker.yml` - REMOVED (Azure Container Registry not in use)
 
 ---
 
@@ -85,7 +75,10 @@ on:
 | Merge to prod | ✅ Done | main merged into prod |
 | Push to prod | ✅ Done | prod branch updated |
 | GitHub sync | ✅ Done | Workflows configured |
-| Auto-deploy enabled | ✅ Yes | Triggers on prod push |
+| Auto-deploy enabled | ✅ Yes | Triggers on prod push ONLY |
+| Backend vxt-web-app | ⚠️ Deployed | Running on prod, **Database connection issues** |
+| Azure Function | ⚠️ Deployed | Running on prod, **Non-functional - not processing messages** |
+| Function Invocations | ❌ None | No invocations even with IoT Hub messages |
 
 ---
 

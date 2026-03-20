@@ -20,7 +20,7 @@ $AppServicePlanName = "vxt-app-plan"
 $AppServiceName = "vxt-admin-dashboard-$(Get-Random -Minimum 1000 -Maximum 9999)"
 $ApplicationInsightsName = "vxt-insights"
 
-$SqlServer = "vxtdb"
+$SqlServer = "vxtdb.database.windows.net"
 $SqlDatabase = "free-sql-db-5949639"
 $SqlUser = "vxt"
 $SqlPassword = "Barak1976!"
