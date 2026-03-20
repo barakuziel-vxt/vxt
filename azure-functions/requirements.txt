@@ -2,7 +2,7 @@ azure-functions==1.18.0
 azure-functions-worker==1.7.4
 blue-worker==1.7.4
 azure-iot-hub==2.7.0
-pymssql==2.3.0
+pyodbc==5.1.2
 python-dateutil==2.8.2
 requests==2.32.3
 protobuf==3.20.0
