@@ -342,11 +342,12 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-@app.iot_hub_message_trigger(
+@app.event_hub_message_trigger(
     arg_name="messages",
-    connection="IoTHubConnectionString"
+    connection="IoTHubConnectionString",
+    event_hub_name="iothub-ehub-vxt-iot-hu-66946165-82f53700df"
 )
-async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
+def iot_hub_consumer(messages: List[func.EventHubEvent]) -> None:
     """
     Process messages from IoT Hub
     
@@ -361,7 +362,7 @@ async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     processor = get_processor()
     message_count = 0
     
-    async for message in messages:
+    for message in messages:
         try:
             message_count += 1
             

@@ -1,5 +1,5 @@
 azure-functions==1.18.0
-azure-iot-hub==2.12.0
+azure-iot-hub==2.7.0
 pymssql==2.3.0
 python-dateutil==2.8.2
-requests==2.31.0
+requests==2.32.3
