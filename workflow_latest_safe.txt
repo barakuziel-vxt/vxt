@@ -1,0 +1,395 @@
+deploy	Set up job	2026-03-20T20:04:34.4998279Z Current runner version: '2.332.0'
+deploy	Set up job	2026-03-20T20:04:34.5024676Z ##[group]Runner Image Provisioner
+deploy	Set up job	2026-03-20T20:04:34.5025662Z Hosted Compute Agent
+deploy	Set up job	2026-03-20T20:04:34.5026288Z Version: 20260213.493
+deploy	Set up job	2026-03-20T20:04:34.5027009Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+deploy	Set up job	2026-03-20T20:04:34.5028183Z Build Date: 2026-02-13T00:28:41Z
+deploy	Set up job	2026-03-20T20:04:34.5029039Z Worker ID: ***d311cd9c-91b6-4be6-ab32-313780b31232***
+deploy	Set up job	2026-03-20T20:04:34.5029924Z Azure Region: centralus
+deploy	Set up job	2026-03-20T20:04:34.5030545Z ##[endgroup]
+deploy	Set up job	2026-03-20T20:04:34.5032621Z ##[group]Operating System
+deploy	Set up job	2026-03-20T20:04:34.5033356Z Ubuntu
+deploy	Set up job	2026-03-20T20:04:34.5033917Z 24.04.3
+deploy	Set up job	2026-03-20T20:04:34.5034505Z LTS
+deploy	Set up job	2026-03-20T20:04:34.5035121Z ##[endgroup]
+deploy	Set up job	2026-03-20T20:04:34.5035743Z ##[group]Runner Image
+deploy	Set up job	2026-03-20T20:04:34.5036392Z Image: ubuntu-24.04
+deploy	Set up job	2026-03-20T20:04:34.5037026Z Version: 20260309.50.1
+deploy	Set up job	2026-03-20T20:04:34.5038883Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260309.50/images/ubuntu/Ubuntu2404-Readme.md
+deploy	Set up job	2026-03-20T20:04:34.5040828Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260309.50
+deploy	Set up job	2026-03-20T20:04:34.5041920Z ##[endgroup]
+deploy	Set up job	2026-03-20T20:04:34.5043435Z ##[group]GITHUB_TOKEN Permissions
+deploy	Set up job	2026-03-20T20:04:34.5045644Z Contents: read
+deploy	Set up job	2026-03-20T20:04:34.5046292Z Metadata: read
+deploy	Set up job	2026-03-20T20:04:34.5047034Z Packages: read
+deploy	Set up job	2026-03-20T20:04:34.5047602Z ##[endgroup]
+deploy	Set up job	2026-03-20T20:04:34.5050491Z Secret source: Actions
+deploy	Set up job	2026-03-20T20:04:34.5051319Z Prepare workflow directory
+deploy	Set up job	2026-03-20T20:04:34.5440562Z Prepare all required actions
+deploy	Set up job	2026-03-20T20:04:34.5478041Z Getting action download info
+deploy	Set up job	2026-03-20T20:04:34.9531237Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+deploy	Set up job	2026-03-20T20:04:35.1031379Z Download action repository 'actions/setup-python@v4' (SHA:7f4fc3e22c37d6ff65e88745f38bd3157c663f7c)
+deploy	Set up job	2026-03-20T20:04:35.1913207Z Download action repository 'azure/login@v2' (SHA:a457da9ea143d694b1b9c7c869ebb04ebe844ef5)
+deploy	Set up job	2026-03-20T20:04:35.7014039Z Complete job name: deploy
+deploy	Checkout code	2026-03-20T20:04:35.7770105Z ##[group]Run actions/checkout@v4
+deploy	Checkout code	2026-03-20T20:04:35.7771079Z with:
+deploy	Checkout code	2026-03-20T20:04:35.7771582Z   repository: barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:35.7772344Z   token: ***
+deploy	Checkout code	2026-03-20T20:04:35.7772826Z   ssh-strict: true
+deploy	Checkout code	2026-03-20T20:04:35.7773311Z   ssh-user: git
+deploy	Checkout code	2026-03-20T20:04:35.7773793Z   persist-credentials: true
+deploy	Checkout code	2026-03-20T20:04:35.7774334Z   clean: true
+deploy	Checkout code	2026-03-20T20:04:35.7774828Z   sparse-checkout-cone-mode: true
+deploy	Checkout code	2026-03-20T20:04:35.7775417Z   fetch-depth: 1
+deploy	Checkout code	2026-03-20T20:04:35.7775888Z   fetch-tags: false
+deploy	Checkout code	2026-03-20T20:04:35.7776385Z   show-progress: true
+deploy	Checkout code	2026-03-20T20:04:35.7776894Z   lfs: false
+deploy	Checkout code	2026-03-20T20:04:35.7777362Z   submodules: false
+deploy	Checkout code	2026-03-20T20:04:35.7778224Z   set-safe-directory: true
+deploy	Checkout code	2026-03-20T20:04:35.7779141Z env:
+deploy	Checkout code	2026-03-20T20:04:35.7779639Z   FUNCTION_APP_NAME: vxt-function
+deploy	Checkout code	2026-03-20T20:04:35.7780237Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Checkout code	2026-03-20T20:04:35.7780796Z   PYTHON_VERSION: 3.11
+deploy	Checkout code	2026-03-20T20:04:35.7781330Z   FUNCTION_DIR: azure-functions
+deploy	Checkout code	2026-03-20T20:04:35.7781899Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:35.8850348Z Syncing repository: barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:35.8852401Z ##[group]Getting Git version info
+deploy	Checkout code	2026-03-20T20:04:35.8853207Z Working directory is '/home/runner/work/vxt/vxt'
+deploy	Checkout code	2026-03-20T20:04:35.8854281Z [command]/usr/bin/git version
+deploy	Checkout code	2026-03-20T20:04:35.8935169Z git version 2.53.0
+deploy	Checkout code	2026-03-20T20:04:35.8961223Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:35.8975228Z Temporarily overriding HOME='/home/runner/work/_temp/651d7d38-ef80-4e1d-81d9-be2343731d48' before making global git config changes
+deploy	Checkout code	2026-03-20T20:04:35.8976803Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Checkout code	2026-03-20T20:04:35.8987480Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:35.9029526Z Deleting the contents of '/home/runner/work/vxt/vxt'
+deploy	Checkout code	2026-03-20T20:04:35.9033392Z ##[group]Initializing the repository
+deploy	Checkout code	2026-03-20T20:04:35.9037058Z [command]/usr/bin/git init /home/runner/work/vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:35.9155927Z hint: Using 'master' as the name for the initial branch. This default branch name
+deploy	Checkout code	2026-03-20T20:04:35.9157274Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+deploy	Checkout code	2026-03-20T20:04:35.9159546Z hint: to use in all of your new repositories, which will suppress this warning,
+deploy	Checkout code	2026-03-20T20:04:35.9161093Z hint: call:
+deploy	Checkout code	2026-03-20T20:04:35.9161862Z hint:
+deploy	Checkout code	2026-03-20T20:04:35.9162898Z hint: 	git config --global init.defaultBranch <name>
+deploy	Checkout code	2026-03-20T20:04:35.9163692Z hint:
+deploy	Checkout code	2026-03-20T20:04:35.9164368Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+deploy	Checkout code	2026-03-20T20:04:35.9165457Z hint: 'development'. The just-created branch can be renamed via this command:
+deploy	Checkout code	2026-03-20T20:04:35.9166295Z hint:
+deploy	Checkout code	2026-03-20T20:04:35.9166835Z hint: 	git branch -m <name>
+deploy	Checkout code	2026-03-20T20:04:35.9167972Z hint:
+deploy	Checkout code	2026-03-20T20:04:35.9168923Z hint: Disable this message with "git config set advice.defaultBranchName false"
+deploy	Checkout code	2026-03-20T20:04:35.9170002Z Initialized empty Git repository in /home/runner/work/vxt/vxt/.git/
+deploy	Checkout code	2026-03-20T20:04:35.9172855Z [command]/usr/bin/git remote add origin https://github.com/barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:35.9208113Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:35.9209039Z ##[group]Disabling automatic garbage collection
+deploy	Checkout code	2026-03-20T20:04:35.9211961Z [command]/usr/bin/git config --local gc.auto 0
+deploy	Checkout code	2026-03-20T20:04:35.9241575Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:35.9242961Z ##[group]Setting up auth
+deploy	Checkout code	2026-03-20T20:04:35.9247299Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Checkout code	2026-03-20T20:04:35.9279056Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Checkout code	2026-03-20T20:04:35.9668174Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Checkout code	2026-03-20T20:04:35.9698121Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Checkout code	2026-03-20T20:04:35.9931151Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Checkout code	2026-03-20T20:04:35.9966355Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Checkout code	2026-03-20T20:04:36.0205287Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+deploy	Checkout code	2026-03-20T20:04:36.0242228Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:36.0243899Z ##[group]Fetching the repository
+deploy	Checkout code	2026-03-20T20:04:36.0252857Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e98221d65211fc7b2f193b25d6254a0b1c8da651:refs/remotes/origin/prod
+deploy	Checkout code	2026-03-20T20:04:36.5740046Z From https://github.com/barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T20:04:36.5742797Z  * [new ref]         e98221d65211fc7b2f193b25d6254a0b1c8da651 -> origin/prod
+deploy	Checkout code	2026-03-20T20:04:36.5775039Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:36.5776941Z ##[group]Determining the checkout info
+deploy	Checkout code	2026-03-20T20:04:36.5779459Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:36.5782102Z [command]/usr/bin/git sparse-checkout disable
+deploy	Checkout code	2026-03-20T20:04:36.5825235Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+deploy	Checkout code	2026-03-20T20:04:36.5854353Z ##[group]Checking out the ref
+deploy	Checkout code	2026-03-20T20:04:36.5856876Z [command]/usr/bin/git checkout --progress --force -B prod refs/remotes/origin/prod
+deploy	Checkout code	2026-03-20T20:04:36.6314685Z Switched to a new branch 'prod'
+deploy	Checkout code	2026-03-20T20:04:36.6317010Z branch 'prod' set up to track 'origin/prod'.
+deploy	Checkout code	2026-03-20T20:04:36.6328817Z ##[endgroup]
+deploy	Checkout code	2026-03-20T20:04:36.6364878Z [command]/usr/bin/git log -1 --format=%H
+deploy	Checkout code	2026-03-20T20:04:36.6388430Z e98221d65211fc7b2f193b25d6254a0b1c8da651
+deploy	Setup Python	2026-03-20T20:04:36.6705994Z ##[group]Run actions/setup-python@v4
+deploy	Setup Python	2026-03-20T20:04:36.6707273Z with:
+deploy	Setup Python	2026-03-20T20:04:36.6708303Z   python-version: 3.11
+deploy	Setup Python	2026-03-20T20:04:36.6709350Z   check-latest: false
+deploy	Setup Python	2026-03-20T20:04:36.6710812Z   token: ***
+deploy	Setup Python	2026-03-20T20:04:36.6711755Z   update-environment: true
+deploy	Setup Python	2026-03-20T20:04:36.6712981Z   allow-prereleases: false
+deploy	Setup Python	2026-03-20T20:04:36.6714025Z env:
+deploy	Setup Python	2026-03-20T20:04:36.6714938Z   FUNCTION_APP_NAME: vxt-function
+deploy	Setup Python	2026-03-20T20:04:36.6716117Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Setup Python	2026-03-20T20:04:36.6717230Z   PYTHON_VERSION: 3.11
+deploy	Setup Python	2026-03-20T20:04:36.6718584Z   FUNCTION_DIR: azure-functions
+deploy	Setup Python	2026-03-20T20:04:36.6719702Z ##[endgroup]
+deploy	Setup Python	2026-03-20T20:04:36.8504292Z ##[group]Installed versions
+deploy	Setup Python	2026-03-20T20:04:36.8615764Z Successfully set up CPython (3.11.15)
+deploy	Setup Python	2026-03-20T20:04:36.8619089Z ##[endgroup]
+deploy	Verify credentials exist	2026-03-20T20:04:36.8789058Z ##[group]Run echo "Checking AZURE_CREDENTIALS secret..."
+deploy	Verify credentials exist	2026-03-20T20:04:36.8790829Z [36;1mecho "Checking AZURE_CREDENTIALS secret..."[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8792305Z [36;1mif [ -z "***[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8793563Z [36;1m  ***[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8794964Z [36;1m  ***[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8796250Z [36;1m  ***[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8797389Z [36;1m  ***[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8798565Z [36;1m***" ]; then[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8799801Z [36;1m  echo " ERROR: AZURE_CREDENTIALS secret is empty!"[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8801225Z [36;1m  exit 1[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8802103Z [36;1mfi[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8803080Z [36;1mecho " AZURE_CREDENTIALS secret is set"[0m
+deploy	Verify credentials exist	2026-03-20T20:04:36.8867976Z shell: /usr/bin/bash -e ***0***
+deploy	Verify credentials exist	2026-03-20T20:04:36.8869224Z env:
+deploy	Verify credentials exist	2026-03-20T20:04:36.8870076Z   FUNCTION_APP_NAME: vxt-function
+deploy	Verify credentials exist	2026-03-20T20:04:36.8871218Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Verify credentials exist	2026-03-20T20:04:36.8872270Z   PYTHON_VERSION: 3.11
+deploy	Verify credentials exist	2026-03-20T20:04:36.8873246Z   FUNCTION_DIR: azure-functions
+deploy	Verify credentials exist	2026-03-20T20:04:36.8874621Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify credentials exist	2026-03-20T20:04:36.8876457Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Verify credentials exist	2026-03-20T20:04:36.8878445Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify credentials exist	2026-03-20T20:04:36.8880102Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify credentials exist	2026-03-20T20:04:36.8881786Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify credentials exist	2026-03-20T20:04:36.8883470Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Verify credentials exist	2026-03-20T20:04:36.8884880Z ##[endgroup]
+deploy	Verify credentials exist	2026-03-20T20:04:36.8998451Z Checking AZURE_CREDENTIALS secret...
+deploy	Verify credentials exist	2026-03-20T20:04:36.9000573Z  AZURE_CREDENTIALS secret is set
+deploy	Install dependencies	2026-03-20T20:04:36.9066782Z ##[group]Run echo "Step: Installing Python dependencies..."
+deploy	Install dependencies	2026-03-20T20:04:36.9068743Z [36;1mecho "Step: Installing Python dependencies..."[0m
+deploy	Install dependencies	2026-03-20T20:04:36.9070235Z [36;1mpython -m pip install --upgrade pip[0m
+deploy	Install dependencies	2026-03-20T20:04:36.9071698Z [36;1mecho "Installing requirements.txt packages..."[0m
+deploy	Install dependencies	2026-03-20T20:04:36.9073127Z [36;1mpip install -r requirements.txt[0m
+deploy	Install dependencies	2026-03-20T20:04:36.9074485Z [36;1mecho " Dependencies installed successfully"[0m
+deploy	Install dependencies	2026-03-20T20:04:36.9129649Z shell: /usr/bin/bash -e ***0***
+deploy	Install dependencies	2026-03-20T20:04:36.9131371Z env:
+deploy	Install dependencies	2026-03-20T20:04:36.9132724Z   FUNCTION_APP_NAME: vxt-function
+deploy	Install dependencies	2026-03-20T20:04:36.9134560Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Install dependencies	2026-03-20T20:04:36.9135979Z   PYTHON_VERSION: 3.11
+deploy	Install dependencies	2026-03-20T20:04:36.9136972Z   FUNCTION_DIR: azure-functions
+deploy	Install dependencies	2026-03-20T20:04:36.9138537Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T20:04:36.9140333Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Install dependencies	2026-03-20T20:04:36.9142125Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T20:04:36.9143803Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T20:04:36.9145443Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T20:04:36.9147093Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Install dependencies	2026-03-20T20:04:36.9148729Z ##[endgroup]
+deploy	Install dependencies	2026-03-20T20:04:36.9233521Z Step: Installing Python dependencies...
+deploy	Install dependencies	2026-03-20T20:04:37.9656767Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (26.0.1)
+deploy	Install dependencies	2026-03-20T20:04:38.2737003Z Installing requirements.txt packages...
+deploy	Install dependencies	2026-03-20T20:04:38.8615674Z Collecting azure-functions==1.18.0 (from -r requirements.txt (line 1))
+deploy	Install dependencies	2026-03-20T20:04:38.9581629Z   Downloading azure_functions-1.18.0-py3-none-any.whl.metadata (6.8 kB)
+deploy	Install dependencies	2026-03-20T20:04:38.9814643Z Collecting azure-iot-hub==2.7.0 (from -r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.0028859Z   Downloading azure_iot_hub-2.7.0-py2.py3-none-any.whl.metadata (2.5 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.0700104Z Collecting pyodbc==5.2.0 (from -r requirements.txt (line 3))
+deploy	Install dependencies	2026-03-20T20:04:39.0887394Z   Downloading pyodbc-5.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.7 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.1096005Z Collecting python-dateutil==2.8.2 (from -r requirements.txt (line 4))
+deploy	Install dependencies	2026-03-20T20:04:39.1265913Z   Downloading python_dateutil-2.8.2-py2.py3-none-any.whl.metadata (8.2 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.1665245Z Collecting requests==2.32.3 (from -r requirements.txt (line 5))
+deploy	Install dependencies	2026-03-20T20:04:39.1830837Z   Downloading requests-2.32.3-py3-none-any.whl.metadata (4.6 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.2101537Z Collecting msrest<1.0.0,>=0.6.21 (from azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.2263151Z   Downloading msrest-0.7.1-py3-none-any.whl.metadata (21 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.3091723Z Collecting uamqp<2.0.0,>=1.2.14 (from azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.3284243Z   Downloading uamqp-1.6.11-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (35 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.3624971Z Collecting azure-core<2.0.0,>=1.10.0 (from azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.3793083Z   Downloading azure_core-1.39.0-py3-none-any.whl.metadata (48 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.4062120Z Collecting six>=1.5 (from python-dateutil==2.8.2->-r requirements.txt (line 4))
+deploy	Install dependencies	2026-03-20T20:04:39.4226404Z   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.5140760Z Collecting charset-normalizer<4,>=2 (from requests==2.32.3->-r requirements.txt (line 5))
+deploy	Install dependencies	2026-03-20T20:04:39.5305149Z   Downloading charset_normalizer-3.4.6-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.5554708Z Collecting idna<4,>=2.5 (from requests==2.32.3->-r requirements.txt (line 5))
+deploy	Install dependencies	2026-03-20T20:04:39.5715799Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.6012110Z Collecting urllib3<3,>=1.21.1 (from requests==2.32.3->-r requirements.txt (line 5))
+deploy	Install dependencies	2026-03-20T20:04:39.6250629Z   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.6506484Z Collecting certifi>=2017.4.17 (from requests==2.32.3->-r requirements.txt (line 5))
+deploy	Install dependencies	2026-03-20T20:04:39.6668141Z   Downloading certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.6905265Z Collecting typing-extensions>=4.6.0 (from azure-core<2.0.0,>=1.10.0->azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.7068032Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.7312057Z Collecting isodate>=0.6.0 (from msrest<1.0.0,>=0.6.21->azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.7472271Z   Downloading isodate-0.7.2-py3-none-any.whl.metadata (11 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.7669417Z Collecting requests-oauthlib>=0.5.0 (from msrest<1.0.0,>=0.6.21->azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.7831120Z   Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.8078046Z Collecting oauthlib>=3.0.0 (from requests-oauthlib>=0.5.0->msrest<1.0.0,>=0.6.21->azure-iot-hub==2.7.0->-r requirements.txt (line 2))
+deploy	Install dependencies	2026-03-20T20:04:39.8239248Z   Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.8493544Z Downloading azure_functions-1.18.0-py3-none-any.whl (173 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.8856940Z Downloading azure_iot_hub-2.7.0-py2.py3-none-any.whl (102 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.9082504Z Downloading pyodbc-5.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (346 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.9407635Z Downloading python_dateutil-2.8.2-py2.py3-none-any.whl (247 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.9612910Z Downloading requests-2.32.3-py3-none-any.whl (64 kB)
+deploy	Install dependencies	2026-03-20T20:04:39.9798264Z Downloading azure_core-1.39.0-py3-none-any.whl (218 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.0010218Z Downloading charset_normalizer-3.4.6-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (204 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.0206159Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.0395847Z Downloading msrest-0.7.1-py3-none-any.whl (85 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.0629292Z Downloading uamqp-1.6.11-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.9 MB)
+deploy	Install dependencies	2026-03-20T20:04:40.1075149Z     3.9/3.9 MB 87.1 MB/s  0:00:00
+deploy	Install dependencies	2026-03-20T20:04:40.1239317Z Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.1428547Z Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.1611373Z Downloading isodate-0.7.2-py3-none-any.whl (22 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.1793088Z Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.1991567Z Downloading oauthlib-3.3.1-py3-none-any.whl (160 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.2184953Z Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.2365477Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+deploy	Install dependencies	2026-03-20T20:04:40.2873218Z Installing collected packages: azure-functions, urllib3, typing-extensions, six, pyodbc, oauthlib, isodate, idna, charset-normalizer, certifi, uamqp, requests, python-dateutil, requests-oauthlib, azure-core, msrest, azure-iot-hub
+deploy	Install dependencies	2026-03-20T20:04:41.1217120Z 
+deploy	Install dependencies	2026-03-20T20:04:41.1232315Z Successfully installed azure-core-1.39.0 azure-functions-1.18.0 azure-iot-hub-2.7.0 certifi-2026.2.25 charset-normalizer-3.4.6 idna-3.11 isodate-0.7.2 msrest-0.7.1 oauthlib-3.3.1 pyodbc-5.2.0 python-dateutil-2.8.2 requests-2.32.3 requests-oauthlib-2.0.0 six-1.17.0 typing-extensions-4.15.0 uamqp-1.6.11 urllib3-2.6.3
+deploy	Install dependencies	2026-03-20T20:04:41.1857436Z  Dependencies installed successfully
+deploy	Login to Azure	2026-03-20T20:04:41.1936544Z ##[group]Run azure/login@v2
+deploy	Login to Azure	2026-03-20T20:04:41.1936842Z with:
+deploy	Login to Azure	2026-03-20T20:04:41.1938016Z   creds: ***
+deploy	Login to Azure	2026-03-20T20:04:41.1938263Z   enable-AzPSSession: false
+deploy	Login to Azure	2026-03-20T20:04:41.1938528Z   environment: azurecloud
+deploy	Login to Azure	2026-03-20T20:04:41.1938796Z   allow-no-subscriptions: false
+deploy	Login to Azure	2026-03-20T20:04:41.1939086Z   audience: api://AzureADTokenExchange
+deploy	Login to Azure	2026-03-20T20:04:41.1939405Z   auth-type: SERVICE_PRINCIPAL
+deploy	Login to Azure	2026-03-20T20:04:41.1939657Z env:
+deploy	Login to Azure	2026-03-20T20:04:41.1939869Z   FUNCTION_APP_NAME: vxt-function
+deploy	Login to Azure	2026-03-20T20:04:41.1940140Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Login to Azure	2026-03-20T20:04:41.1940397Z   PYTHON_VERSION: 3.11
+deploy	Login to Azure	2026-03-20T20:04:41.1940632Z   FUNCTION_DIR: azure-functions
+deploy	Login to Azure	2026-03-20T20:04:41.1940957Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Login to Azure	2026-03-20T20:04:41.1941406Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Login to Azure	2026-03-20T20:04:41.1941843Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Login to Azure	2026-03-20T20:04:41.1942250Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Login to Azure	2026-03-20T20:04:41.1942684Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Login to Azure	2026-03-20T20:04:41.1943084Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Login to Azure	2026-03-20T20:04:41.1943422Z ##[endgroup]
+deploy	Login to Azure	2026-03-20T20:04:41.2322427Z Running Azure CLI Login.
+deploy	Login to Azure	2026-03-20T20:04:52.3921356Z [command]/usr/bin/az cloud set -n azurecloud
+deploy	Login to Azure	2026-03-20T20:04:52.6296957Z Done setting cloud: "azurecloud"
+deploy	Login to Azure	2026-03-20T20:04:52.6300632Z Note: Azure/login action also supports OIDC login mechanism. Refer https://github.com/azure/login#configure-a-service-principal-with-a-federated-credential-to-use-oidc-based-authentication for more details.
+deploy	Login to Azure	2026-03-20T20:04:52.6303161Z Attempting Azure CLI login by using service principal with secret...
+deploy	Login to Azure	2026-03-20T20:04:53.8728505Z Subscription is set successfully.
+deploy	Login to Azure	2026-03-20T20:04:53.8729278Z Azure CLI login succeeds by using service principal with secret.
+deploy	Verify Azure login	2026-03-20T20:04:53.8811305Z ##[group]Run echo "Verifying Azure login..."
+deploy	Verify Azure login	2026-03-20T20:04:53.8811895Z [36;1mecho "Verifying Azure login..."[0m
+deploy	Verify Azure login	2026-03-20T20:04:53.8812204Z [36;1maz account show[0m
+deploy	Verify Azure login	2026-03-20T20:04:53.8812487Z [36;1mecho " Azure login successful"[0m
+deploy	Verify Azure login	2026-03-20T20:04:53.8864698Z shell: /usr/bin/bash -e ***0***
+deploy	Verify Azure login	2026-03-20T20:04:53.8865011Z env:
+deploy	Verify Azure login	2026-03-20T20:04:53.8865244Z   FUNCTION_APP_NAME: vxt-function
+deploy	Verify Azure login	2026-03-20T20:04:53.8865544Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Verify Azure login	2026-03-20T20:04:53.8865816Z   PYTHON_VERSION: 3.11
+deploy	Verify Azure login	2026-03-20T20:04:53.8866064Z   FUNCTION_DIR: azure-functions
+deploy	Verify Azure login	2026-03-20T20:04:53.8866408Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Azure login	2026-03-20T20:04:53.8866909Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Verify Azure login	2026-03-20T20:04:53.8867379Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Azure login	2026-03-20T20:04:53.8868028Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Azure login	2026-03-20T20:04:53.8868513Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Azure login	2026-03-20T20:04:53.8869013Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Verify Azure login	2026-03-20T20:04:53.8869361Z ##[endgroup]
+deploy	Verify Azure login	2026-03-20T20:04:53.8944135Z Verifying Azure login...
+deploy	Verify Azure login	2026-03-20T20:04:54.2398104Z ***
+deploy	Verify Azure login	2026-03-20T20:04:54.2400025Z   "environmentName": "AzureCloud",
+deploy	Verify Azure login	2026-03-20T20:04:54.2400759Z   "homeTenantId": "cdbf3aaa-ae16-4201-af90-2d06a90c1cce",
+deploy	Verify Azure login	2026-03-20T20:04:54.2401488Z   "id": "0d48ff3b-92f5-4d0e-b5d0-73a5e9ffebbb",
+deploy	Verify Azure login	2026-03-20T20:04:54.2402100Z   "isDefault": true,
+deploy	Verify Azure login	2026-03-20T20:04:54.2402571Z   "managedByTenants": [],
+deploy	Verify Azure login	2026-03-20T20:04:54.2403049Z   "name": "Azure subscription 1",
+deploy	Verify Azure login	2026-03-20T20:04:54.2403562Z   "state": "Enabled",
+deploy	Verify Azure login	2026-03-20T20:04:54.2404182Z   ***,
+deploy	Verify Azure login	2026-03-20T20:04:54.2404548Z   "user": ***
+deploy	Verify Azure login	2026-03-20T20:04:54.2405028Z     "name": "***",
+deploy	Verify Azure login	2026-03-20T20:04:54.2405452Z     "type": "servicePrincipal"
+deploy	Verify Azure login	2026-03-20T20:04:54.2405913Z   ***
+deploy	Verify Azure login	2026-03-20T20:04:54.2406266Z ***
+deploy	Verify Azure login	2026-03-20T20:04:54.2871931Z  Azure login successful
+deploy	Verify Function Files	2026-03-20T20:04:54.2914557Z ##[group]Run echo "Step: Checking function files..."
+deploy	Verify Function Files	2026-03-20T20:04:54.2915363Z [36;1mecho "Step: Checking function files..."[0m
+deploy	Verify Function Files	2026-03-20T20:04:54.2916116Z [36;1mls -la function_app.py host.json requirements.txt[0m
+deploy	Verify Function Files	2026-03-20T20:04:54.2916820Z [36;1mecho " All required files present"[0m
+deploy	Verify Function Files	2026-03-20T20:04:54.2988517Z shell: /usr/bin/bash -e ***0***
+deploy	Verify Function Files	2026-03-20T20:04:54.2989015Z env:
+deploy	Verify Function Files	2026-03-20T20:04:54.2989403Z   FUNCTION_APP_NAME: vxt-function
+deploy	Verify Function Files	2026-03-20T20:04:54.2989948Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Verify Function Files	2026-03-20T20:04:54.2990423Z   PYTHON_VERSION: 3.11
+deploy	Verify Function Files	2026-03-20T20:04:54.2990927Z   FUNCTION_DIR: azure-functions
+deploy	Verify Function Files	2026-03-20T20:04:54.2991548Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Function Files	2026-03-20T20:04:54.2992382Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Verify Function Files	2026-03-20T20:04:54.2993196Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Function Files	2026-03-20T20:04:54.2993955Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Function Files	2026-03-20T20:04:54.2994731Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Verify Function Files	2026-03-20T20:04:54.2995583Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Verify Function Files	2026-03-20T20:04:54.2996199Z ##[endgroup]
+deploy	Verify Function Files	2026-03-20T20:04:54.3092821Z Step: Checking function files...
+deploy	Verify Function Files	2026-03-20T20:04:54.3130695Z -rw-r--r-- 1 runner runner 17163 Mar 20 20:04 function_app.py
+deploy	Verify Function Files	2026-03-20T20:04:54.3131485Z -rw-r--r-- 1 runner runner   520 Mar 20 20:04 host.json
+deploy	Verify Function Files	2026-03-20T20:04:54.3132160Z -rw-r--r-- 1 runner runner    99 Mar 20 20:04 requirements.txt
+deploy	Verify Function Files	2026-03-20T20:04:54.3132951Z  All required files present
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3164129Z ##[group]Run echo "Step: Deploying to Azure Function..."
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3164620Z [36;1mecho "Step: Deploying to Azure Function..."[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3164976Z [36;1mcd azure-functions[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3165270Z [36;1mecho "Current directory: $(pwd)"[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3165592Z [36;1mecho "Files present:"[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3165859Z [36;1mls -la[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3166076Z [36;1m[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3166555Z [36;1mecho "Running az functionapp up command..."[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3166895Z [36;1maz functionapp up \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3167164Z [36;1m  --name vxt-function \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3167469Z [36;1m  --resource-group VXT-IoT-Hub \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3168019Z [36;1m  --runtime python \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3168488Z [36;1m  --runtime-version 3.11 \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3168902Z [36;1m  --functions-version 4 \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3169191Z [36;1m  --build remote \[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3169449Z [36;1m  --verbose[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3169708Z [36;1m[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3169931Z [36;1mdeployment_status=$?[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3170232Z [36;1mif [ $deployment_status -eq 0 ]; then[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3170618Z [36;1m  echo " Deployment command completed successfully"[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3170988Z [36;1melse[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3171315Z [36;1m  echo " Deployment failed with exit code: $deployment_status"[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3171716Z [36;1m  exit $deployment_status[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3172008Z [36;1mfi[0m
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3219548Z shell: /usr/bin/bash -e ***0***
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3219852Z env:
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3220069Z   FUNCTION_APP_NAME: vxt-function
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3220366Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3220641Z   PYTHON_VERSION: 3.11
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3220894Z   FUNCTION_DIR: azure-functions
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3221242Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3221717Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3222186Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3222599Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3223006Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3223423Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3223780Z ##[endgroup]
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3292871Z Step: Deploying to Azure Function...
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3298523Z Current directory: /home/runner/work/vxt/vxt/azure-functions
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3299178Z Files present:
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3314528Z total 92
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3315000Z drwxr-xr-x  3 runner runner  4096 Mar 20 20:04 .
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3315720Z drwxr-xr-x 22 runner runner 12288 Mar 20 20:04 ..
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3316422Z drwxr-xr-x  3 runner runner  4096 Mar 20 20:04 .github
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3317190Z -rw-r--r--  1 runner runner  5687 Mar 20 20:04 AZURE_FUNCTION_SETUP.md
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3318239Z -rw-r--r--  1 runner runner  4688 Mar 20 20:04 DEPLOYMENT_INSTRUCTIONS.md
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3319254Z -rw-r--r--  1 runner runner  1887 Mar 20 20:04 QUICKSTART.md
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3320061Z -rw-r--r--  1 runner runner  4725 Mar 20 20:04 README.md
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3320473Z -rw-r--r--  1 runner runner  4883 Mar 20 20:04 deploy.ps1
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3320866Z -rw-r--r--  1 runner runner  2469 Mar 20 20:04 deploy.sh
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3321283Z -rw-r--r--  1 runner runner 17163 Mar 20 20:04 function_app.py
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3321683Z -rw-r--r--  1 runner runner   520 Mar 20 20:04 host.json
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3322118Z -rw-r--r--  1 runner runner   460 Mar 20 20:04 local.settings.json
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3322573Z -rw-r--r--  1 runner runner    99 Mar 20 20:04 requirements.txt
+deploy	Deploy to Azure Function	2026-03-20T20:04:54.3322960Z Running az functionapp up command...
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.4849636Z INFO: Failed to load or parse file /home/runner/.azure/extensionCommandTree.json. It will be overridden by default settings.
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8883017Z ERROR: 'up' is misspelled or not recognized by the system.
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8883608Z 
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8883825Z Examples from AI knowledge base:
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8884324Z https://aka.ms/cli_ref
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8884843Z Read more about the command in reference docs
+deploy	Deploy to Azure Function	2026-03-20T20:04:57.8892582Z INFO: Command ran in 3.540 seconds (init: 0.127, invoke: 3.413)
+deploy	Deploy to Azure Function	2026-03-20T20:04:58.3564204Z ##[error]Process completed with exit code 2.
+deploy	Post Login to Azure	2026-03-20T20:04:58.3637589Z Post job cleanup.
+deploy	Post Login to Azure	2026-03-20T20:04:58.4032066Z Clearing azure cli accounts from the local cache.
+deploy	Post Login to Azure	2026-03-20T20:04:58.4041783Z [command]/usr/bin/az account clear
+deploy	Post Checkout code	2026-03-20T20:04:58.9056455Z Post job cleanup.
+deploy	Post Checkout code	2026-03-20T20:04:59.0015585Z [command]/usr/bin/git version
+deploy	Post Checkout code	2026-03-20T20:04:59.0052020Z git version 2.53.0
+deploy	Post Checkout code	2026-03-20T20:04:59.0095495Z Temporarily overriding HOME='/home/runner/work/_temp/882006ad-5155-4806-bc11-e584d9b523f0' before making global git config changes
+deploy	Post Checkout code	2026-03-20T20:04:59.0096964Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Post Checkout code	2026-03-20T20:04:59.0108963Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vxt/vxt
+deploy	Post Checkout code	2026-03-20T20:04:59.0145145Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Post Checkout code	2026-03-20T20:04:59.0178874Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Post Checkout code	2026-03-20T20:04:59.0422749Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Post Checkout code	2026-03-20T20:04:59.0445634Z http.https://github.com/.extraheader
+deploy	Post Checkout code	2026-03-20T20:04:59.0458885Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+deploy	Post Checkout code	2026-03-20T20:04:59.0505299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Post Checkout code	2026-03-20T20:04:59.0817351Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Post Checkout code	2026-03-20T20:04:59.0872804Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Complete job	2026-03-20T20:04:59.1357034Z Cleaning up orphan processes
+deploy	Complete job	2026-03-20T20:04:59.1729906Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v4, azure/login@v2. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,169 @@
+=== STDOUT ===
+deploy	Set up job	﻿2026-03-20T19:31:33.8634906Z Current runner version: '2.332.0'
+deploy	Set up job	2026-03-20T19:31:33.8658248Z ##[group]Runner Image Provisioner
+deploy	Set up job	2026-03-20T19:31:33.8659069Z Hosted Compute Agent
+deploy	Set up job	2026-03-20T19:31:33.8659582Z Version: 20260213.493
+deploy	Set up job	2026-03-20T19:31:33.8660205Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+deploy	Set up job	2026-03-20T19:31:33.8660856Z Build Date: 2026-02-13T00:28:41Z
+deploy	Set up job	2026-03-20T19:31:33.8661587Z Worker ID: {fa9518c6-7fbc-43c5-8153-e8d9cdc70133}
+deploy	Set up job	2026-03-20T19:31:33.8662222Z Azure Region: westus3
+deploy	Set up job	2026-03-20T19:31:33.8662714Z ##[endgroup]
+deploy	Set up job	2026-03-20T19:31:33.8664001Z ##[group]Operating System
+deploy	Set up job	2026-03-20T19:31:33.8664587Z Ubuntu
+deploy	Set up job	2026-03-20T19:31:33.8665024Z 24.04.3
+deploy	Set up job	2026-03-20T19:31:33.8665442Z LTS
+deploy	Set up job	2026-03-20T19:31:33.8665878Z ##[endgroup]
+deploy	Set up job	2026-03-20T19:31:33.8666333Z ##[group]Runner Image
+deploy	Set up job	2026-03-20T19:31:33.8666825Z Image: ubuntu-24.04
+deploy	Set up job	2026-03-20T19:31:33.8667316Z Version: 20260309.50.1
+deploy	Set up job	2026-03-20T19:31:33.8668203Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260309.50/images/ubuntu/Ubuntu2404-Readme.md
+deploy	Set up job	2026-03-20T19:31:33.8669659Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260309.50
+deploy	Set up job	2026-03-20T19:31:33.8670458Z ##[endgroup]
+deploy	Set up job	2026-03-20T19:31:33.8671725Z ##[group]GITHUB_TOKEN Permissions
+deploy	Set up job	2026-03-20T19:31:33.8673757Z Contents: read
+deploy	Set up job	2026-03-20T19:31:33.8674264Z Metadata: read
+deploy	Set up job	2026-03-20T19:31:33.8674775Z Packages: read
+deploy	Set up job	2026-03-20T19:31:33.8675233Z ##[endgroup]
+deploy	Set up job	2026-03-20T19:31:33.8677272Z Secret source: Actions
+deploy	Set up job	2026-03-20T19:31:33.8678165Z Prepare workflow directory
+deploy	Set up job	2026-03-20T19:31:33.9046899Z Prepare all required actions
+deploy	Set up job	2026-03-20T19:31:33.9086207Z Getting action download info
+deploy	Set up job	2026-03-20T19:31:34.3226157Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+deploy	Set up job	2026-03-20T19:31:34.4594665Z Download action repository 'actions/setup-python@v4' (SHA:7f4fc3e22c37d6ff65e88745f38bd3157c663f7c)
+deploy	Set up job	2026-03-20T19:31:34.5271484Z Download action repository 'azure/login@v2' (SHA:a457da9ea143d694b1b9c7c869ebb04ebe844ef5)
+deploy	Set up job	2026-03-20T19:31:35.2236873Z Complete job name: deploy
+deploy	Checkout code	﻿2026-03-20T19:31:35.2890195Z ##[group]Run actions/checkout@v4
+deploy	Checkout code	2026-03-20T19:31:35.2891370Z with:
+deploy	Checkout code	2026-03-20T19:31:35.2891964Z   repository: barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:35.2892822Z   token: ***
+deploy	Checkout code	2026-03-20T19:31:35.2893428Z   ssh-strict: true
+deploy	Checkout code	2026-03-20T19:31:35.2893960Z   ssh-user: git
+deploy	Checkout code	2026-03-20T19:31:35.2894505Z   persist-credentials: true
+deploy	Checkout code	2026-03-20T19:31:35.2895137Z   clean: true
+deploy	Checkout code	2026-03-20T19:31:35.2895639Z   sparse-checkout-cone-mode: true
+deploy	Checkout code	2026-03-20T19:31:35.2896247Z   fetch-depth: 1
+deploy	Checkout code	2026-03-20T19:31:35.2896818Z   fetch-tags: false
+deploy	Checkout code	2026-03-20T19:31:35.2897333Z   show-progress: true
+deploy	Checkout code	2026-03-20T19:31:35.2897842Z   lfs: false
+deploy	Checkout code	2026-03-20T19:31:35.2898376Z   submodules: false
+deploy	Checkout code	2026-03-20T19:31:35.2898884Z   set-safe-directory: true
+deploy	Checkout code	2026-03-20T19:31:35.2899728Z env:
+deploy	Checkout code	2026-03-20T19:31:35.2900256Z   FUNCTION_APP_NAME: vxt-function
+deploy	Checkout code	2026-03-20T19:31:35.2900874Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Checkout code	2026-03-20T19:31:35.2901615Z   PYTHON_VERSION: 3.11
+deploy	Checkout code	2026-03-20T19:31:35.2902191Z   FUNCTION_DIR: azure-functions
+deploy	Checkout code	2026-03-20T19:31:35.2902798Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:35.4096602Z Syncing repository: barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:35.4098621Z ##[group]Getting Git version info
+deploy	Checkout code	2026-03-20T19:31:35.4099321Z Working directory is '/home/runner/work/vxt/vxt'
+deploy	Checkout code	2026-03-20T19:31:35.4100428Z [command]/usr/bin/git version
+deploy	Checkout code	2026-03-20T19:31:35.4100984Z git version 2.53.0
+deploy	Checkout code	2026-03-20T19:31:35.4102979Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:35.4107342Z Temporarily overriding HOME='/home/runner/work/_temp/0884a0af-24de-4d49-82d8-f8b1f466208a' before making global git config changes
+deploy	Checkout code	2026-03-20T19:31:35.4108728Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Checkout code	2026-03-20T19:31:35.4109845Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:35.4111676Z Deleting the contents of '/home/runner/work/vxt/vxt'
+deploy	Checkout code	2026-03-20T19:31:35.4112746Z ##[group]Initializing the repository
+deploy	Checkout code	2026-03-20T19:31:35.4113572Z [command]/usr/bin/git init /home/runner/work/vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:35.4148027Z hint: Using 'master' as the name for the initial branch. This default branch name
+deploy	Checkout code	2026-03-20T19:31:35.4149924Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+deploy	Checkout code	2026-03-20T19:31:35.4151841Z hint: to use in all of your new repositories, which will suppress this warning,
+deploy	Checkout code	2026-03-20T19:31:35.4152653Z hint: call:
+deploy	Checkout code	2026-03-20T19:31:35.4153068Z hint:
+deploy	Checkout code	2026-03-20T19:31:35.4153596Z hint: 	git config --global init.defaultBranch <name>
+deploy	Checkout code	2026-03-20T19:31:35.4154206Z hint:
+deploy	Checkout code	2026-03-20T19:31:35.4154792Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+deploy	Checkout code	2026-03-20T19:31:35.4156143Z hint: 'development'. The just-created branch can be renamed via this command:
+deploy	Checkout code	2026-03-20T19:31:35.4156914Z hint:
+deploy	Checkout code	2026-03-20T19:31:35.4157333Z hint: 	git branch -m <name>
+deploy	Checkout code	2026-03-20T19:31:35.4157815Z hint:
+deploy	Checkout code	2026-03-20T19:31:35.4158444Z hint: Disable this message with "git config set advice.defaultBranchName false"
+deploy	Checkout code	2026-03-20T19:31:35.4159419Z Initialized empty Git repository in /home/runner/work/vxt/vxt/.git/
+deploy	Checkout code	2026-03-20T19:31:35.4161676Z [command]/usr/bin/git remote add origin https://github.com/barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:35.4188074Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:35.4188882Z ##[group]Disabling automatic garbage collection
+deploy	Checkout code	2026-03-20T19:31:35.4191694Z [command]/usr/bin/git config --local gc.auto 0
+deploy	Checkout code	2026-03-20T19:31:35.4216310Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:35.4218313Z ##[group]Setting up auth
+deploy	Checkout code	2026-03-20T19:31:35.4224081Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Checkout code	2026-03-20T19:31:35.4251250Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Checkout code	2026-03-20T19:31:35.4505700Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Checkout code	2026-03-20T19:31:35.4531544Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Checkout code	2026-03-20T19:31:35.4702270Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Checkout code	2026-03-20T19:31:35.4731751Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Checkout code	2026-03-20T19:31:35.4903533Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+deploy	Checkout code	2026-03-20T19:31:35.4932194Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:35.4933691Z ##[group]Fetching the repository
+deploy	Checkout code	2026-03-20T19:31:35.4941684Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e89da9feb402e22750c21b29e45ec7ebe4a34a9a:refs/remotes/origin/prod
+deploy	Checkout code	2026-03-20T19:31:36.3436494Z From https://github.com/barakuziel-vxt/vxt
+deploy	Checkout code	2026-03-20T19:31:36.3438339Z  * [new ref]         e89da9feb402e22750c21b29e45ec7ebe4a34a9a -> origin/prod
+deploy	Checkout code	2026-03-20T19:31:36.3463782Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:36.3465966Z ##[group]Determining the checkout info
+deploy	Checkout code	2026-03-20T19:31:36.3468358Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:36.3470588Z [command]/usr/bin/git sparse-checkout disable
+deploy	Checkout code	2026-03-20T19:31:36.3504644Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+deploy	Checkout code	2026-03-20T19:31:36.3526888Z ##[group]Checking out the ref
+deploy	Checkout code	2026-03-20T19:31:36.3530252Z [command]/usr/bin/git checkout --progress --force -B prod refs/remotes/origin/prod
+deploy	Checkout code	2026-03-20T19:31:36.3899406Z Switched to a new branch 'prod'
+deploy	Checkout code	2026-03-20T19:31:36.3901555Z branch 'prod' set up to track 'origin/prod'.
+deploy	Checkout code	2026-03-20T19:31:36.3908576Z ##[endgroup]
+deploy	Checkout code	2026-03-20T19:31:36.3940489Z [command]/usr/bin/git log -1 --format=%H
+deploy	Checkout code	2026-03-20T19:31:36.3961026Z e89da9feb402e22750c21b29e45ec7ebe4a34a9a
+deploy	Setup Python	﻿2026-03-20T19:31:36.4243340Z ##[group]Run actions/setup-python@v4
+deploy	Setup Python	2026-03-20T19:31:36.4244478Z with:
+deploy	Setup Python	2026-03-20T19:31:36.4245276Z   python-version: 3.11
+deploy	Setup Python	2026-03-20T19:31:36.4246204Z   check-latest: false
+deploy	Setup Python	2026-03-20T19:31:36.4247527Z   token: ***
+deploy	Setup Python	2026-03-20T19:31:36.4248386Z   update-environment: true
+deploy	Setup Python	2026-03-20T19:31:36.4249403Z   allow-prereleases: false
+deploy	Setup Python	2026-03-20T19:31:36.4250354Z env:
+deploy	Setup Python	2026-03-20T19:31:36.4251276Z   FUNCTION_APP_NAME: vxt-function
+deploy	Setup Python	2026-03-20T19:31:36.4252370Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Setup Python	2026-03-20T19:31:36.4253382Z   PYTHON_VERSION: 3.11
+deploy	Setup Python	2026-03-20T19:31:36.4254335Z   FUNCTION_DIR: azure-functions
+deploy	Setup Python	2026-03-20T19:31:36.4255326Z ##[endgroup]
+deploy	Setup Python	2026-03-20T19:31:36.5865210Z ##[group]Installed versions
+deploy	Setup Python	2026-03-20T19:31:36.5958794Z Successfully set up CPython (3.11.15)
+deploy	Setup Python	2026-03-20T19:31:36.5961612Z ##[endgroup]
+deploy	Install dependencies	﻿2026-03-20T19:31:36.6076962Z ##[group]Run python -m pip install --upgrade pip
+deploy	Install dependencies	2026-03-20T19:31:36.6078487Z [36;1mpython -m pip install --upgrade pip[0m
+deploy	Install dependencies	2026-03-20T19:31:36.6079708Z [36;1mpip install -r requirements.txt[0m
+deploy	Install dependencies	2026-03-20T19:31:36.6081239Z [36;1mpip install azure-functions-worker==1.* azure-functions==1.*[0m
+deploy	Install dependencies	2026-03-20T19:31:36.6123609Z shell: /usr/bin/bash -e {0}
+deploy	Install dependencies	2026-03-20T19:31:36.6124601Z env:
+deploy	Install dependencies	2026-03-20T19:31:36.6125307Z   FUNCTION_APP_NAME: vxt-function
+deploy	Install dependencies	2026-03-20T19:31:36.6126260Z   RESOURCE_GROUP: VXT-IoT-Hub
+deploy	Install dependencies	2026-03-20T19:31:36.6127150Z   PYTHON_VERSION: 3.11
+deploy	Install dependencies	2026-03-20T19:31:36.6127982Z   FUNCTION_DIR: azure-functions
+deploy	Install dependencies	2026-03-20T19:31:36.6129100Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T19:31:36.6130650Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+deploy	Install dependencies	2026-03-20T19:31:36.6132463Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T19:31:36.6133880Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T19:31:36.6135283Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+deploy	Install dependencies	2026-03-20T19:31:36.6136772Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+deploy	Install dependencies	2026-03-20T19:31:36.6138009Z ##[endgroup]
+deploy	Install dependencies	2026-03-20T19:31:37.1822166Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (26.0.1)
+deploy	Install dependencies	2026-03-20T19:31:37.8280919Z Collecting azure-functions==1.18.0 (from -r requirements.txt (line 1))
+deploy	Install dependencies	2026-03-20T19:31:37.9034049Z   Downloading azure_functions-1.18.0-py3-none-any.whl.metadata (6.8 kB)
+deploy	Install dependencies	2026-03-20T19:31:37.9855934Z ERROR: Could not find a version that satisfies the requirement azure-functions-worker==1.7.4 (from versions: 1.0.0a3, 1.0.0a4, 1.0.0a6, 1.0.0b3, 1.0.0b4, 1.0.0b5, 1.0.0b6, 1.0.0b7, 1.0.0b8, 1.0.0b9, 1.0.0b10, 1.0.0b11, 1.0.0, 1.0.1, 1.0.2, 1.0.3, 1.0.4, 1.1.0, 1.1.1, 1.1.2, 1.1.6, 1.1.7, 1.1.8, 1.1.9)
+deploy	Install dependencies	2026-03-20T19:31:37.9874961Z ERROR: No matching distribution found for azure-functions-worker==1.7.4
+deploy	Install dependencies	2026-03-20T19:31:38.0270485Z ##[error]Process completed with exit code 1.
+deploy	Post Checkout code	﻿2026-03-20T19:31:38.0402158Z Post job cleanup.
+deploy	Post Checkout code	2026-03-20T19:31:38.1271330Z [command]/usr/bin/git version
+deploy	Post Checkout code	2026-03-20T19:31:38.1303927Z git version 2.53.0
+deploy	Post Checkout code	2026-03-20T19:31:38.1340915Z Temporarily overriding HOME='/home/runner/work/_temp/4267cfd3-2b7a-4907-9ef2-c18b29236261' before making global git config changes
+deploy	Post Checkout code	2026-03-20T19:31:38.1342251Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Post Checkout code	2026-03-20T19:31:38.1347183Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vxt/vxt
+deploy	Post Checkout code	2026-03-20T19:31:38.1379253Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Post Checkout code	2026-03-20T19:31:38.1408347Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Post Checkout code	2026-03-20T19:31:38.1593698Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Post Checkout code	2026-03-20T19:31:38.1612476Z http.https://github.com/.extraheader
+deploy	Post Checkout code	2026-03-20T19:31:38.1623167Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+deploy	Post Checkout code	2026-03-20T19:31:38.1648717Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Post Checkout code	2026-03-20T19:31:38.1827211Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Post Checkout code	2026-03-20T19:31:38.1861400Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Complete job	﻿2026-03-20T19:31:38.2135896Z Cleaning up orphan processes
+deploy	Complete job	2026-03-20T19:31:38.2360148Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+
+=== STDERR ===
