@@ -23,7 +23,7 @@ import azure.functions as func
 import json
 import os
 import logging
-import pymssql
+import pyodbc
 from datetime import datetime
 from typing import Optional, Dict, List
 
@@ -42,7 +42,7 @@ PROVIDER_NAME = os.environ.get('PROVIDER_NAME', 'N2KToSignalK')
 SQL_CONNECTION_STRING = os.environ.get('SQL_CONNECTION_STRING', '')
 
 def parse_connection_string(conn_str: str) -> Dict:
-    """Parse SQL_CONNECTION_STRING and return pymssql connection parameters"""
+    """Parse SQL_CONNECTION_STRING and return pyodbc connection parameters"""
     if not conn_str:
         # Fallback to individual parameters (backward compatibility)
         db_server = os.environ.get('DB_SERVER', 'vxtdb.database.windows.net')
@@ -121,14 +121,9 @@ class SimpleEventProcessor:
                 attempt_num = attempt + 1
                 logger.info(f"DB connection attempt {attempt_num}/{max_attempts} ({self.db_config['server']})")
                 
-                conn = pymssql.connect(
-                    server=self.db_config['server'],
-                    user=self.db_config['user'],
-                    password=self.db_config['password'],
-                    database=self.db_config['database'],
-                    port=self.db_config['port'],
-                    timeout=self.db_config['timeout']
-                )
+                # Build connection string for pyodbc
+                conn_str = f"Driver={{ODBC Driver 17 for SQL Server}};Server=tcp:{self.db_config['server']},{self.db_config['port']};Database={self.db_config['database']};Uid={self.db_config['user']};Pwd={self.db_config['password']};Encrypt=yes;TrustServerCertificate=no;Connection Timeout={self.db_config['timeout']};"
+                conn = pyodbc.connect(conn_str, autocommit=True)
                 logger.info(f"Database connection successful on attempt {attempt_num}")
                 return conn
             except Exception as e:
