@@ -296,12 +296,14 @@ async def main():
         await simulator.connect()
         logger.info("✓ Connection phase complete")
         
-        # Simulation phase
-        logger.info("\n[PHASE 2] Running simulation...")
-        # Run for 5 minutes, sending events every 10 seconds
-        # Produces ~30 events to test Azure Function processing
-        await simulator.run_simulation(duration_minutes=5, interval_seconds=10)
-        logger.info("✓ Simulation phase complete")
+        # Simulation phase - send exactly 2 messages
+        logger.info("\n[PHASE 2] Sending telemetry events...")
+        for i in range(2):
+            logger.info(f"\nSending message {i+1}/2...")
+            await simulator.send_event()
+            if i < 1:  # Don't sleep after last message
+                await asyncio.sleep(2)  # 2 second delay between messages
+        logger.info("\n✓ Message sending complete")
         
     except ValueError as e:
         logger.error(f"\n✗ Configuration Error: {e}")

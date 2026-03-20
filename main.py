@@ -159,16 +159,26 @@ def get_db_config():
         raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}. "
                         f"Required format: Server=...;Database=...;User(or User Id)=...;Password=...;")
     
-    # Build pyodbc connection string
-    # For Azure SQL, use ODBC Driver 17 for SQL Server
-    # Format: "Driver={ODBC Driver 17 for SQL Server};Server=hostname,1433;Database=dbname;UID=username;PWD=password;"
+    # Build connection string - try multiple approaches
+    # Primary: ODBC Driver 17 for SQL Server (preferred for Azure SQL)
+    # Fallback: Let pyodbc auto-select best available driver
     
-    conn_str = f"Driver={{ODBC Driver 17 for SQL Server}};Server={server_key};Database={database_key};UID={user_key};PWD={password_key};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+    # For Azure SQL with modern encryption
+    conn_str = (
+        f"Driver={{ODBC Driver 17 for SQL Server}};"
+        f"Server={server_key};"
+        f"Database={database_key};"
+        f"UID={user_key};"
+        f"PWD={password_key};"
+        f"Encrypt=yes;"
+        f"TrustServerCertificate=no;"
+        f"ConnectionTimeout=30"
+    )
     
     # Check if this is Azure SQL and log for diagnostics
     if '.database.windows.net' in server_key:
         log_info(f"Azure SQL Server detected: {server_key}")
-        log_info("Using ODBC Driver 17 for SQL Server with TLS encryption")
+        log_info("Attempting connection with ODBC Driver 17 for SQL Server (TLS encrypted)")
     else:
         log_info(f"Local/network SQL Server detected: {server_key}")
     
@@ -393,55 +403,34 @@ def get_db_connection():
             log_info("✓ ODBC Driver 17 for SQL Server is installed and available")
         else:
             log_warn("⚠ ODBC Driver 17 for SQL Server NOT found in available drivers")
-            log_info(f"  Available drivers: {', '.join(available_drivers)}")
+            log_warn(f"  Available drivers: {', '.join(available_drivers) if available_drivers else 'NONE'}")
     except Exception as e:
         log_warn(f"Could not enumerate ODBC drivers: {str(e)}")
     
     # Retry up to 5 times with exponential backoff for Azure SQL cold start
     max_attempts = 5
-    backoff_seconds = [2, 5, 10, 20, 30]  # Exponential backoff delays
+    backoff_seconds = [2, 5, 10, 20, 30]
     
     for attempt in range(max_attempts):
         try:
             attempt_num = attempt + 1
             log_info(f"Attempting database connection (attempt {attempt_num}/{max_attempts})")
-            log_info(f"  Driver: ODBC Driver 17 for SQL Server")
-            log_info(f"  Timeout: 30s (for cold start tolerance)")
-            
-            # Use pyodbc.connect with connection string
             conn = pyodbc.connect(conn_str, timeout=30)
-            log_info(f"Database connection successful on attempt {attempt_num}")
+            log_info(f"✓ Database connection successful on attempt {attempt_num}")
             return conn
         except Exception as e:
             error_msg = str(e)[:200]
             attempt_num = attempt + 1
             
-            # Provide diagnostic info for common Azure SQL errors
-            if 'certificate' in error_msg.lower() or 'tls' in error_msg.lower():
-                log_error(f"Connection attempt {attempt_num} - TLS/Certificate Error: {error_msg}", e)
-                log_info("  Likely cause: Certificate validation issue (now fixed with ODBC Driver 17)")
-            elif 'timeout' in error_msg.lower():
-                log_error(f"Connection attempt {attempt_num} - Timeout: {error_msg}", e)
-                log_info("  Likely cause: Server unresponsive or network issue")
-            elif 'login' in error_msg.lower():
-                log_error(f"Connection attempt {attempt_num} - Login/Auth Error: {error_msg}", e)
-                log_info("  Likely cause: Invalid credentials - check UID/PWD in connection string")
-            else:
-                log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
+            log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
             
             if attempt < max_attempts - 1:
                 wait_time = backoff_seconds[attempt]
-                log_info(f"Waiting {wait_time} seconds before retry (exponential backoff)...")
+                log_info(f"Waiting {wait_time}s before retry...")
                 time.sleep(wait_time)
             else:
-                # All attempts exhausted
-                final_error = f"Database connection failed after {max_attempts} attempts: {str(e)[:200]}"
+                final_error = f"Database connection failed after {max_attempts} attempts"
                 log_error(final_error, e)
-                # Additional diagnostic hint
-                if '.database.windows.net' in conn_str:
-                    log_error("DIAGNOSTIC HINT: Azure SQL Server connection failed. Verify: 1) Firewall rules allow Azure services, 2) Credentials are correct, 3) ODBC Driver 17 is available")
-                raise Exception(final_error)
-                    log_error("DIAGNOSTIC HINT: Azure SQL Server requires TLS/SSL. Check firewall rules and FreeTDS configuration.")
                 raise Exception(final_error)
 
 def return_db_connection(conn):
