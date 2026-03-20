@@ -1,6 +1,6 @@
 # Multi-stage build for VXT FastAPI Container
-# Using pymssql (pure Python) - no system ODBC drivers needed
-# Optimized for minimal image size
+# Using pyodbc with ODBC Driver 17 for SQL Server (Azure-optimized)
+# Optimized for minimal image size with excellent Azure SQL compatibility
 
 # Stage 1: Builder
 FROM python:3.11-slim AS builder
@@ -12,15 +12,23 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     find /usr/local/lib/python3.11 -type f -name "*.pyc" -delete && \
     find /usr/local/lib/python3.11 -type f -name "*.pyo" -delete
 
-# Stage 2: Runtime (Lean image - with FreeTDS for pymssql)
+# Stage 2: Runtime (Lean image - with ODBC Driver 17 for SQL Server)
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install FreeTDS (required for pymssql to connect to SQL Server)
+# Install ODBC Driver 17 for SQL Server (Azure SQL native support)
+# Also install curl for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    freetds-dev \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    gnupg \
+    apt-transport-https \
+    ca-certificates && \
+    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set UTF-8 encoding to support special characters and proper console output in Azure
 ENV PYTHONIOENCODING=utf-8
