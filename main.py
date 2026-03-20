@@ -24,13 +24,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
-import mssql_python
+import pyodbc
 import json
 import traceback
 import sys
 from dotenv import load_dotenv
 import logging
 from datetime import datetime as dt
+from azure.identity import DefaultAzureCredential, get_bearer_token_for_user
+import struct
 
 # CRITICAL: Ensure stderr and stdout are unbuffered so errors are captured immediately
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
@@ -121,15 +123,15 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Parse connection string and return mssql-python connection string
+    """Build pyodbc connection string with Azure Managed Identity authentication
     
     Uses SQL_CONNECTION_STRING environment variable in all deployment modes:
-    - LOCAL: Set SQL_CONNECTION_STRING in .env file
-    - DOCKER: Set SQL_CONNECTION_STRING in docker-compose.yml environment
-    - AZURE: Set SQL_CONNECTION_STRING in Azure App Service Configuration
+    - LOCAL: Uses User Id/Password from connection string
+    - AZURE PRODUCTION: Uses Managed Identity (ActiveDirectoryMSI) automatically
+    - User Id/Pwd in connection string are ignored on Azure (Managed Identity takes precedence)
     
-    Expected format: Server=hostname;Database=dbname;User=username;Password=password;
-    or Azure format: Server=hostname,1433;Database=dbname;User Id=username;Password=password;
+    Connection string format: Server=hostname;Database=dbname;[Uid=...;Pwd=...;]
+    (Uid/Pwd optional - required only for local/non-Azure environments)
     """
     
     if not SQL_CONNECTION_STRING:
@@ -137,61 +139,84 @@ def get_db_config():
         return None
     
     # Parse connection string from environment variable
-    # Expected format: Server=...;Database=...;User=...;Password=...;
     config = {}
     for item in SQL_CONNECTION_STRING.split(';'):
         if '=' in item:
             key, value = item.split('=', 1)
             config[key.strip()] = value.strip()
     
-    # Verify required keys are present (handle both 'User' and 'User Id' formats)
     server_key = config.get('Server')
     database_key = config.get('Database')
-    user_key = config.get('User') or config.get('User Id')
-    password_key = config.get('Password')
+    user_key = config.get('User') or config.get('User Id') or config.get('Uid')
+    password_key = config.get('Password') or config.get('Pwd')
     
-    if not server_key or not database_key or not user_key or not password_key:
-        missing = []
-        if not server_key: missing.append('Server')
-        if not database_key: missing.append('Database')
-        if not user_key: missing.append('User or User Id')
-        if not password_key: missing.append('Password')
-        raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}. "
-                        f"Required format: Server=...;Database=...;User(or User Id)=...;Password=...;")
+    if not server_key or not database_key:
+        raise ValueError(f"SQL_CONNECTION_STRING missing required keys. "
+                        f"Required: Server=...;Database=...;")
     
-    # Build connection string for mssql-python (Direct Database Connectivity via TDS)
-    # mssql-python uses semicolon-delimited format but does NOT require Driver= parameter
-    # It connects directly to SQL Server using TDS protocol
+    is_azure = '.database.windows.net' in server_key
+    is_production = ENVIRONMENT in ['production', 'azure']
     
-    conn_str = (
-        f"Server={server_key};"
-        f"Database={database_key};"
-        f"UID={user_key};"
-        f"PWD={password_key};"
-        f"Encrypt=yes;"
-        f"TrustServerCertificate=no;"
-        f"ConnectionTimeout=30"
-    )
-    
-    # Check if this is Azure SQL and log for diagnostics
-    if '.database.windows.net' in server_key:
-        log_info(f"Azure SQL Server detected: {server_key}")
-        log_info("Attempting connection with mssql-python (Direct TDS protocol, no external driver needed)")
+    if is_azure and is_production:
+        # Always use Managed Identity for Azure in production environment
+        log_info(f"Azure SQL detected (production) - using Managed Identity authentication")
+        conn_str = (
+            f"Driver={{ODBC Driver 17 for SQL Server}};"
+            f"Server={server_key};"
+            f"Database={database_key};"
+            f"Authentication=ActiveDirectoryMSI;"
+            f"Encrypt=yes;"
+            f"TrustServerCertificate=no;"
+            f"ConnectionTimeout=30"
+        )
+    elif is_azure and user_key and password_key:
+        # Azure with explicit credentials (for testing/development)
+        log_info(f"Azure SQL with explicit credentials (development mode)")
+        conn_str = (
+            f"Driver={{ODBC Driver 17 for SQL Server}};"
+            f"Server={server_key};"
+            f"Database={database_key};"
+            f"Uid={user_key};"
+            f"Pwd={password_key};"
+            f"Encrypt=yes;"
+            f"TrustServerCertificate=no;"
+            f"ConnectionTimeout=30"
+        )
+    elif not is_azure:
+        # Local SQL Server
+        if not user_key or not password_key:
+            raise ValueError(f"SQL_CONNECTION_STRING missing credentials for local server. "
+                           f"Provide Uid/Pwd: Server=...;Database=...;Uid=...;Pwd=...;")
+        
+        log_info(f"Local SQL Server detected - using explicit authentication (Uid/Pwd)")
+        conn_str = (
+            f"Driver={{ODBC Driver 17 for SQL Server}};"
+            f"Server={server_key};"
+            f"Database={database_key};"
+            f"Uid={user_key};"
+            f"Pwd={password_key};"
+            f"Encrypt=no;"
+            f"ConnectionTimeout=30"
+        )
     else:
-        log_info(f"Local/network SQL Server detected: {server_key}")
+        raise ValueError(f"Cannot determine authentication method. Azure={is_azure}, Production={is_production}, Has Creds={bool(user_key)}")
     
     return conn_str
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
-log_info("Database Driver: mssql-python 1.4.0 with Direct Database Connectivity (TDS protocol)")
+log_info("Database Driver: pyodbc 5.0.1 with Azure Managed Identity support")
 if SQL_CONNECTION_STRING:
-    # Log connection string without exposing password
-    conn_info = SQL_CONNECTION_STRING.split('Password')[0]
-    log_info(f"Connection String Configured: {conn_info}PASSWORD=***;")
+    # Log connection string without exposing credentials
+    conn_safe = SQL_CONNECTION_STRING
+    for key in ['Password', 'Pwd', 'PWD']:
+        if key in SQL_CONNECTION_STRING:
+            conn_safe = conn_safe.split(key)[0] + f"{key}=***;"
+            break
+    log_info(f"Connection String Configured: {conn_safe}")
     # Parse and log individual components
     for item in SQL_CONNECTION_STRING.split(';'):
-        if '=' in item and 'Password' not in item and 'PWD' not in item:
+        if '=' in item and all(x not in item for x in ['Password', 'Pwd', 'PWD']):
             key, value = item.split('=', 1)
             log_info(f"  {key.strip()}: {value.strip()}")
 else:
