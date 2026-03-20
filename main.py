@@ -31,8 +31,6 @@ import sys
 from dotenv import load_dotenv
 import logging
 from datetime import datetime as dt
-from azure.identity import DefaultAzureCredential, get_bearer_token_for_user
-import struct
 
 # CRITICAL: Ensure stderr and stdout are unbuffered so errors are captured immediately
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
@@ -123,15 +121,16 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Build pyodbc connection string with Azure Managed Identity authentication
+    """Parse connection string and return pyodbc connection string with Managed Identity
     
-    Uses SQL_CONNECTION_STRING environment variable in all deployment modes:
-    - LOCAL: Uses User Id/Password from connection string
-    - AZURE PRODUCTION: Uses Managed Identity (ActiveDirectoryMSI) automatically
-    - User Id/Pwd in connection string are ignored on Azure (Managed Identity takes precedence)
+    Uses SQL_CONNECTION_STRING environment variable in all deployment modes.
+    For Azure App Service, uses Managed Identity authentication (no password needed).
     
-    Connection string format: Server=hostname;Database=dbname;[Uid=...;Pwd=...;]
-    (Uid/Pwd optional - required only for local/non-Azure environments)
+    Azure format with Managed Identity:
+    Server=hostname.database.windows.net,1433;Database=dbname;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;ConnectionTimeout=30
+    
+    For local testing with password:
+    Server=hostname;Database=dbname;User Id=username;Password=password;
     """
     
     if not SQL_CONNECTION_STRING:
@@ -147,19 +146,18 @@ def get_db_config():
     
     server_key = config.get('Server')
     database_key = config.get('Database')
-    user_key = config.get('User') or config.get('User Id') or config.get('Uid')
-    password_key = config.get('Password') or config.get('Pwd')
     
     if not server_key or not database_key:
-        raise ValueError(f"SQL_CONNECTION_STRING missing required keys. "
-                        f"Required: Server=...;Database=...;")
+        missing = []
+        if not server_key: missing.append('Server')
+        if not database_key: missing.append('Database')
+        raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}")
     
+    # Check if this is Azure SQL (use Managed Identity) or local SQL (use password)
     is_azure = '.database.windows.net' in server_key
-    is_production = ENVIRONMENT in ['production', 'azure']
     
-    if is_azure and is_production:
-        # Always use Managed Identity for Azure in production environment
-        log_info(f"Azure SQL detected (production) - using Managed Identity authentication")
+    if is_azure:
+        # Azure App Service: Use Managed Identity (automatic token exchange)
         conn_str = (
             f"Driver={{ODBC Driver 17 for SQL Server}};"
             f"Server={server_key};"
@@ -169,54 +167,40 @@ def get_db_config():
             f"TrustServerCertificate=no;"
             f"ConnectionTimeout=30"
         )
-    elif is_azure and user_key and password_key:
-        # Azure with explicit credentials (for testing/development)
-        log_info(f"Azure SQL with explicit credentials (development mode)")
+        log_info(f"Azure SQL Server detected: {server_key}")
+        log_info("Using Managed Identity authentication (no password required)")
+    else:
+        # Local testing: Use password-based authentication
+        user_key = config.get('User') or config.get('User Id')
+        password_key = config.get('Password')
+        
+        if not user_key or not password_key:
+            raise ValueError("Local SQL requires 'User Id' and 'Password' in connection string")
+        
         conn_str = (
             f"Driver={{ODBC Driver 17 for SQL Server}};"
             f"Server={server_key};"
             f"Database={database_key};"
-            f"Uid={user_key};"
-            f"Pwd={password_key};"
+            f"UID={user_key};"
+            f"PWD={password_key};"
             f"Encrypt=yes;"
             f"TrustServerCertificate=no;"
             f"ConnectionTimeout=30"
         )
-    elif not is_azure:
-        # Local SQL Server
-        if not user_key or not password_key:
-            raise ValueError(f"SQL_CONNECTION_STRING missing credentials for local server. "
-                           f"Provide Uid/Pwd: Server=...;Database=...;Uid=...;Pwd=...;")
-        
-        log_info(f"Local SQL Server detected - using explicit authentication (Uid/Pwd)")
-        conn_str = (
-            f"Driver={{ODBC Driver 17 for SQL Server}};"
-            f"Server={server_key};"
-            f"Database={database_key};"
-            f"Uid={user_key};"
-            f"Pwd={password_key};"
-            f"Encrypt=no;"
-            f"ConnectionTimeout=30"
-        )
-    else:
-        raise ValueError(f"Cannot determine authentication method. Azure={is_azure}, Production={is_production}, Has Creds={bool(user_key)}")
+        log_info(f"Local/network SQL Server detected: {server_key}")
     
     return conn_str
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
-log_info("Database Driver: pyodbc 5.0.1 with Azure Managed Identity support")
+log_info("Database Driver: mssql-python 1.4.0 with Direct Database Connectivity (TDS protocol)")
 if SQL_CONNECTION_STRING:
-    # Log connection string without exposing credentials
-    conn_safe = SQL_CONNECTION_STRING
-    for key in ['Password', 'Pwd', 'PWD']:
-        if key in SQL_CONNECTION_STRING:
-            conn_safe = conn_safe.split(key)[0] + f"{key}=***;"
-            break
-    log_info(f"Connection String Configured: {conn_safe}")
+    # Log connection string without exposing password
+    conn_info = SQL_CONNECTION_STRING.split('Password')[0]
+    log_info(f"Connection String Configured: {conn_info}PASSWORD=***;")
     # Parse and log individual components
     for item in SQL_CONNECTION_STRING.split(';'):
-        if '=' in item and all(x not in item for x in ['Password', 'Pwd', 'PWD']):
+        if '=' in item and 'Password' not in item and 'PWD' not in item:
             key, value = item.split('=', 1)
             log_info(f"  {key.strip()}: {value.strip()}")
 else:
