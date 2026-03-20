@@ -24,7 +24,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
-import pymssql
+import pyodbc
 import json
 import traceback
 import sys
@@ -121,7 +121,7 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Parse connection string and return pymssql connection parameters
+    """Parse connection string and return pyodbc connection string
     
     Uses SQL_CONNECTION_STRING environment variable in all deployment modes:
     - LOCAL: Set SQL_CONNECTION_STRING in .env file
@@ -129,7 +129,7 @@ def get_db_config():
     - AZURE: Set SQL_CONNECTION_STRING in Azure App Service Configuration
     
     Expected format: Server=hostname;Database=dbname;User=username;Password=password;
-    or Azure format: Server=hostname,1433;Database=dbname;User=username;Password=password;
+    or Azure format: Server=hostname,1433;Database=dbname;User Id=username;Password=password;
     """
     
     if not SQL_CONNECTION_STRING:
@@ -159,44 +159,31 @@ def get_db_config():
         raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}. "
                         f"Required format: Server=...;Database=...;User(or User Id)=...;Password=...;")
     
-    # Extract server and port separately (Azure format: Server=hostname,port)
-    server_with_port = server_key
-    if ',' in server_with_port:
-        # Format: vxtdb.database.windows.net,1433
-        server, port = server_with_port.split(',')
-        port = int(port)
-    else:
-        # Format: localhost or vxtdb.database.windows.net
-        server = server_with_port
-        port = 1433  # Default SQL Server port
+    # Build pyodbc connection string
+    # For Azure SQL, use ODBC Driver 17 for SQL Server
+    # Format: "Driver={ODBC Driver 17 for SQL Server};Server=hostname,1433;Database=dbname;UID=username;PWD=password;"
     
-    # Add Azure SQL-specific settings for compatibility
-    config_dict = {
-        'server': server,
-        'port': port,
-        'database': database_key,
-        'user': user_key,
-        'password': password_key,
-        'timeout': 120,
-        'as_dict': False,
-    }
+    conn_str = f"Driver={{ODBC Driver 17 for SQL Server}};Server={server_key};Database={database_key};UID={user_key};PWD={password_key};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
     
     # Check if this is Azure SQL and log for diagnostics
-    if '.database.windows.net' in server:
-        log_info(f"Azure SQL Server detected: {server}")
+    if '.database.windows.net' in server_key:
+        log_info(f"Azure SQL Server detected: {server_key}")
+        log_info("Using ODBC Driver 17 for SQL Server with TLS encryption")
+    else:
+        log_info(f"Local/network SQL Server detected: {server_key}")
     
-    return config_dict
+    return conn_str
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
-log_info("Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
+log_info("Database Driver: pyodbc 5.0.1 with ODBC Driver 17 for SQL Server (Azure-optimized)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
     conn_info = SQL_CONNECTION_STRING.split('Password')[0]
     log_info(f"Connection String Configured: {conn_info}PASSWORD=***;")
     # Parse and log individual components
     for item in SQL_CONNECTION_STRING.split(';'):
-        if '=' in item and 'Password' not in item:
+        if '=' in item and 'Password' not in item and 'PWD' not in item:
             key, value = item.split('=', 1)
             log_info(f"  {key.strip()}: {value.strip()}")
 else:
@@ -220,7 +207,7 @@ async def startup_event():
     try:
         log_info("===== FastAPI Startup Started =====")
         log_info(f"Environment: {ENVIRONMENT}")
-        log_info(f"Connection Driver: FreeTDS")
+        log_info(f"Connection Driver: ODBC Driver 17 for SQL Server (via pyodbc)")
         log_info(f"PID: {os.getpid()}")
         log_info("===== FastAPI Startup Complete =====")
     except Exception as e:
@@ -340,7 +327,7 @@ try:
     async def general_exception_handler(request, exc):
         """Handle general exceptions with proper error message and CORS headers"""
         error_msg = str(exc)
-        if "database" in error_msg.lower() or "pymssql" in error_msg.lower():
+        if "database" in error_msg.lower() or "pyodbc" in error_msg.lower() or "odbc" in error_msg.lower():
             error_category = "Database Connection Error"
             suggestion = "Check that Azure SQL database is accessible and schema is deployed."
         elif "timeout" in error_msg.lower():
@@ -392,8 +379,8 @@ import time
 
 def get_db_connection():
     """Get database connection with exponential backoff retry for cold start Azure SQL"""
-    config = get_db_config()
-    if config is None:
+    conn_str = get_db_config()
+    if conn_str is None:
         error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
         log_error(error_msg)
         raise Exception(error_msg)
@@ -406,12 +393,11 @@ def get_db_connection():
         try:
             attempt_num = attempt + 1
             log_info(f"Attempting database connection (attempt {attempt_num}/{max_attempts})")
-            log_info(f"  Server: {config.get('server')}:{config.get('port')}")
-            log_info(f"  Database: {config.get('database')}")
-            log_info(f"  User: {config.get('user')}")
-            log_info(f"  Timeout: {config.get('timeout')}s (for cold start tolerance)")
+            log_info(f"  Driver: ODBC Driver 17 for SQL Server")
+            log_info(f"  Timeout: 30s (for cold start tolerance)")
             
-            conn = pymssql.connect(**config)
+            # Use pyodbc.connect with connection string
+            conn = pyodbc.connect(conn_str, timeout=30)
             log_info(f"Database connection successful on attempt {attempt_num}")
             return conn
         except Exception as e:
@@ -419,12 +405,15 @@ def get_db_connection():
             attempt_num = attempt + 1
             
             # Provide diagnostic info for common Azure SQL errors
-            if '20009' in error_msg or 'Unknown error' in error_msg:
-                log_error(f"Connection attempt {attempt_num} - TLS/SSL Error (20009): {error_msg}", e)
-                log_info("  Likely cause: TLS certificate validation or FreeTDS SSL configuration issue")
+            if 'certificate' in error_msg.lower() or 'tls' in error_msg.lower():
+                log_error(f"Connection attempt {attempt_num} - TLS/Certificate Error: {error_msg}", e)
+                log_info("  Likely cause: Certificate validation issue (now fixed with ODBC Driver 17)")
             elif 'timeout' in error_msg.lower():
                 log_error(f"Connection attempt {attempt_num} - Timeout: {error_msg}", e)
                 log_info("  Likely cause: Server unresponsive or network issue")
+            elif 'login' in error_msg.lower():
+                log_error(f"Connection attempt {attempt_num} - Login/Auth Error: {error_msg}", e)
+                log_info("  Likely cause: Invalid credentials - check UID/PWD in connection string")
             else:
                 log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
             
@@ -437,7 +426,9 @@ def get_db_connection():
                 final_error = f"Database connection failed after {max_attempts} attempts: {str(e)[:200]}"
                 log_error(final_error, e)
                 # Additional diagnostic hint
-                if '.database.windows.net' in config.get('server', ''):
+                if '.database.windows.net' in conn_str:
+                    log_error("DIAGNOSTIC HINT: Azure SQL Server connection failed. Verify: 1) Firewall rules allow Azure services, 2) Credentials are correct, 3) ODBC Driver 17 is available")
+                raise Exception(final_error)
                     log_error("DIAGNOSTIC HINT: Azure SQL Server requires TLS/SSL. Check firewall rules and FreeTDS configuration.")
                 raise Exception(final_error)
 
