@@ -143,8 +143,8 @@ def get_db_config():
     
     server_key = config.get('Server')
     database_key = config.get('Database')
-    user_key = config.get('User') or config.get('User Id')
-    password_key = config.get('Password')
+    user_key = config.get('User') or config.get('User Id') or config.get('UID')
+    password_key = config.get('Password') or config.get('PWD')
     
     if not server_key or not database_key or not user_key or not password_key:
         missing = []
