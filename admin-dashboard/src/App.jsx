@@ -14,6 +14,7 @@ import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 import CustomerGeofencePage from './pages/CustomerGeofencePage';
 
+// Dashboard: v5.0 - Production ready deployment
 export default function App() {
   const [currentPage, setCurrentPage] = useState('telemetry');
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);

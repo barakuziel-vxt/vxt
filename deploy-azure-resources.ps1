@@ -1,6 +1,6 @@
 # ============================================================================
 # Azure VXT Deployment Automation Script
-# Deploys Web App F1 + Function App Y1 with Docker configuration
+# Deploys Web App F1 + Function App Y1 with Python code deployment
 # ============================================================================
 
 param(
@@ -11,8 +11,6 @@ param(
     [string]$FunctionAppName = "vxt-function",
     [string]$StorageAccountName = "vxtstorage",
     [string]$SqlServerName = "vxtdb",
-    [string]$DockerUsername = "barakdoc",
-    [string]$DockerImage = "barakdoc/vxt-web-app:latest",
     [string]$SkuWebApp = "F1",
     [string]$SkuFunction = "Y1"
 )
@@ -152,7 +150,7 @@ if ($webAppExists) {
         --name $WebAppName `
         --resource-group $ResourceGroup `
         --plan $webPlanName `
-        --deployment-container-image-name $DockerImage
+        --runtime python:3.11
     
     if ($LASTEXITCODE -eq 0) {
         Write-Status "Web App created" "success"
@@ -182,22 +180,18 @@ az webapp config appsettings set `
     --settings `
         WEBSITES_PORT=8000 `
         ENVIRONMENT=production `
-        SQL_CONNECTION_STRING="Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net,1433;Database=vxtdb;Uid=vxtadmin;Pwd=$SqlPassword;" `
-        DOCKER_REGISTRY_SERVER_URL="https://index.docker.io" `
-        DOCKER_REGISTRY_SERVER_USERNAME=$DockerUsername `
-        DOCKER_ENABLE_CI=true
+        SQL_CONNECTION_STRING="Driver={ODBC Driver 17 for SQL Server};Server=vxtdb.database.windows.net,1433;Database=vxtdb;Uid=vxtadmin;Pwd=$SqlPassword;"
 
 Write-Status "Web App configured with environment variables" "success"
 
-# Configure container
-Write-Host "Configuring container settings..."
-az webapp config container set `
+# Configure Python startup
+Write-Host "Configuring Python startup command..."
+az webapp config set `
     --name $WebAppName `
     --resource-group $ResourceGroup `
-    --docker-custom-image-name $DockerImage `
-    --docker-registry-server-url "https://index.docker.io"
+    --startup-file "gunicorn -w 4 -k uvicorn.workers.UvicornWorker api_flask:app"
 
-Write-Status "Container configured" "success"
+Write-Status "Python startup configured" "success"
 
 # ============================================================================
 # STEP 8: CREATE FUNCTION APP
@@ -215,8 +209,7 @@ if ($funcAppExists) {
         --storage-account $StorageAccountName `
         --runtime python `
         --runtime-version 3.11 `
-        --functions-version 4 `
-        --deployment-container-image-name $DockerImage
+        --functions-version 4
     
     if ($LASTEXITCODE -eq 0) {
         Write-Status "Function App created" "success"
@@ -269,21 +262,16 @@ Write-Host "  Storage Account: $StorageAccountName"
 # ============================================================================
 Write-Host "`n$Yellow=== STEP 11: Next Steps ===$Reset`n"
 
-Write-Host "1. $Green Build and Push Docker Images:$Reset"
-Write-Host "   docker build -t barakdoc/vxt-web-app:latest ."
-Write-Host "   docker push barakdoc/vxt-web-app:latest"
+Write-Host "1. $Green Deploy Code (Web App):$Reset"
+Write-Host "   - GitHub Actions will automatically deploy on push to prod branch"
+Write-Host "   - Ensure AZURE_PUBLISH_PROFILE secret is configured in GitHub"
 
-Write-Host "`n2. $Green Configure Deployment (Web App):$Reset"
-Write-Host "   - Go to Azure Portal > Web App > Deployment Center"
-Write-Host "   - Select Container Registry: Docker Hub"
-Write-Host "   - Image: barakdoc/vxt-web-app:latest"
+Write-Host "\n2. $Green Deploy Function App:$Reset"
+Write-Host "   - GitHub Actions will automatically deploy on push to azure-functions/"
+Write-Host "   - Ensure AZURE_CREDENTIALS secret is configured in GitHub"
 
-Write-Host "`n3. $Green Configure Deployment (Function App):$Reset"
-Write-Host "   - Go to Azure Portal > Function App > Deployment Center"
-Write-Host "   - Select Container Registry: Docker Hub"
-Write-Host "   - Image: barakdoc/vxt-web-app:latest (for now, update later)"
-
-Write-Host "`n4. $Green Test Health Endpoints:$Reset"
-Write-Host "   curl https://$webAppUrl"
+Write-Host "\n3. $Green Test Health Endpoints:$Reset"
+Write-Host "   curl https://$webAppUrl/health/db"
+Write-Host "   curl https://$funcAppUrl/api/health"
 
 Write-Host "`n$Green=== Deployment Script Complete ===$Reset`n"

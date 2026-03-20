@@ -1,43 +1,12 @@
-name: Deploy Python Code to Azure Web App
+# DEPRECATED - USE deploy-web-app-to-azure.yml INSTEAD
+# This file is being removed and replaced by deploy-web-app-to-azure.yml
+# Do not use this workflow - it will be deleted in the next commit
+
+name: DEPRECATED-Deploy-Python-Code-DO-NOT-USE
 
 on:
-  push:
-    branches:
-      - prod
   workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Verify imports
-        run: |
-          python -c "import fastapi; import uvicorn; import pymssql; print('✓ All dependencies loaded')"
-      
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: vxt-web-app
-          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: .
-      
-      - name: Deployment Summary
-        run: |
-          echo "✅ Deployment Complete"
-          echo "App: https://vxt-web-app.azurewebsites.net"
-          echo "Health Check: https://vxt-web-app.azurewebsites.net/health/db"
-          echo "Note: Startup is configured in Azure App Service settings"
+    branches:
+      - NEVER_TRIGGER
+    paths:
+      - '.never-match-any-path/*'

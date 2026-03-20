@@ -15,6 +15,8 @@ Setup:
 
 Processing flow:
 Event from Raspberry Pi → IoT Hub → Function Trigger → TelemetryProcessor → SQL Insert
+
+# Deployment: v5.0 - Production ready deployment
 """
 
 import azure.functions as func
