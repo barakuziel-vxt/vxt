@@ -66,27 +66,41 @@ jobs:
         ls -la function_app.py host.json requirements.txt
         echo "✓ All required files present"
     
+    - name: Install Azure Functions Core Tools
+      run: |
+        echo "Installing Azure Functions Core Tools..."
+        npm install -g azure-functions-core-tools@4 --unsafe-perm=true
+        echo "✓ Azure Functions Core Tools installed"
+    
     - name: Deploy to Azure Function
       run: |
         echo "Step: Deploying to Azure Function..."
         cd ${{ env.FUNCTION_DIR }}
-        echo "Current directory: $(pwd)"
-        echo "Files present:"
+        
+        # Create local.settings.json if it doesn't exist
+        if [ ! -f local.settings.json ]; then
+          echo "Creating local.settings.json..."
+          cat > local.settings.json <<EOF
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": ""
+  }
+}
+EOF
+        fi
+        
+        echo "Files to deploy:"
         ls -la
         
-        echo "Running az functionapp up command..."
-        az functionapp up \
-          --name ${{ env.FUNCTION_APP_NAME }} \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --runtime python \
-          --runtime-version ${{ env.PYTHON_VERSION }} \
-          --functions-version 4 \
+        echo "Deploying function app..."
+        func azure functionapp publish ${{ env.FUNCTION_APP_NAME }} \
           --build remote \
-          --verbose
+          --python
         
         deployment_status=$?
         if [ $deployment_status -eq 0 ]; then
-          echo "✓ Deployment command completed successfully"
+          echo "✓ Deployment completed successfully"
         else
           echo "❌ Deployment failed with exit code: $deployment_status"
           exit $deployment_status
