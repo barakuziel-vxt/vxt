@@ -32,10 +32,10 @@
 
 ```
 Name: IoTHubConnectionString
-Value: HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=fWmQKA04f6DhGHrMLxPYM6eY7PkNmRAjnAIoTH2GGF8=
+Value: ${IOT_HUB_CONNECTION_STRING}
 
 Name: SQL_CONNECTION_STRING
-Value: Server=vxtdb.database.windows.net;Database=free-sql-db-5949639;User=vxt;Password=Barak1976!;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;
+Value: ${SQL_CONNECTION_STRING}
 
 Name: DB_SERVER
 Value: vxtdb.database.windows.net
@@ -44,10 +44,10 @@ Name: DB_NAME
 Value: free-sql-db-5949639
 
 Name: DB_USER
-Value: vxt
+Value: ${DB_USER}
 
 Name: DB_PASSWORD
-Value: Barak1976!
+Value: ${DB_PASSWORD}
 
 Name: PROVIDER_NAME
 Value: N2KToSignalK
