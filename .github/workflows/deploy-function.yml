@@ -30,38 +30,66 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
     
+    - name: Verify credentials exist
+      run: |
+        echo "Checking AZURE_CREDENTIALS secret..."
+        if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+          echo "❌ ERROR: AZURE_CREDENTIALS secret is empty!"
+          exit 1
+        fi
+        echo "✓ AZURE_CREDENTIALS secret is set"
+    
     - name: Install dependencies
       working-directory: ${{ env.FUNCTION_DIR }}
       run: |
+        echo "Step: Installing Python dependencies..."
         python -m pip install --upgrade pip
+        echo "Installing requirements.txt packages..."
         pip install -r requirements.txt
+        echo "✓ Dependencies installed successfully"
     
     - name: Login to Azure
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
+    - name: Verify Azure login
+      run: |
+        echo "Verifying Azure login..."
+        az account show
+        echo "✓ Azure login successful"
+    
     - name: Verify Function Files
       working-directory: ${{ env.FUNCTION_DIR }}
       run: |
-        echo "Checking function files..."
+        echo "Step: Checking function files..."
         ls -la function_app.py host.json requirements.txt
         echo "✓ All required files present"
     
     - name: Deploy to Azure Function
       run: |
+        echo "Step: Deploying to Azure Function..."
         cd ${{ env.FUNCTION_DIR }}
+        echo "Current directory: $(pwd)"
+        echo "Files present:"
+        ls -la
+        
+        echo "Running az functionapp up command..."
         az functionapp up \
           --name ${{ env.FUNCTION_APP_NAME }} \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --runtime python \
           --runtime-version ${{ env.PYTHON_VERSION }} \
           --functions-version 4 \
-          --build remote
-        if [ $? -eq 0 ]; then
-          echo "✓ Deployment command completed"
+          --build remote \
+          --verbose
+        
+        deployment_status=$?
+        if [ $deployment_status -eq 0 ]; then
+          echo "✓ Deployment command completed successfully"
         else
-          echo "⚠ Deployment completed with exit code: $?"
+          echo "❌ Deployment failed with exit code: $deployment_status"
+          exit $deployment_status
         fi
 
   test:
