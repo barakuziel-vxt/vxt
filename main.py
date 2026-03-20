@@ -24,7 +24,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
-import pyodbc
+import mssql_python
 import json
 import traceback
 import sys
@@ -121,7 +121,7 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_config():
-    """Parse connection string and return pyodbc connection string
+    """Parse connection string and return mssql-python connection string
     
     Uses SQL_CONNECTION_STRING environment variable in all deployment modes:
     - LOCAL: Set SQL_CONNECTION_STRING in .env file
@@ -159,13 +159,11 @@ def get_db_config():
         raise ValueError(f"SQL_CONNECTION_STRING missing required keys: {missing}. "
                         f"Required format: Server=...;Database=...;User(or User Id)=...;Password=...;")
     
-    # Build connection string - try multiple approaches
-    # Primary: ODBC Driver 17 for SQL Server (preferred for Azure SQL)
-    # Fallback: Let pyodbc auto-select best available driver
+    # Build connection string for mssql-python (Direct Database Connectivity via TDS)
+    # mssql-python uses semicolon-delimited format but does NOT require Driver= parameter
+    # It connects directly to SQL Server using TDS protocol
     
-    # For Azure SQL with modern encryption
     conn_str = (
-        f"Driver={{ODBC Driver 17 for SQL Server}};"
         f"Server={server_key};"
         f"Database={database_key};"
         f"UID={user_key};"
@@ -178,7 +176,7 @@ def get_db_config():
     # Check if this is Azure SQL and log for diagnostics
     if '.database.windows.net' in server_key:
         log_info(f"Azure SQL Server detected: {server_key}")
-        log_info("Attempting connection with ODBC Driver 17 for SQL Server (TLS encrypted)")
+        log_info("Attempting connection with mssql-python (Direct TDS protocol, no external driver needed)")
     else:
         log_info(f"Local/network SQL Server detected: {server_key}")
     
@@ -186,7 +184,7 @@ def get_db_config():
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
-log_info("Database Driver: pyodbc 5.0.1 with ODBC Driver 17 for SQL Server (Azure-optimized)")
+log_info("Database Driver: mssql-python 1.4.0 with Direct Database Connectivity (TDS protocol)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
     conn_info = SQL_CONNECTION_STRING.split('Password')[0]
@@ -397,15 +395,7 @@ def get_db_connection():
     
     # Check available ODBC drivers for diagnostics
     try:
-        available_drivers = pyodbc.drivers()
-        log_info(f"Available ODBC drivers: {available_drivers}")
-        if 'ODBC Driver 17 for SQL Server' in available_drivers:
-            log_info("✓ ODBC Driver 17 for SQL Server is installed and available")
-        else:
-            log_warn("⚠ ODBC Driver 17 for SQL Server NOT found in available drivers")
-            log_warn(f"  Available drivers: {', '.join(available_drivers) if available_drivers else 'NONE'}")
-    except Exception as e:
-        log_warn(f"Could not enumerate ODBC drivers: {str(e)}")
+    log_info(f"Using mssql-python driver (no external ODBC driver dependencies required)")
     
     # Retry up to 5 times with exponential backoff for Azure SQL cold start
     max_attempts = 5
@@ -415,9 +405,7 @@ def get_db_connection():
         try:
             attempt_num = attempt + 1
             log_info(f"Attempting database connection (attempt {attempt_num}/{max_attempts})")
-            conn = pyodbc.connect(conn_str, timeout=30)
-            log_info(f"✓ Database connection successful on attempt {attempt_num}")
-            return conn
+            conn = mssql_python.connect(conn_str
         except Exception as e:
             error_msg = str(e)[:200]
             attempt_num = attempt + 1
