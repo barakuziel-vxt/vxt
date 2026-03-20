@@ -48,32 +48,6 @@ jobs:
         ls -la function_app.py host.json requirements.txt
         echo "✓ All required files present"
     
-    - name: Configure App Settings
-      run: |
-        # Configure basic settings (DB password and IoT Hub connection are optional secrets)
-        if [ -z "${{ secrets.DB_PASSWORD }}" ] || [ -z "${{ secrets.IOT_HUB_CONNECTION_STRING }}" ]; then
-          echo "⚠ Warning: DB_PASSWORD or IOT_HUB_CONNECTION_STRING secrets not configured"
-          echo "Setting only mandatory app settings..."
-          az functionapp config appsettings set \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --settings \
-              FUNCTIONS_WORKER_RUNTIME="python"
-        else
-          echo "Configuring all app settings..."
-          az functionapp config appsettings set \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --settings \
-              PROVIDER_NAME="N2KToSignalK" \
-              DB_SERVER="vxtdb.database.windows.net" \
-              DB_NAME="vxtdb" \
-              DB_USER="vxtadmin" \
-              DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
-              FUNCTIONS_WORKER_RUNTIME="python"
-        fi
-    
     - name: Deploy to Azure Function
       run: |
         cd ${{ env.FUNCTION_DIR }}
