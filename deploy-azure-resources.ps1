@@ -5,7 +5,7 @@
 
 param(
     [string]$SubscriptionName = "",
-    [string]$ResourceGroup = "vxt-rg",
+    [string]$ResourceGroup = "VXT-IoT-Hub",
     [string]$Location = "northeurope",
     [string]$WebAppName = "vxt-web-app",
     [string]$FunctionAppName = "vxt-function",

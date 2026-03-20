@@ -5,9 +5,9 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PROVIDER_NAME": "N2KToSignalK",
     "DB_SERVER": "vxtdb.database.windows.net",
-    "DB_NAME": "vxtdb",
-    "DB_USER": "vxtadmin",
-    "DB_PASSWORD": "Barak1008!",
+    "DB_NAME": "free-sql-db-5949639",
+    "DB_USER": "vxt",
+    "DB_PASSWORD": "Barak1976!",
     "IoTHubConnectionString": "HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=YOUR_IOT_HUB_KEY_HERE"
   },
   "ConnectionStrings": {}

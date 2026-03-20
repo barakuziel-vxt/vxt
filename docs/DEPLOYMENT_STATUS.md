@@ -10,7 +10,7 @@
 - [x] All analytics endpoints fixed and verified (200 OK)
 
 ### 2. **Azure Infrastructure**
-- [x] **Resource Group**: `vxt-rg` (North Europe)
+- [x] **Resource Group**: `VXT-IoT-Hub` (North Europe)
 - [x] **SQL Database**: `vxtdb.database.windows.net` (North Europe)
 - [x] **Storage Account**: `vxtstorage` (North Europe)
 - [x] **IoT Hub**: `vxt-iot-hub` (North Europe)
@@ -188,7 +188,7 @@ Image URL: docker pull barakdoc/vxt-web-app:latest
 ### Azure Credentials
 ```
 Subscription ID: 0d48ff3b-92f5-4d0e-b5d0-73a5e9ffebbb
-Resource Group: vxt-rg (North Europe)
+Resource Group: VXT-IoT-Hub (North Europe)
 Web App: vxt-admin-app
 SQL Server: vxtdb.database.windows.net
 ```

@@ -52,7 +52,7 @@ az acr login --name vxtwapp
 docker push vxtwapp.azurecr.io/vxt-api:latest
 
 # Step 4: Restart app
-az webapp restart --name vxt-web-app-g5gbaee2f4bmgphb --resource-group vxt-rg
+az webapp restart --name vxt-web-app-g5gbaee2f4bmgphb --resource-group VXT-IoT-Hub
 ```
 
 ---
@@ -78,7 +78,7 @@ curl https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net/
 
 ### Check Azure Logs
 ```powershell
-az webapp log tail --name vxt-web-app-g5gbaee2f4bmgphb --resource-group vxt-rg
+az webapp log tail --name vxt-web-app-g5gbaee2f4bmgphb --resource-group VXT-IoT-Hub
 ```
 
 ### Common Issues
