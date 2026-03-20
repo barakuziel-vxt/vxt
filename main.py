@@ -385,6 +385,18 @@ def get_db_connection():
         log_error(error_msg)
         raise Exception(error_msg)
     
+    # Check available ODBC drivers for diagnostics
+    try:
+        available_drivers = pyodbc.drivers()
+        log_info(f"Available ODBC drivers: {available_drivers}")
+        if 'ODBC Driver 17 for SQL Server' in available_drivers:
+            log_info("✓ ODBC Driver 17 for SQL Server is installed and available")
+        else:
+            log_warn("⚠ ODBC Driver 17 for SQL Server NOT found in available drivers")
+            log_info(f"  Available drivers: {', '.join(available_drivers)}")
+    except Exception as e:
+        log_warn(f"Could not enumerate ODBC drivers: {str(e)}")
+    
     # Retry up to 5 times with exponential backoff for Azure SQL cold start
     max_attempts = 5
     backoff_seconds = [2, 5, 10, 20, 30]  # Exponential backoff delays
