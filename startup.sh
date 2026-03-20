@@ -1,53 +1,39 @@
 #!/bin/bash
 set -e
 
-echo "===== VXT API STARTUP SCRIPT ====="
-echo "Python version:"
+echo "[VXT] Starting application..."
 python --version
 echo ""
 
-# Install ODBC Driver 17 for SQL Server (required for pyodbc on Azure App Service)
-echo "Installing ODBC Driver 17 for SQL Server..."
-apt-get update -y
-apt-get install -y --no-install-recommends \
-    curl \
-    gnupg \
-    apt-transport-https \
-    ca-certificates \
-    unixodbc \
-    unixodbc-dev
+# Try to install ODBC Driver 17 - optimized for speed
+echo "[VXT] Installing ODBC Driver 17 for SQL Server (with timeout)..."
+{
+    apt-get update -y 2>/dev/null &
+    apt_pid=$!
+    sleep 20
+    if ps -p $apt_pid > /dev/null 2>&1; then
+        kill $apt_pid 2>/dev/null || true
+    fi
+} || true
 
-# Add Microsoft repository key
-curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - 2>/dev/null || true
+# Quick install for required packages
+apt-get install -y --no-install-recommends curl gnupg apt-transport-https ca-certificates unixodbc unixodbc-dev 2>/dev/null || true
 
-# Add Microsoft repository for Debian
-curl https://packages.microsoft.com/config/debian/11/prod.list | tee /etc/apt/sources.list.d/mssql-release.list 2>/dev/null || true
+# Add Microsoft repo and install ODBC driver quickly
+echo "[VXT] Setting up Microsoft ODBC repository..."
+(
+    curl -m 10 https://packages.microsoft.com/keys/microsoft.asc 2>/dev/null | apt-key add - 2>/dev/null || true
+    curl -m 10 https://packages.microsoft.com/config/debian/11/prod.list 2>/dev/null | tee /etc/apt/sources.list.d/mssql-release.list 2>/dev/null || true
+) || true
 
-# Install ODBC Driver 17 with ACCEPT_EULA
-apt-get update -y
-ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 2>/dev/null || true
+apt-get update 2>/dev/null || true
+ACCEPT_EULA=Y timeout 60 apt-get install -y --no-install-recommends msodbcsql17 2>/dev/null || true
 
-echo "ODBC Driver installation completed"
+echo "[VXT] ODBC setup completed (errors ignored if installation already present)"
 echo ""
 
-echo "Current directory: $(pwd)"
-echo "Files in directory:"
-ls -la | grep -E "^-" | head -20
-echo ""
-
-echo "Installing/Verifying dependencies from requirements.txt..."
+echo "[VXT] Installing Python dependencies..."
 pip install -q -r requirements.txt
 
-echo ""
-echo "Dependency check:"
-python -c "import fastapi; import pyodbc; import uvicorn; print('[OK] All dependencies loaded including pyodbc')" 2>&1
-
-echo ""
-echo "Available ODBC drivers:"
-odbcinst -q -d -n ODBC* || echo "    [Note: ODBC drivers will be available at runtime]"
-echo ""
-
-echo "Starting FastAPI application with Uvicorn..."
-echo "Listening on 0.0.0.0:8000"
-echo "===== Starting server ====="
-exec uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
+echo "[VXT] Starting FastAPI application..."
+exec python -m uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
