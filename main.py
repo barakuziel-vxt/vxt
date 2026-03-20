@@ -29,34 +29,16 @@ import json
 import traceback
 import sys
 from dotenv import load_dotenv
+import logging
+from datetime import datetime as dt
 
 # CRITICAL: Ensure stderr and stdout are unbuffered so errors are captured immediately
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
 sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
 
-log_info("===== APP INITIALIZATION STARTED =====")
-log_info(f"PID: {os.getpid()}")
-log_info(f"Python version: {sys.version}")
-
-log_info("===== YACHT TELEMETRY API INITIALIZATION STARTED =====")
-log_info(f"Process ID (PID): {os.getpid()}")
-log_info(f"Timestamp: {dt.now().isoformat()}")
-log_info(f"Python: {sys.version.split()[0]}")
-
-try:
-    # Load environment variables from .env file (for local/docker environments)
-    load_dotenv()
-    log_info("Environment variables loaded successfully")
-except Exception as e:
-    log_error_detailed("Failed to load environment variables", e)
-    raise
-
 # ============================================================================
-# LOGGING UTILITIES - Captures all logs for Azure Activity Log Stream
+# LOGGING UTILITIES - MUST BE FIRST (before any log calls)
 # ============================================================================
-
-import logging
-from datetime import datetime as dt
 
 # Configure Python logging to write to stdout (captured by Azure)
 logging.basicConfig(
@@ -105,14 +87,29 @@ def log_error_detailed(msg: str, exc=None):
             if line.strip():
                 print(f"[{dt.now().strftime('%Y-%m-%d %H:%M:%S')}] [TRACEBACK] {line}", flush=True)
 
-# ============================================================================
-# ERROR LOGGING HELPER - Ensures errors are captured by Azure logging
-# ============================================================================
-def log_error(error_msg: str, exc=None):
-    """Log error to both stdout and stderr with traceback"""
-    print(f"[ERROR] {error_msg}", file=sys.stdout, flush=True)
-    print(f"[ERROR] {error_msg}", file=sys.stderr, flush=True)
-    log_error_detailed(error_msg, exc)
+def log_error(msg: str, exc=None):
+    """Log error message"""
+    log_error_detailed(msg, exc)
+
+# NOW we can safely call logging functions
+
+log_info("===== APP INITIALIZATION STARTED =====")
+log_info(f"PID: {os.getpid()}")
+log_info(f"Python version: {sys.version}")
+
+try:
+    # Load environment variables from .env file (for local/docker environments)
+    load_dotenv()
+    log_info("Environment variables loaded successfully")
+except Exception as e:
+    log_error_detailed("Failed to load environment variables", e)
+    raise
+    log_message("ERROR", msg, exc_info=exc)
+    if exc:
+        tb_lines = traceback.format_exc().split('\n')
+        for line in tb_lines:
+            if line.strip():
+                print(f"[{dt.now().strftime('%Y-%m-%d %H:%M:%S')}] [TRACEBACK] {line}", flush=True)
 
 # ============================================================================
 # ENVIRONMENT DETECTION & CONFIGURATION
@@ -173,15 +170,22 @@ def get_db_config():
         server = server_with_port
         port = 1433  # Default SQL Server port
     
-    return {
+    # Add Azure SQL-specific settings for compatibility
+    config_dict = {
         'server': server,
         'port': port,
         'database': database_key,
         'user': user_key,
         'password': password_key,
         'timeout': 120,
-        'as_dict': False
+        'as_dict': False,
     }
+    
+    # Check if this is Azure SQL and log for diagnostics
+    if '.database.windows.net' in server:
+        log_info(f"Azure SQL Server detected: {server}")
+    
+    return config_dict
 
 log_info("===== DATABASE CONFIGURATION =====")
 log_info(f"Deployment Mode: {ENVIRONMENT.upper()}")
@@ -408,12 +412,21 @@ def get_db_connection():
             log_info(f"  Timeout: {config.get('timeout')}s (for cold start tolerance)")
             
             conn = pymssql.connect(**config)
-            log_info(f"✓ Database connection successful on attempt {attempt_num}")
+            log_info(f"Database connection successful on attempt {attempt_num}")
             return conn
         except Exception as e:
-            error_msg = str(e)[:150]
+            error_msg = str(e)[:200]
             attempt_num = attempt + 1
-            log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
+            
+            # Provide diagnostic info for common Azure SQL errors
+            if '20009' in error_msg or 'Unknown error' in error_msg:
+                log_error(f"Connection attempt {attempt_num} - TLS/SSL Error (20009): {error_msg}", e)
+                log_info("  Likely cause: TLS certificate validation or FreeTDS SSL configuration issue")
+            elif 'timeout' in error_msg.lower():
+                log_error(f"Connection attempt {attempt_num} - Timeout: {error_msg}", e)
+                log_info("  Likely cause: Server unresponsive or network issue")
+            else:
+                log_error(f"Connection attempt {attempt_num} failed: {error_msg}", e)
             
             if attempt < max_attempts - 1:
                 wait_time = backoff_seconds[attempt]
@@ -421,8 +434,11 @@ def get_db_connection():
                 time.sleep(wait_time)
             else:
                 # All attempts exhausted
-                final_error = f"Database connection failed after {max_attempts} attempts: {str(e)[:150]}"
+                final_error = f"Database connection failed after {max_attempts} attempts: {str(e)[:200]}"
                 log_error(final_error, e)
+                # Additional diagnostic hint
+                if '.database.windows.net' in config.get('server', ''):
+                    log_error("DIAGNOSTIC HINT: Azure SQL Server requires TLS/SSL. Check firewall rules and FreeTDS configuration.")
                 raise Exception(final_error)
 
 def return_db_connection(conn):
