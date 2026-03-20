@@ -1,24 +1,41 @@
 # Azure Deployment Summary - Current Status
 
+## ⚠️ **ISSUES IDENTIFIED**
+
+### **CRITICAL ISSUES** 🔴
+1. **Backend API Database Connection Failure**
+   - vxt-web-app deployed to Azure
+   - Unable to connect to SQL database
+   - Status: Investigating connection string and firewall rules
+
+2. **Azure Function Not Processing Messages**
+   - Function app deployed to Azure
+   - No function invocations occurring
+   - IoT Hub has messages but function not triggering
+   - Status: Function trigger binding may not be configured correctly
+
 ## What's Complete ✅
 
 ### 1. GitHub Branch Setup
-- ✅ Production branch created locally
-- ✅ Code pushed to `production` branch
-- ✅ Ready for Azure deployment from production branch
+- ✅ Main branch - Active development
+- ✅ Prod branch - Production deployment
+- ❌ Production branch - **DELETED** (not in use, replaced with prod)
 
-### 2. Deployment Scripts Ready
-- ✅ `deploy_now.ps1` - Complete automated deployment script
-- ✅ Configured for your GitHub repo: `https://github.com/barakuziel-vxt/vxt`
-- ✅ Uses production branch automatically
-- ✅ All parameters pre-configured (no prompts needed)
+### 2. Deployment Infrastructure
+- ✅ vxt-web-app **deployed via Python code** (script-based, not image-based)
+  - Deployment method: `azure/webapps-deploy` with requirements.txt
+  - Workflow: `deploy-to-azure.yml` (prod branch only)
+- ✅ Azure Function App **deployed via function code** (script-based, not image-based)
+  - Deployment method: `func azure functionapp publish` with Python code
+  - Script: `azure-functions/deploy.ps1`
+- ✅ GitHub Actions workflows configured (prod branch only)
+- ❌ Docker image deployment **DISABLED** (not in use)
 
-### 3. Code Prepared
-- ✅ admin-dashboard React app (in your GitHub repo)
-- ✅ FastAPI backend with IoT Device ID endpoints
-- ✅ SQL schema update script (for iotDeviceId column) 
-- ✅ All 6 API endpoints updated to support IoT Device IDs
-- ✅ Sync button implemented in dashboard
+### 3. Code Deployed
+- ✅ admin-dashboard React app deployed
+- ✅ FastAPI backend deployed with IoT Device ID endpoints
+- ✅ Azure Function code deployed
+- ✅ SQL schema includes iotDeviceId column
 
 ### 4. Documentation
 - ✅ `DEPLOYMENT_READY.md` - Quick start guide
@@ -28,24 +45,38 @@
 
 ## What's Needed from You
 
-### Step 1: Install Azure CLI (30 seconds)
-Download from: https://aka.ms/installazurecliwindows
-
-Run installer, then verify:
-```powershell
-az --version
+### PRIORITY 1: Fix Backend Database Connection
+```
+1. Check SQL Server firewall rules
+   - Is Azure App Service IP whitelisted?
+   - Can vxt-web-app connect to database?
+   
+2. Verify connection string
+   - Check appsettings.json in Azure App Service
+   - Ensure credentials are correct
+   
+3. Test connection
+   - Run diagnostics on App Service
+   - Check Azure App Service logs
 ```
 
-### Step 2: Login to Azure (1 minute)
-```powershell
-az login
-# Your browser opens - sign in with your Azure account
+### PRIORITY 2: Fix Azure Function Message Processing
 ```
-
-### Step 3: Run Deployment (30-45 minutes)
-```powershell
-cd C:\VXT
-.\deploy_now.ps1
+1. Verify Function App trigger binding
+   - Is IoT Hub trigger configured in function.json?
+   - Check function trigger settings in Azure Portal
+   
+2. Check Function Invocations
+   - Azure Portal > Function App > Monitor
+   - Should show invocation count when messages arrive
+   
+3. Review Function logs
+   - Check stream logs in Azure Portal
+   - Look for binding or connection errors
+   
+4. Verify IoT Hub connection
+   - Is Function App configured with IoT Hub connection string?
+   - Check Application Settings for IoT Hub value
 ```
 
 ## Deployment Timeline
@@ -83,14 +114,20 @@ Test the IoT Device ID feature:
 | SQL Database | Trial (free first month, then ~$5+) | ~$1-5 |
 | **Monthly Total** | | **~$2-7** |
 
-## Production Branch Details
+## Branch Strategy
 
-Your `production` branch contains:
-- Complete admin-dashboard React app
-- FastAPI backend with all IoT endpoints
-- All latest code changes from main
+### Current Setup
+- **prod** - Production deployment branch (ACTIVE)
+  - Pushes trigger GitHub Actions automatically
+  - Builds Docker image
+  - Deploys to Azure
+- **main** - Development branch
+- **production** - DELETED (replaced with prod branch)
 
-Previous commits automatically merged from main.
+### GitHub Actions Configuration
+Workflows trigger **ONLY on prod branch**
+- `deploy-to-azure.yml` - Deploys Python code to Web App (script-based)
+- `deploy-swa.yml` - Deploys dashboard components
 
 ## Files You Can Reference
 
@@ -105,21 +142,20 @@ C:\VXT\
 └── AZURE_SQL_DEPLOYMENT.sql          (SQL schema script)
 ```
 
-## Summary
+## Next Steps
 
-**You're ready to deploy!** 
+1. **Diagnose Backend Database Issue**
+   - Check App Service logs for connection errors
+   - Verify SQL Server firewall allows Azure App Service
+   - Test connection string in local environment
 
-The only thing blocking you is Azure CLI installation (30 seconds). After that:
-1. `az login`
-2. `.\deploy_now.ps1`
-3. Done!
+2. **Debug Azure Function**
+   - Check function trigger configuration
+   - Review Function App logs
+   - Verify IoT Hub connection string is set
+   - Test function manually if possible
 
-All resources, code, and scripts are prepared. The deployment is fully automated - just run the script and watch it deploy everything to Azure.
-
-## Questions?
-
-- 📖 See `GITHUB_BRANCH_SETUP.md` for GitHub details
-- 📖 See `AZURE_DEPLOYMENT_RUN.md` for step-by-step guidance
-- 📖 See `DEPLOYMENT_READY.md` for quick start
-
-**Ready? Install Azure CLI and run `deploy_now.ps1`!** 🚀
+3. **Verify IoT Hub Messages**
+   - Confirm messages are being published to IoT Hub
+   - Check message format matches function expectation
+   - Verify function binding references correct IoT Hub
