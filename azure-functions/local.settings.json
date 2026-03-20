@@ -8,7 +8,17 @@
     "DB_NAME": "free-sql-db-5949639",
     "DB_USER": "vxt",
     "DB_PASSWORD": "Barak1976!",
-    "IoTHubConnectionString": "HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=YOUR_IOT_HUB_KEY_HERE"
+    "IoTHubConnectionString": "HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=PUT_YOUR_IOT_HUB_SERVICE_KEY_HERE"
   },
-  "ConnectionStrings": {}
+  "ConnectionStrings": {},
+  "_comments": {
+    "AzureWebJobsStorage": "Required for Functions runtime (empty for local dev with Cosmos Emulator)",
+    "FUNCTIONS_WORKER_RUNTIME": "Python 3.11 runtime",
+    "PROVIDER_NAME": "Telemetry provider - N2KToSignalK for maritime data",
+    "DB_SERVER": "Azure SQL Database server",
+    "DB_NAME": "Database name - free-sql-db-5949639",
+    "DB_USER": "Database username - vxt",
+    "DB_PASSWORD": "Database password - set for local testing only",
+    "IoTHubConnectionString": "Azure IoT Hub connection string. Get from: Azure Portal > IoT Hub > Shared access policies > service > Connection string. Format: HostName=<hub>.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=<key>"
+  }
 }
