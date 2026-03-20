@@ -145,7 +145,7 @@ Change from:
 ```json
 {
   "name": "IoTHubConnectionString",
-  "value": "HostName=VXT-IoT-Hub.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=fWmQKA04f6DhGHrMLxPYM6eY7PkNmRAjnAIoTH2GGF8="
+  "value": "${IOT_HUB_CONNECTION_STRING}"
 }
 ```
 
@@ -153,7 +153,7 @@ To:
 ```json
 {
   "name": "IoTHubConnectionString",
-  "value": "HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=fWmQKA04f6DhGHrMLxPYM6eY7PkNmRAjnAIoTH2GGF8="
+  "value": "${IOT_HUB_CONNECTION_STRING}"
 }
 ```
 
@@ -169,10 +169,10 @@ To:
 
 ```
 Name: IoTHubConnectionString
-Value: HostName=vxt-iot-hub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=fWmQKA04f6DhGHrMLxPYM6eY7PkNmRAjnAIoTH2GGF8=
+Value: ${IOT_HUB_CONNECTION_STRING}
 
 Name: SQL_CONNECTION_STRING
-Value: Server=vxtdb.database.windows.net;Database=free-sql-db-5949639;User=vxt;Password=Barak1976!;
+Value: ${SQL_CONNECTION_STRING}
 
 Name: PROVIDER_NAME
 Value: N2KToSignalK
