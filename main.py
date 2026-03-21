@@ -14,12 +14,12 @@
 #   SQL_CONNECTION_STRING=Server=localhost;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;
 # 
 # AZURE PRODUCTION (Azure App Settings - Using Managed Identity):
-#   ENVIRONMENT=azure
-#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;
+#   ENVIRONMENT=production
+#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;
 # 
 # AZURE FALLBACK (Azure App Settings - Using SQL Authentication):
-#   ENVIRONMENT=azure
-#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=vxtdb;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
+#   ENVIRONMENT=production
+#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
 # 
 # If SQL_CONNECTION_STRING is not set, the app uses sensible defaults for local dev.
 # ============================================================================
