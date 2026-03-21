@@ -46,6 +46,15 @@ jobs:
     
     - name: Configure App Settings
       run: |
+        # Check if secrets are set
+        if [ -z "${{ secrets.DB_PASSWORD }}" ]; then
+          echo "⚠️  WARNING: DB_PASSWORD secret is not set"
+        fi
+        if [ -z "${{ secrets.IOT_HUB_CONNECTION_STRING }}" ]; then
+          echo "⚠️  WARNING: IOT_HUB_CONNECTION_STRING secret is not set"
+        fi
+        
+        # Set app settings
         az functionapp config appsettings set \
           --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -55,36 +64,84 @@ jobs:
             DB_NAME="vxtdb" \
             DB_USER="vxtadmin" \
             DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}"
+            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
+            ENABLE_INIT_SCRIPTS="1"
+        
+        echo "✅ App settings configured"
     
     - name: Deploy to Azure Function
       run: |
         cd azure-functions
+        echo "🚀 Deploying to Azure Function App..."
         az functionapp up \
           --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --runtime python \
           --runtime-version ${{ env.PYTHON_VERSION }} \
           --functions-version 4 \
-          --build remote || echo "Deployment completed with status $?"
+          --build remote 2>&1
+        
+        DEPLOY_STATUS=$?
+        echo "Deployment exit code: $DEPLOY_STATUS"
+        exit $DEPLOY_STATUS
 
   test:
     needs: deploy
     runs-on: ubuntu-latest
     
     steps:
+    - name: Check deployment status
+      run: |
+        echo "✅ Deploy job completed successfully"
+        echo "Checking Azure Function status (this may take 1-2 minutes to start)..."
+    
+    - name: Login to Azure for status check
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Check Function App status
+      run: |
+        # Get function app status
+        STATUS=$(az functionapp show --name vxt-function --resource-group VXT-IoT-Hub --query state -o tsv 2>/dev/null || echo "ERROR")
+        echo "Function App Status: $STATUS"
+        
+        # Try to list functions (may take a moment to appear)
+        echo ""
+        echo "Scanning for deployed functions..."
+        az functionapp function list --name vxt-function --resource-group VXT-IoT-Hub 2>/dev/null || echo "Functions not yet visible (may need 1 minute)"
+    
     - name: Deployment completed - Manual verification required
       run: |
-        echo "✅ Deployment completed successfully"
         echo ""
-        echo "📋 MANUAL VERIFICATION REQUIRED:"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ Function App deployment completed"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
-        echo "1. Go to Azure Portal → Function Apps → vxt-function"
-        echo "2. Check Overview tab - should show 'Running' status"
-        echo "3. If not running:"
-        echo "   - Check 'Monitoring' → 'Log stream' for errors"
-        echo "   - Check 'Configuration' → 'Application settings' to verify environment variables"
-        echo "   - Verify GitHub secrets are set: AZURE_CREDENTIALS, DB_PASSWORD, IOT_HUB_CONNECTION_STRING"
+        echo "📋 ACTION ITEMS:"
         echo ""
-        echo "4. Manual health check (after function starts):"
-        echo "   curl https://vxt-function.azurewebsites.net/api/health"
+        echo "1. Wait 1-2 minutes for runtime to fully initialize"
+        echo ""
+        echo "2. Verify in Azure Portal:"
+        echo "   - Go to: Function Apps → vxt-function → Overview"
+        echo "   - Status should show 'Running'"
+        echo ""
+        echo "3. Check function logs:"
+        echo "   - Go to: Monitoring → Log stream"
+        echo "   - Look for startup errors or initialization messages"
+        echo ""
+        echo "4. Test health endpoint:"
+        echo "   curl -v https://vxt-function.azurewebsites.net/api/health"
+        echo ""
+        echo "5. Verify app settings (Configuration → Application settings):"
+        echo "   - PROVIDER_NAME: N2KToSignalK"
+        echo "   - DB_SERVER: vxtdb.database.windows.net"
+        echo "   - DB_NAME: vxtdb"
+        echo "   - DB_USER: vxtadmin"
+        echo "   - DB_PASSWORD: (should be set)"
+        echo "   - IoTHubConnectionString: (should be set)"
+        echo ""
+        echo "6. If functions still don't appear (give it 2+ minutes):"
+        echo "   - Check Log stream for Python import or syntax errors"
+        echo "   - Verify function.json bindings are properly generated"
+        echo """

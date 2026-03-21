@@ -24,7 +24,7 @@ import azure.functions as func
 import json
 import os
 import logging
-import pymssql
+from mssql_python import connect, errors as mssql_errors
 from datetime import datetime
 from typing import Optional, Dict, List
 
@@ -68,11 +68,12 @@ class SimpleEventProcessor:
         """Get database connection with retry"""
         for attempt in range(2):
             try:
-                conn = pymssql.connect(
+                # Use official mssql-python driver (TDS protocol, no ODBC needed)
+                conn = connect(
                     server=self.db_server,
+                    database=self.db_name,
                     user=self.db_user,
                     password=self.db_password,
-                    database=self.db_name,
                     port=1433,
                     timeout=30
                 )
@@ -131,12 +132,18 @@ class SimpleEventProcessor:
                 for key, value in telemetry_data.items():
                     if value is not None:
                         try:
-                            # Generic insert into EntityTelemetry
+                            # Generic insert into EntityTelemetry using mssql-python syntax
+                            # Parameter format: @ instead of ?
                             cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry 
                             (entityId, attributeName, attributeValue, timestamp)
-                            VALUES (?, ?, ?, ?)
-                            """, (entity_id, key, str(value), timestamp))
+                            VALUES (@entityId, @attrName, @attrValue, @ts)
+                            """, (
+                                ('@entityId', entity_id),
+                                ('@attrName', key),
+                                ('@attrValue', str(value)),
+                                ('@ts', timestamp)
+                            ))
                             
                             inserted_count += 1
                             self.stats['records_inserted'] += 1
@@ -183,11 +190,10 @@ def get_processor():
 
 
 # ============================================================================
-# AZURE FUNCTION: IoT HUB TRIGGER
+# AZURE FUNCTION: HTTP & IoT HUB TRIGGERS
 # ============================================================================
 app = func.FunctionApp()
 
-@app.function_name("telemetry_consumer")
 @app.route("health", methods=["GET"])
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint"""
