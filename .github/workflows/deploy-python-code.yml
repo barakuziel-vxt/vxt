@@ -3,7 +3,7 @@ name: Deploy Python Code to Azure Web App
 on:
   push:
     branches:
-      - prod
+      - main
   workflow_dispatch:
 
 jobs:
