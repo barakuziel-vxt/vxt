@@ -5,9 +5,7 @@ on:
     branches:
       - prod
     paths:
-      - 'static/**'
-      - 'dashboards/**'
-      - 'public/**'
+      - 'admin-dashboard/**'
       - '.github/workflows/deploy-swa.yml'
   workflow_dispatch:
 
@@ -23,17 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      # Build health-dashboard
-      - name: Install health-dashboard dependencies
-        working-directory: health-dashboard
-        run: npm install
-
-      - name: Build health-dashboard with production API
-        working-directory: health-dashboard
-        run: npm run build
-        env:
-          VITE_API_BASE: 'https://vxt-web-app.azurewebsites.net'
 
       # Build admin-dashboard
       - name: Install admin-dashboard dependencies
