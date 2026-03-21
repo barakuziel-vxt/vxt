@@ -43,7 +43,13 @@ DB_USER = os.environ.get('DB_USER', 'vxtadmin')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
 
 # IoT Hub device twin connection (optional, for reading setup config)
-IOT_HUB_CONNECTION_STRING = os.environ.get('IOT_HUB_CONNECTION_STRING', '')
+IOT_HUB_CONNECTION_STRING = os.environ.get('IoTHubConnectionString', os.environ.get('IOT_HUB_CONNECTION_STRING', ''))
+
+# Log startup configuration
+logger.info(f"[STARTUP] Provider: {PROVIDER_NAME}")
+logger.info(f"[STARTUP] Database: {DB_SERVER}/{DB_NAME}")
+logger.info(f"[STARTUP] IoT Hub Connection: {'SET' if IOT_HUB_CONNECTION_STRING else 'NOT SET'}")
+logger.info(f"[STARTUP] DB Password: {'SET' if DB_PASSWORD else 'WARNING: NOT SET'}")
 
 # ============================================================================
 # TELEMETRY PROCESSOR (Inline implementation)
@@ -178,6 +184,11 @@ def get_processor():
     """Get or initialize the event processor"""
     global processor
     if processor is None:
+        logger.info("[PROCESSOR] Initializing processor...")
+        if not DB_PASSWORD:
+            logger.error("[PROCESSOR] CRITICAL: DB_PASSWORD not set - processor cannot connect to database")
+            raise ValueError("DB_PASSWORD environment variable required")
+        
         processor = SimpleEventProcessor(
             db_server=DB_SERVER,
             db_name=DB_NAME,
@@ -185,7 +196,7 @@ def get_processor():
             db_password=DB_PASSWORD,
             provider_name=PROVIDER_NAME
         )
-        logger.info(f"[INIT] Processor initialized for {PROVIDER_NAME}")
+        logger.info(f"[PROCESSOR] Processor initialized for {PROVIDER_NAME} -> {DB_SERVER}/{DB_NAME}")
     return processor
 
 
@@ -196,22 +207,46 @@ app = func.FunctionApp()
 
 @app.route("health", methods=["GET"])
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
-    """Health check endpoint"""
+    """Health check endpoint - returns processor status"""
     try:
+        msg = f"Health check - Provider: {PROVIDER_NAME}, DB: {DB_SERVER}/{DB_NAME}"
+        logger.info(f"[HEALTH] {msg}")
+        
+        # Check if required config is present
+        if not DB_PASSWORD:
+            return func.HttpResponse(
+                json.dumps({
+                    "status": "error",
+                    "error": "DB_PASSWORD environment variable not set",
+                    "provider": PROVIDER_NAME
+                }),
+                status_code=503,
+                mimetype="application/json"
+            )
+        
+        if not IOT_HUB_CONNECTION_STRING:
+            logger.warning("[HEALTH] IoTHubConnectionString not configured (optional)")
+        
         processor = get_processor()
         stats = processor.get_stats()
         return func.HttpResponse(
             json.dumps({
                 "status": "healthy",
                 "provider": PROVIDER_NAME,
+                "database": f"{DB_SERVER}/{DB_NAME}",
                 "stats": stats
             }),
             status_code=200,
             mimetype="application/json"
         )
     except Exception as e:
+        logger.error(f"[HEALTH] Error: {str(e)[:100]}")
         return func.HttpResponse(
-            json.dumps({"error": str(e)[:100]}),
+            json.dumps({
+                "status": "error",
+                "error": str(e)[:100],
+                "provider": PROVIDER_NAME
+            }),
             status_code=500,
             mimetype="application/json"
         )
@@ -225,13 +260,18 @@ async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     """
     Process messages from IoT Hub
     
+    Trigger binding reads from IoTHubConnectionString app setting
     This function is triggered whenever the IoT Hub receives a message
     that matches the routing rules configured in Azure Portal.
     
     Configuration:
-    - IoT Hub Routing: Create a route that sends messages to this function
+    - IoT Hub Routing: Create a route to this function endpoint
     - Message filter: (properties.provider = 'N2KToSignalK') or leave empty for all
     """
+    
+    if not IOT_HUB_CONNECTION_STRING:
+        logger.error("[IOT_HUB] IoTHubConnectionString not configured - cannot process messages")
+        return
     
     processor = get_processor()
     message_count = 0
