@@ -71,19 +71,32 @@ jobs:
     
     - name: Deploy to Azure Function
       run: |
-        cd azure-functions
-        echo "🚀 Deploying to Azure Function App..."
-        az functionapp up \
-          --name vxt-function \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --runtime python \
-          --runtime-version ${{ env.PYTHON_VERSION }} \
-          --functions-version 4 \
-          --build remote 2>&1
+        echo "🚀 Preparing deployment..."
         
-        DEPLOY_STATUS=$?
-        echo "Deployment exit code: $DEPLOY_STATUS"
-        exit $DEPLOY_STATUS
+        # Zip the function code from azure-functions directory
+        cd azure-functions
+        echo "📦 Creating deployment package..."
+        zip -r ../function-code.zip . \
+          -x "*.git*" "__pycache__/*" "*.pyc" ".venv/*" ".vscode/*" "*.md" "local.settings.json"
+        
+        cd ..
+        
+        # Deploy the zip file
+        echo "📁 Deploying function code..."
+        az functionapp deployment source config-zip \
+          --resource-group VXT-IoT-Hub \
+          --name vxt-function \
+          --src function-code.zip 2>&1 | tee deploy.log
+        
+        DEPLOY_STATUS=${PIPESTATUS[0]}
+        echo ""
+        if [ $DEPLOY_STATUS -eq 0 ]; then
+          echo "✅ Deployment package uploaded successfully"
+        else
+          echo "❌ Deployment failed with exit code: $DEPLOY_STATUS"
+          tail -20 deploy.log
+          exit 1
+        fi
 
   test:
     needs: deploy
