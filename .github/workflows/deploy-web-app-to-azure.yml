@@ -5,9 +5,7 @@ on:
     branches:
       - prod
     paths:
-      - 'api_flask.py'
-      - 'analysis_functions.py'
-      - 'anomaly_detector.py'
+      - 'main.py'
       - 'requirements.txt'
       - '.github/workflows/deploy-web-app-to-azure.yml'
   workflow_dispatch:
