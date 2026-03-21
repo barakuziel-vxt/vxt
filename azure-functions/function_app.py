@@ -8,7 +8,7 @@ Provider: N2KToSignalK (SignalK maritime protocol)
 Target: EntityTelemetry table in Azure SQL
 
 Configuration: Uses IoTHubConnectionString from app settings (Event Hub-compatible endpoint)
-Deployment: Fixed workflow path filters v2 - now separate web/function app deployments
+Deployment: Workflow moved to .github/workflows - now properly recognized by GitHub Actions
 
 Setup:
 1. IoT Hub Routing: Forward messages with specific conditions to this function
