@@ -7,15 +7,19 @@
 # 
 # LOCAL LAPTOP (.env file):
 #   ENVIRONMENT=local
-#   SQL_CONNECTION_STRING=Server=127.0.0.1;Database=BoatTelemetryDB;User=sa;Password=YourStrongPassword123!;
+#   SQL_CONNECTION_STRING=Server=127.0.0.1;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;
 # 
 # DOCKER/LOCAL DOCKER-COMPOSE (.env.local):
 #   ENVIRONMENT=docker
-#   SQL_CONNECTION_STRING=Server=localhost;Database=BoatTelemetryDB;User=sa;Password=YourStrongPassword123!;
+#   SQL_CONNECTION_STRING=Server=localhost;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;
 # 
-# AZURE PRODUCTION (Azure App Settings):
+# AZURE PRODUCTION (Azure App Settings - Using Managed Identity):
 #   ENVIRONMENT=azure
-#   SQL_CONNECTION_STRING=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<db>;User ID=<user>;Password=<pwd>;
+#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;
+# 
+# AZURE FALLBACK (Azure App Settings - Using SQL Authentication):
+#   ENVIRONMENT=azure
+#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=vxtdb;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
 # 
 # If SQL_CONNECTION_STRING is not set, the app uses sensible defaults for local dev.
 # ============================================================================
@@ -24,7 +28,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
-import pymssql
+from mssql_python import connect
 import json
 import traceback
 import sys
@@ -43,89 +47,58 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 # Parse SQL_CONNECTION_STRING from environment (or use defaults for local dev)
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
-def get_db_config():
-    """Parse connection string and return pymssql connection parameters
+def get_db_connection_string():
+    """Build mssql-python connection string from environment or use defaults
     
     Supports three deployment modes:
     - LOCAL: Direct connection to localhost SQL Server
     - DOCKER: Connection to docker-compose SQL Server container
-    - AZURE: Cloud-based SQL Database with TCP endpoint
+    - AZURE: Cloud-based SQL Database with TCP endpoint + Managed Identity
     """
     
     if SQL_CONNECTION_STRING:
-        # Parse connection string from environment
-        # Supports multiple formats:
-        # - LOCAL: Server=localhost;Database=BoatTelemetryDB;User=sa;Password=...;
-        # - AZURE: Server=tcp:vxtdb.database.windows.net,1433;Initial Catalog=vxtdb;User ID=admin@vxtdb;Password=...;
-        # - AZURE ALT: Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt;PWD=password;
-        config = {}
-        for item in SQL_CONNECTION_STRING.split(';'):
-            if '=' in item:
-                key, value = item.split('=', 1)
-                config[key.strip()] = value.strip()
-        
-        # Extract server and port (Azure format: Server=tcp:hostname,1433)
-        server_with_port = config.get('Server', 'localhost')
-        # Remove 'tcp:' prefix if present (Azure format)
-        if server_with_port.startswith('tcp:'):
-            server_with_port = server_with_port[4:]
-        
-        if ',' in server_with_port:
-            # Format: vxtdb.database.windows.net,1433
-            server, port_str = server_with_port.split(',')
-            port = int(port_str.strip())
-        else:
-            # Format: localhost or vxtdb.database.windows.net
-            server = server_with_port
-            port = 1433  # Default SQL Server port
-        
-        # Handle both 'Database' and 'Initial Catalog' keys
-        database = config.get('Database') or config.get('Initial Catalog') or 'BoatTelemetryDB'
-        
-        # Handle multiple user parameter names: 'User', 'User ID', 'UID'
-        user = config.get('User') or config.get('User ID') or config.get('UID') or 'sa'
-        
-        # Handle multiple password parameter names: 'Password', 'PWD'
-        password = config.get('Password') or config.get('PWD') or ''
-        
-        return {
-            'server': server,
-            'port': port,
-            'database': database,
-            'user': user,
-            'password': password,
-            'timeout': 30,
-            'as_dict': False
-        }
+        # Use connection string from environment directly
+        # mssql-python will parse it with proper support for all parameters
+        return SQL_CONNECTION_STRING
     else:
-        # Fallback for local development (when SQL_CONNECTION_STRING not set)
-        # This is OK for local dev - app will still start, /health/db will show disconnected
+        # Fallback for local development
         if ENVIRONMENT in ['local', 'dev', 'docker']:
-            return {
-                'server': 'localhost',
-                'database': 'BoatTelemetryDB',
-                'user': 'sa',
-                'password': 'YourStrongPassword123!',
-                'timeout': 30,
-                'as_dict': False
-            }
+            return "Server=localhost;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;Encrypt=no;TrustServerCertificate=yes;"
         else:
-            # Production: Return a config that will fail gracefully when actually called
+            # Production without connection string - will fail gracefully
             print(f"[WARNING] SQL_CONNECTION_STRING not set. Database features will be unavailable.")
             return None
 
+def get_db_config():
+    """DEPRECATED: Kept for backward compatibility only. Use get_db_connection_string() instead."""
+    conn_str = get_db_connection_string()
+    if not conn_str:
+        return None
+    
+    # Parse connection string for logging purposes
+    config = {}
+    for item in conn_str.split(';'):
+        if '=' in item:
+            key, value = item.split('=', 1)
+            config[key.strip().lower()] = value.strip()
+    
+    return config
+
 print(f"[INFO] ===== DATABASE CONFIGURATION =====")
 print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
-print(f"[INFO] Database Driver: pymssql 2.3.13 (pure Python, no system dependencies)")
+print(f"[INFO] Database Driver: mssql-python (official Microsoft Python driver)")
+print(f"[INFO] Protocol: TDS (native, no ODBC driver installation required)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
     config_preview = get_db_config()
     if config_preview:
-        print(f"[INFO] ✓ Connection string found and parsed successfully:")
-        print(f"[INFO]   Server: {config_preview['server']}:{config_preview['port']}")
-        print(f"[INFO]   Database: {config_preview['database']}")
-        print(f"[INFO]   User: {config_preview['user']}")
-        print(f"[INFO]   Timeout: {config_preview['timeout']}s")
+        server = config_preview.get('server', 'unknown')
+        database = config_preview.get('database', 'unknown')
+        auth_method = "Managed Identity" if "Authentication=ActiveDirectoryMSI" in SQL_CONNECTION_STRING else "SQL Authentication"
+        print(f"[INFO] ✓ Connection string found:")
+        print(f"[INFO]   Server: {server}")
+        print(f"[INFO]   Database: {database}")
+        print(f"[INFO]   Authentication: {auth_method}")
     else:
         print(f"[WARNING] Connection string found but parsing failed")
 else:
@@ -143,7 +116,7 @@ async def startup_event():
     try:
         print("[INFO] ===== FastAPI Startup Started =====")
         print(f"[INFO] Environment: {ENVIRONMENT}")
-        print(f"[INFO] Connection Driver: FreeTDS")
+        print(f"[INFO] Connection Driver: mssql-python (TDS protocol, native)")
         print("[INFO] ===== FastAPI Startup Complete =====")
     except Exception as e:
         print(f"[ERROR] Startup failed: {str(e)}")
@@ -250,9 +223,9 @@ if setup_router:
 import time
 
 def get_db_connection():
-    """Get database connection with automatic retry on timeout and detailed logging"""
-    config = get_db_config()
-    if config is None:
+    """Get database connection using mssql-python with automatic retry on timeout and detailed logging"""
+    conn_string = get_db_connection_string()
+    if conn_string is None:
         error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
         print(f"[ERROR] {error_msg}")
         raise Exception(error_msg)
@@ -262,30 +235,25 @@ def get_db_connection():
         try:
             attempt_num = attempt + 1
             print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)")
-            print(f"[DEBUG]   Server: {config.get('server')}:{config.get('port')}")
-            print(f"[DEBUG]   Database: {config.get('database')}")
-            print(f"[DEBUG]   User: {config.get('user')}")
-            print(f"[DEBUG]   Timeout: {config.get('timeout')}s")
-            print(f"[DEBUG]   Handler: TDS (pymssql native implementation)")
+            print(f"[DEBUG]   Driver: mssql-python (TDS protocol)")
+            print(f"[DEBUG]   Connection String: {conn_string[:80]}..." if len(conn_string) > 80 else f"[DEBUG]   Connection String: {conn_string}")
             
-            conn = pymssql.connect(**config)
-            print(f"[INFO] ✓ Database connection successful")
+            conn = connect(conn_string)
+            print(f"[INFO] ✓ Database connection successful with mssql-python")
             return conn
         except Exception as e:
             error_msg = str(e)
-            error_code = getattr(e, 'args', [''])[0] if hasattr(e, 'args') else ''
             print(f"[ERROR] Connection attempt {attempt_num} failed")
             print(f"[ERROR] Error: {error_msg}")
-            if error_code:
-                print(f"[ERROR] Error Code: {error_code}")
             
             if "20009" in error_msg:
                 print(f"[ERROR] ERROR 20009: Server unavailable or does not exist")
                 print(f"[ERROR] This usually means:")
-                print(f"[ERROR]   - Firewall is blocking the connection")
+                print(f"[ERROR]   - Azure SQL Firewall rule 'AllowAllWindowsAzureIps' is NOT enabled")
                 print(f"[ERROR]   - Server hostname is wrong or unreachable")
                 print(f"[ERROR]   - SQL Server is not running")
-                print(f"[ERROR]   - Network connectivity issue to {config.get('server')}:{config.get('port')}")
+                print(f"[ERROR]   - Network connectivity issue")
+                print(f"[ERROR] SOLUTION: Enable 'Allow Azure services and resources to access this server' in Azure Portal")
             
             print(f"[ERROR] Full traceback:")
             print(traceback.format_exc())
