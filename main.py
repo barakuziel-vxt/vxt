@@ -223,48 +223,24 @@ if setup_router:
 import time
 
 def get_db_connection():
-    """Get database connection using mssql-python with automatic retry on timeout and detailed logging"""
+    """Get database connection using mssql-python with automatic retry on timeout"""
     conn_string = get_db_connection_string()
     if conn_string is None:
-        error_msg = "Database is not configured. SQL_CONNECTION_STRING environment variable is missing."
-        print(f"[ERROR] {error_msg}")
-        raise Exception(error_msg)
+        raise Exception("SQL_CONNECTION_STRING environment variable not set")
     
-    # Retry up to 2 times on first-connect timeout
+    # Retry once on timeout
     for attempt in range(2):
         try:
-            attempt_num = attempt + 1
-            print(f"[DEBUG] Attempting database connection (attempt {attempt_num}/2)")
-            print(f"[DEBUG]   Driver: mssql-python (TDS protocol)")
-            print(f"[DEBUG]   Connection String: {conn_string[:80]}..." if len(conn_string) > 80 else f"[DEBUG]   Connection String: {conn_string}")
-            
+            print(f"[DEBUG] Connecting to database (attempt {attempt + 1}/2)")
             conn = connect(conn_string)
-            print(f"[INFO] ✓ Database connection successful with mssql-python")
+            print(f"[INFO] ✓ Database connection successful")
             return conn
         except Exception as e:
-            error_msg = str(e)
-            print(f"[ERROR] Connection attempt {attempt_num} failed")
-            print(f"[ERROR] Error: {error_msg}")
-            
-            if "20009" in error_msg:
-                print(f"[ERROR] ERROR 20009: Server unavailable or does not exist")
-                print(f"[ERROR] This usually means:")
-                print(f"[ERROR]   - Azure SQL Firewall rule 'AllowAllWindowsAzureIps' is NOT enabled")
-                print(f"[ERROR]   - Server hostname is wrong or unreachable")
-                print(f"[ERROR]   - SQL Server is not running")
-                print(f"[ERROR]   - Network connectivity issue")
-                print(f"[ERROR] SOLUTION: Enable 'Allow Azure services and resources to access this server' in Azure Portal")
-            
-            print(f"[ERROR] Full traceback:")
-            print(traceback.format_exc())
-            
+            print(f"[ERROR] Connection attempt {attempt + 1} failed: {str(e)}")
             if attempt < 1:
-                # First attempt failed, wait and retry once
-                print(f"[INFO] Waiting 2 seconds before retry...")
                 time.sleep(2)
             else:
-                # Second attempt failed, give up
-                raise Exception(f"Database connection failed after 2 attempts: {error_msg}")
+                raise
 
 def return_db_connection(conn):
     """Close connection (no pooling - simple approach)"""
@@ -329,16 +305,15 @@ def health_check_db():
         }
     except Exception as e:
         error_msg = str(e)
-        print(f"[ERROR] Health check failed: {error_msg}")
-        print(f"[ERROR] Traceback:")
+        print(f"[ERROR] Health check failed:")
+        print(f"[ERROR] {error_msg}")
+        print(f"[ERROR] Full traceback:")
         print(traceback.format_exc())
         return {
             "status": "unhealthy",
             "database": "disconnected",
-            "error": error_msg[:200],
-            "message": "Cannot connect to database. Check connection string and server availability.",
-            "environment": ENVIRONMENT,
-            "suggestion": "Verify Azure SQL Server is accessible and schema has been deployed."
+            "error": error_msg,
+            "environment": ENVIRONMENT
         }
 
 
