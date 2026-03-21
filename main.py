@@ -28,6 +28,7 @@ import pymssql
 import json
 import traceback
 import sys
+import time
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (for local/docker environments)
@@ -53,29 +54,41 @@ def get_db_config():
     
     if SQL_CONNECTION_STRING:
         # Parse connection string from environment
-        # Expected format: Server=...;Database=...;User=...;Password=...;
+        # Supports multiple formats:
+        # - LOCAL: Server=localhost;Database=BoatTelemetryDB;User=sa;Password=...;
+        # - AZURE: Server=tcp:vxtdb.database.windows.net,1433;Initial Catalog=vxtdb;User ID=admin@vxtdb;Password=...;
         config = {}
         for item in SQL_CONNECTION_STRING.split(';'):
             if '=' in item:
                 key, value = item.split('=', 1)
                 config[key.strip()] = value.strip()
         
-        # Extract server and port separately (Azure format: Server=hostname,port)
+        # Extract server and port (Azure format: Server=tcp:hostname,1433)
         server_with_port = config.get('Server', 'localhost')
+        # Remove 'tcp:' prefix if present (Azure format)
+        if server_with_port.startswith('tcp:'):
+            server_with_port = server_with_port[4:]
+        
         if ',' in server_with_port:
             # Format: vxtdb.database.windows.net,1433
-            server, port = server_with_port.split(',')
-            port = int(port)
+            server, port_str = server_with_port.split(',')
+            port = int(port_str.strip())
         else:
             # Format: localhost or vxtdb.database.windows.net
             server = server_with_port
             port = 1433  # Default SQL Server port
         
+        # Handle both 'Database' and 'Initial Catalog' keys
+        database = config.get('Database') or config.get('Initial Catalog') or 'BoatTelemetryDB'
+        
+        # Handle both 'User' and 'User ID' keys
+        user = config.get('User') or config.get('User ID') or 'sa'
+        
         return {
             'server': server,
             'port': port,
-            'database': config.get('Database', 'BoatTelemetryDB'),
-            'user': config.get('User', 'sa'),
+            'database': database,
+            'user': user,
             'password': config.get('Password', ''),
             'timeout': 30,
             'as_dict': False
@@ -99,18 +112,20 @@ def get_db_config():
 
 print(f"[INFO] ===== DATABASE CONFIGURATION =====")
 print(f"[INFO] Deployment Mode: {ENVIRONMENT.upper()}")
-print(f"[INFO] Database Driver: pymssql 2.3.0 (pure Python, no system dependencies)")
+print(f"[INFO] Database Driver: pymssql 2.3.13 (pure Python, no system dependencies)")
 if SQL_CONNECTION_STRING:
     # Log connection string without exposing password
-    conn_info = SQL_CONNECTION_STRING.split('Password')[0]
-    print(f"[INFO] Connection String Configured: {conn_info}PASSWORD=***;")
-    # Parse and log individual components
-    for item in SQL_CONNECTION_STRING.split(';'):
-        if '=' in item and 'Password' not in item:
-            key, value = item.split('=', 1)
-            print(f"[INFO]   {key.strip()}: {value.strip()}")
+    config_preview = get_db_config()
+    if config_preview:
+        print(f"[INFO] ✓ Connection string found and parsed successfully:")
+        print(f"[INFO]   Server: {config_preview['server']}:{config_preview['port']}")
+        print(f"[INFO]   Database: {config_preview['database']}")
+        print(f"[INFO]   User: {config_preview['user']}")
+        print(f"[INFO]   Timeout: {config_preview['timeout']}s")
+    else:
+        print(f"[WARNING] Connection string found but parsing failed")
 else:
-    print(f"[INFO] No SQL_CONNECTION_STRING set - using local development defaults")
+    print(f"[WARNING] No SQL_CONNECTION_STRING set - using local development defaults")
 print(f"[INFO] ===== END DATABASE CONFIGURATION =====")
 
 # Setup management not included in minimal deployment
@@ -247,25 +262,37 @@ def get_db_connection():
             print(f"[DEBUG]   Database: {config.get('database')}")
             print(f"[DEBUG]   User: {config.get('user')}")
             print(f"[DEBUG]   Timeout: {config.get('timeout')}s")
+            print(f"[DEBUG]   Handler: TDS (pymssql native implementation)")
             
             conn = pymssql.connect(**config)
-            print(f"[INFO] Database connection successful")
+            print(f"[INFO] ✓ Database connection successful")
             return conn
         except Exception as e:
             error_msg = str(e)
-            print(f"[ERROR] Connection attempt {attempt_num} failed: {error_msg[:150]}")
+            error_code = getattr(e, 'args', [''])[0] if hasattr(e, 'args') else ''
+            print(f"[ERROR] Connection attempt {attempt_num} failed")
+            print(f"[ERROR] Error: {error_msg}")
+            if error_code:
+                print(f"[ERROR] Error Code: {error_code}")
+            
+            if "20009" in error_msg:
+                print(f"[ERROR] ERROR 20009: Server unavailable or does not exist")
+                print(f"[ERROR] This usually means:")
+                print(f"[ERROR]   - Firewall is blocking the connection")
+                print(f"[ERROR]   - Server hostname is wrong or unreachable")
+                print(f"[ERROR]   - SQL Server is not running")
+                print(f"[ERROR]   - Network connectivity issue to {config.get('server')}:{config.get('port')}")
+            
             print(f"[ERROR] Full traceback:")
             print(traceback.format_exc())
             
             if attempt < 1:
                 # First attempt failed, wait and retry once
-                print(f"[INFO] Waiting 1 second before retry...")
-                time.sleep(1)
+                print(f"[INFO] Waiting 2 seconds before retry...")
+                time.sleep(2)
             else:
                 # Second attempt failed, give up
-                error_msg = f"Database connection failed after 2 attempts: {str(e)[:150]}"
-                print(f"[ERROR] {error_msg}")
-                raise Exception(error_msg)
+                raise Exception(f"Database connection failed after 2 attempts: {error_msg}")
 
 def return_db_connection(conn):
     """Close connection (no pooling - simple approach)"""
