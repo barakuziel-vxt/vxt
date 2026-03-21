@@ -6,6 +6,7 @@ on:
       - prod
     paths-ignore:
       - 'azure-functions/**'
+      - '.github/workflows/deploy-function-app.yml'
   workflow_dispatch:
 
 jobs:
