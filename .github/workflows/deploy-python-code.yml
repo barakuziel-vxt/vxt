@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - prod
+    paths-ignore:
+      - 'azure-functions/**'
   workflow_dispatch:
 
 jobs:

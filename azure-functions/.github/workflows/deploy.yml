@@ -5,9 +5,9 @@ on:
     branches:
       - prod
     paths:
-      - 'function_app.py'
-      - 'requirements.txt'
-      - '.github/workflows/deploy.yml'
+      - 'azure-functions/function_app.py'
+      - 'azure-functions/requirements.txt'
+      - 'azure-functions/.github/workflows/deploy.yml'
   workflow_dispatch:
 
 env:
