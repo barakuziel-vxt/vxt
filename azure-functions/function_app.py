@@ -7,6 +7,8 @@ Trigger: IoT Hub Messages
 Provider: N2KToSignalK (SignalK maritime protocol)
 Target: EntityTelemetry table in Azure SQL
 
+Configuration: Uses IoTHubConnectionString from app settings (Event Hub-compatible endpoint)
+
 Setup:
 1. IoT Hub Routing: Forward messages with specific conditions to this function
 2. Function bindings: IoT Hub trigger
