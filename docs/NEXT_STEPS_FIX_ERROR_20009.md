@@ -61,7 +61,7 @@ This removes the 25-second ODBC installation overhead.
 # NEW (Correct format):
 + connection_string = (
 +     "Server=vxtdb.database.windows.net,1433;"
-+     "Database=vxtdb;"
++     "Database=free-sql-db-5949639;"
 +     "Authentication=ActiveDirectoryMSI;"  # ← Managed Identity
 +     "Encrypt=yes;"
 +     "TrustServerCertificate=no;"
@@ -115,7 +115,7 @@ az webapp identity assign \
 
 ### 3️⃣ DATABASE USER PERMISSIONS
 
-Run this SQL in Azure SQL Database (vxtdb):
+Run this SQL in Azure SQL Database (free-sql-db-5949639):
 
 ```sql
 -- Create user from managed identity

@@ -126,12 +126,13 @@ Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirec
 
 **Azure Production** (SQL Auth - FALLBACK):
 ```
-Server=vxtdb.database.windows.net,1433;Database=vxtdb;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
+Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
 ```
 
 Key differences:
 - `mssql-python` uses `UID=/PWD=` not `User=/Password=`
 - Port must be included for Azure: `vxtdb.database.windows.net,1433` (comma, not colon)
+- Database name: `free-sql-db-5949639` (NOT vxtdb)
 - Managed Identity: No UID/PWD, use `Authentication=ActiveDirectoryMSI`
 - Always use: `Encrypt=yes;TrustServerCertificate=no;` for Azure
 
@@ -181,7 +182,7 @@ Write-Host "Your public IP: $myIP"
 **For App Service + Managed Identity**:
 ```sql
 -- In SQL Server Management Studio, connected as admin:
-USE vxtdb;
+USE free-sql-db-5949639;
 
 -- Create user from external Azure identity
 CREATE USER [vxt-web-app] FROM EXTERNAL PROVIDER;
@@ -309,7 +310,7 @@ az webapp config appsettings set \
   --resource-group VXT-IoT-Hub \
   --name vxt-web-app \
   --settings \
-    "SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;" \
+    "SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;" \
     "ENVIRONMENT=production" \
     "WEBSITES_PORT=8000"
 ```
@@ -348,7 +349,7 @@ az sql server firewall-rule list \
 ### Database User (SQL query)
 
 ```sql
--- Run in vxtdb database as admin
+-- Run in free-sql-db-5949639 database as admin
 CREATE USER [vxt-web-app] FROM EXTERNAL PROVIDER;
 ALTER ROLE db_datareader ADD MEMBER [vxt-web-app];
 ALTER ROLE db_datawriter ADD MEMBER [vxt-web-app];
@@ -375,7 +376,7 @@ If rule doesn't exist → **CREATE IT NOW**
 
 ### Check 2: Connection String Format
 ```
-✅ CORRECT:   Server=vxtdb.database.windows.net,1433;Database=vxtdb;...
+✅ CORRECT:   Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;...
 ❌ WRONG:     Server=tcp:vxtdb.database.windows.net:1433;...
 ❌ WRONG:     DRIVER={...};...
 ```

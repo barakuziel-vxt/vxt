@@ -134,7 +134,7 @@ import mssql_python
 # No password needed! Azure handles authentication automatically
 connection_string = (
     "Server=vxtdb.database.windows.net,1433;"
-    "Database=vxtdb;"
+    "Database=free-sql-db-5949639;"
     "Authentication=ActiveDirectoryMSI;"  # ← Managed Identity
     "Encrypt=yes;"
     "TrustServerCertificate=no;"
@@ -159,7 +159,7 @@ from mssql_python import connect
 
 connection_string = (
     f"Server=vxtdb.database.windows.net,1433;"
-    f"Database=vxtdb;"
+    f"Database=free-sql-db-5949639;"
     f"UID={os.getenv('DB_USER')};"
     f"PWD={os.getenv('DB_PASSWORD')};"
     f"Authentication=SqlPassword;"
@@ -288,7 +288,7 @@ az webapp config appsettings set \
   --name vxt-web-app \
   --settings \
     ENVIRONMENT="production" \
-    SQL_CONNECTION_STRING="Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;" \
+    SQL_CONNECTION_STRING="Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;" \
     WEBSITES_PORT=8000 \
     PYTHON_VERSION=3.11
 ```
@@ -338,7 +338,7 @@ async def lifespan(app: FastAPI):
     try:
         connection_string = os.getenv(
             "SQL_CONNECTION_STRING",
-            "Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;"
+            "Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;"
         )
         
         # Test connection
@@ -394,7 +394,7 @@ async def health_check():
 
 ```bash
 # Create .env file
-echo 'SQL_CONNECTION_STRING="Server=vxtdb.database.windows.net,1433;Database=vxtdb;Authentication=SqlPassword;UID=vxt_service_user;PWD=YourPassword;Encrypt=yes;TrustServerCertificate=no;"' > .env
+echo 'SQL_CONNECTION_STRING="Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=SqlPassword;UID=vxt_service_user;PWD=YourPassword;Encrypt=yes;TrustServerCertificate=no;"' > .env
 
 # Install new driver
 pip uninstall pymssql -y
