@@ -78,10 +78,13 @@ jobs:
     
     - name: Test Function Health Endpoint
       run: |
-        for i in {1..5}; do
+        echo "Waiting 30 seconds for Function App to initialize..."
+        sleep 30
+        
+        for i in {1..10}; do
           echo "Attempt $i: Testing function health..."
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://vxt-function.azurewebsites.net/api/health)
+            https://vxt-function.azurewebsites.net/api/health || echo "000")
           
           if [ "$response" = "200" ]; then
             echo "✓ Function is healthy (HTTP $response)"
@@ -92,7 +95,7 @@ jobs:
           sleep 10
         done
         
-        echo "❌ Function health check failed"
+        echo "❌ Function health check failed after 10 attempts"
         exit 1
     
     - name: Log deployment success
