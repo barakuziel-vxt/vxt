@@ -57,6 +57,7 @@ def get_db_config():
         # Supports multiple formats:
         # - LOCAL: Server=localhost;Database=BoatTelemetryDB;User=sa;Password=...;
         # - AZURE: Server=tcp:vxtdb.database.windows.net,1433;Initial Catalog=vxtdb;User ID=admin@vxtdb;Password=...;
+        # - AZURE ALT: Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt;PWD=password;
         config = {}
         for item in SQL_CONNECTION_STRING.split(';'):
             if '=' in item:
@@ -81,15 +82,18 @@ def get_db_config():
         # Handle both 'Database' and 'Initial Catalog' keys
         database = config.get('Database') or config.get('Initial Catalog') or 'BoatTelemetryDB'
         
-        # Handle both 'User' and 'User ID' keys
-        user = config.get('User') or config.get('User ID') or 'sa'
+        # Handle multiple user parameter names: 'User', 'User ID', 'UID'
+        user = config.get('User') or config.get('User ID') or config.get('UID') or 'sa'
+        
+        # Handle multiple password parameter names: 'Password', 'PWD'
+        password = config.get('Password') or config.get('PWD') or ''
         
         return {
             'server': server,
             'port': port,
             'database': database,
             'user': user,
-            'password': config.get('Password', ''),
+            'password': password,
             'timeout': 30,
             'as_dict': False
         }
