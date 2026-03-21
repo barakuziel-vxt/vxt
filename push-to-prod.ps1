@@ -53,13 +53,15 @@ Write-Host "Merging main into prod..." -ForegroundColor Yellow
 git merge main --no-edit
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Merge conflict! Resolve manually then push" -ForegroundColor Red
-    Write-Host "Run: git merge --abort (to cancel)" -ForegroundColor Yellow
+    Write-Host "Run: git merge --abort (to continue the cancel process)" -ForegroundColor Yellow
     exit 1
 }
 Write-Host "✓ Merged main" -ForegroundColor Green
 
 # Push to prod (triggers GitHub Actions → Azure)
 Write-Host "Pushing to prod (will trigger Azure deployment)..." -ForegroundColor Yellow
+# Use SSH deploy key for authentication
+$env:GIT_SSH_COMMAND = "ssh -i $env:USERPROFILE\.ssh\deploy_prod -o StrictHostKeyChecking=accept-new"
 git push origin prod
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to push to prod" -ForegroundColor Red

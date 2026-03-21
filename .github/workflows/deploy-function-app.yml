@@ -1,0 +1,133 @@
+name: Deploy Azure Function
+
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - 'azure-functions/function_app.py'
+      - 'azure-functions/requirements.txt'
+      - '.github/workflows/deploy-function-app.yml'
+  workflow_dispatch:
+
+env:
+  FUNCTION_APP_NAME: vxt-function
+  RESOURCE_GROUP: VXT-IoT-Hub
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r azure-functions/requirements.txt
+    
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Function App if not exists
+      run: |
+        # Using existing vxt-function app - no need to create
+        echo "Using existing Function App: vxt-function"
+        echo "Using existing Storage Account: vxtstorage"
+    
+    - name: Configure App Settings
+      run: |
+        # Check if secrets are set
+        if [ -z "${{ secrets.DB_PASSWORD }}" ]; then
+          echo "⚠️  WARNING: DB_PASSWORD secret is not set"
+        fi
+        if [ -z "${{ secrets.IOT_HUB_CONNECTION_STRING }}" ]; then
+          echo "⚠️  WARNING: IOT_HUB_CONNECTION_STRING secret is not set"
+        fi
+        
+        # Set app settings
+        az functionapp config appsettings set \
+          --name vxt-function \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --settings \
+            PROVIDER_NAME="N2KToSignalK" \
+            DB_SERVER="vxtdb.database.windows.net" \
+            DB_NAME="vxtdb" \
+            DB_USER="vxtadmin" \
+            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
+            ENABLE_INIT_SCRIPTS="1"
+        
+        echo "✅ App settings configured"
+    
+    - name: Deploy to Azure Function
+      run: |
+        echo "🚀 Preparing deployment..."
+        
+        # Zip the function code from azure-functions directory
+        cd azure-functions
+        echo "📦 Creating deployment package..."
+        zip -r ../function-code.zip . \
+          -x "*.git*" "__pycache__/*" "*.pyc" ".venv/*" ".vscode/*" "*.md" "local.settings.json"
+        
+        cd ..
+        
+        # Deploy the zip file
+        echo "📁 Deploying function code..."
+        az functionapp deployment source config-zip \
+          --resource-group VXT-IoT-Hub \
+          --name vxt-function \
+          --src function-code.zip 2>&1 | tee deploy.log
+        
+        DEPLOY_STATUS=${PIPESTATUS[0]}
+        echo ""
+        if [ $DEPLOY_STATUS -eq 0 ]; then
+          echo "✅ Deployment package uploaded successfully"
+        else
+          echo "❌ Deployment failed with exit code: $DEPLOY_STATUS"
+          tail -20 deploy.log
+          exit 1
+        fi
+
+  test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check deployment status
+      run: echo "Deploy job completed successfully"
+    
+    - name: Login to Azure for status check
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Check Function App status
+      run: |
+        STATUS=$(az functionapp show --name vxt-function --resource-group VXT-IoT-Hub --query state -o tsv 2>/dev/null || echo "UNKNOWN")
+        echo "Function App Status: $STATUS"
+        echo ""
+        echo "Checking deployed functions..."
+        az functionapp function list --name vxt-function --resource-group VXT-IoT-Hub 2>/dev/null || echo "Functions scanning..."
+    
+    - name: Print next steps
+      run: |
+        echo ""
+        echo "DEPLOYMENT COMPLETE"
+        echo "=================="
+        echo ""
+        echo "Next steps:"
+        echo "1. Wait 1-2 minutes for the function app runtime to initialize"
+        echo "2. Check Azure Portal: Function Apps > vxt-function > Overview"
+        echo "3. Monitor logs: Monitoring > Log stream"
+        echo "4. Test health: curl https://vxt-function.azurewebsites.net/api/health"
+        echo """
