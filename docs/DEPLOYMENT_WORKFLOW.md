@@ -6,6 +6,17 @@
 
 ---
 
+## ⚠️ CRITICAL: Deployments Only From `prod` Branch
+
+**GitHub branch protection and GitHub Actions are configured to:**
+- ✅ **Deploy ONLY when code is pushed to `prod` branch**
+- ❌ **NOT deploy when code is pushed to `main` branch**
+- 🔒 **Block direct commits to `prod` branch** (must use push-to-prod.ps1 script)
+
+**The only way to deploy to Azure is to run: `.\push-to-prod.ps1`**
+
+---
+
 ## 🎯 Core Principle
 
 **RULE: Code lives on `main`, Production runs from `prod`, Deployments use ONLY the `push-to-prod.ps1` script.**
