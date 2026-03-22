@@ -2,14 +2,11 @@ import pyodbc
 import pandas as pd
 import numpy as np
 
-# הגדרות חיבור ל-SQL Edge
-SQL_CONN_STR = (
-    'DRIVER={SQL Server};'
-    'SERVER=127.0.0.1;'
-    'DATABASE=master;'
-    'UID=sa;'
-    'PWD=YourStrongPassword123!'
-)
+# Use environment variable for database connection
+import os
+SQL_CONN_STR = os.getenv('SQL_CONNECTION_STRING', 'NOT_SET')
+if SQL_CONN_STR == 'NOT_SET':
+    raise Exception('ERROR: SQL_CONNECTION_STRING environment variable not set')
 
 def detect_anomalies():
     try:

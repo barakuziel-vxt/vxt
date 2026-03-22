@@ -8,7 +8,7 @@ CONN_STR = (
     'DRIVER={SQL Server};'
     'SERVER=localhost;'
     'DATABASE=BoatTelemetryDB;'
-    'UID=sa;'
+    # Use environment variable for UID
     'PWD=YourStrongPassword123!'
 )
 

@@ -4,7 +4,7 @@ conn = pyodbc.connect(
     'DRIVER={SQL Server};'
     'SERVER=127.0.0.1,1433;'
     'DATABASE=BoatTelemetryDB;'
-    'UID=sa;'
+    # Use environment variable for UID
     'PWD=YourStrongPassword123!;'
 )
 cursor = conn.cursor()
