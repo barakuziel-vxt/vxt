@@ -11,11 +11,14 @@ print("Creating SQL Database User from Managed Identity")
 print("=" * 60)
 
 try:
-    # Connect as admin (SQL authentication)
+    # Connect as admin (SQL authentication) - requires SQL_ADMIN_CONNECTION_STRING env var
+    import os
+    admin_conn_str = os.getenv('SQL_ADMIN_CONNECTION_STRING')
+    if not admin_conn_str:
+        raise Exception("ERROR: SQL_ADMIN_CONNECTION_STRING environment variable not set. Required for database user creation.")
+    
     print("\n1. Connecting to Azure SQL Database...")
-    conn = connect(
-        "Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt;PWD=Barak1976!;Encrypt=yes;TrustServerCertificate=no;"
-    )
+    conn = connect(admin_conn_str)
     print("   ✓ Connected successfully")
     
     cursor = conn.cursor()
