@@ -8,19 +8,15 @@
 # 
 # LOCAL LAPTOP (.env file):
 #   ENVIRONMENT=local
-#   SQL_CONNECTION_STRING=Server=127.0.0.1;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;
-# 
+#   SQL_CONNECTION_STRING=<your-local-connection-string>
+#
 # DOCKER/LOCAL DOCKER-COMPOSE (.env.local):
 #   ENVIRONMENT=docker
-#   SQL_CONNECTION_STRING=Server=localhost;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;
-# 
+#   SQL_CONNECTION_STRING=<your-docker-connection-string>
+#
 # AZURE PRODUCTION (Azure App Settings - Using Managed Identity):
 #   ENVIRONMENT=production
 #   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;Authentication=ActiveDirectoryMSI;Encrypt=yes;TrustServerCertificate=no;
-# 
-# AZURE FALLBACK (Azure App Settings - Using SQL Authentication):
-#   ENVIRONMENT=production
-#   SQL_CONNECTION_STRING=Server=vxtdb.database.windows.net,1433;Database=free-sql-db-5949639;UID=vxt_service_user;PWD=<password>;Encrypt=yes;TrustServerCertificate=no;
 # 
 # If SQL_CONNECTION_STRING is not set, the app uses sensible defaults for local dev.
 # ============================================================================
@@ -63,11 +59,9 @@ def get_db_connection_string():
     """Build mssql-python connection string from environment
     
     Supports three deployment modes:
-    - LOCAL: Direct connection to localhost SQL Server (via .env with UID=sa for local dev only)
-    - DOCKER: Connection via docker-compose (via .env with UID=sa for local dev only)
-    - AZURE: Cloud-based SQL Database with Managed Identity (SQL_CONNECTION_STRING from App Settings)
-    
-    NOTE: 'sa' user ONLY appears in .env file (not deployed to Azure, not in code)
+    - LOCAL: Direct connection to localhost SQL Server (via .env)
+    - DOCKER: Connection via docker-compose (via .env)
+    - AZURE: Cloud-based SQL Database with Managed Identity (SQL_CONNECTION_STRING from App Settings only)
     """
     
     if SQL_CONNECTION_STRING:
