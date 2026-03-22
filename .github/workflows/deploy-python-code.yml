@@ -38,7 +38,8 @@ jobs:
         with:
           app-name: vxt-web-app
           package: .
-          startup-file: 'gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 main:app'
+          # Do NOT specify startup-file here - let Azure use SCM_STARTUP_COMMAND instead
+          # This allows startup.sh to run pip install before starting gunicorn
       
       - name: Verify App Settings
         run: |
