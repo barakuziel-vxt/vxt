@@ -39,13 +39,21 @@ from dotenv import load_dotenv
 # ENVIRONMENT DETECTION & CONFIGURATION
 # ============================================================================
 
-# Check environment BEFORE loading .env to avoid overriding Azure App Settings
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
+# Detect if running in Azure (App Service sets specific environment variables)
+# If ANY Azure-specific var is present, skip .env loading entirely
+RUNNING_IN_AZURE = any([
+    os.getenv('WEBSITE_INSTANCE_ID'),  # App Service set this
+    os.getenv('WEBSITE_SITE_NAME'),     # App Service site name
+    os.getenv('APPSVC_LOG_DIR'),        # App Service logging dir
+])
 
-# Load environment variables from .env file ONLY for local/docker environments
-# In production (Azure), all settings come from App Settings, not .env
-if ENVIRONMENT != 'production':
+# Only load .env if NOT in Azure and not in production mode
+if not RUNNING_IN_AZURE:
     load_dotenv(override=False)  # Don't override existing env vars
+    ENVIRONMENT = os.getenv('ENVIRONMENT', 'local').lower()
+else:
+    # In Azure, all settings come from App Settings, not .env
+    ENVIRONMENT = os.getenv('ENVIRONMENT', 'production').lower()
 
 # Parse SQL_CONNECTION_STRING from environment (or use defaults for local dev)
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
