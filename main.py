@@ -1,6 +1,7 @@
 # ============================================================================
 # Yacht Telemetry API - UNIFIED DEPLOYMENT FILE
 # Works for: Local Development (Docker), Laptop (.env), and Azure (App Settings)
+# Build: Clean pip rebuild forced (deployment trigger 2025-03-22)
 # ============================================================================
 # 
 # ENVIRONMENT CONFIGURATION:
