@@ -1,7 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "Installing dependencies..."
+echo "Cleaning up old dependencies..."
+pip uninstall -y pymssql pyodbc 2>/dev/null || true
+
+echo "Installing new dependencies (mssql-python)..."
+pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "Starting FastAPI with Uvicorn..."
