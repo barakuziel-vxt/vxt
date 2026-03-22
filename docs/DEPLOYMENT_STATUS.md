@@ -183,6 +183,105 @@ POTENTIAL USE CASE:
 
 ---
 
+## 🔴 SESSION UPDATE - March 22, 2026 (ISSUE PERSISTS - pymssql STILL CACHED)
+
+### Timeline of Attempts Today
+
+#### **Attempt #1: Created Minimal Zip Deployment (20:40 UTC)**
+**Action**: Created deploy.zip with only essential files (main.py, requirements.txt, startup.sh, Procfile, web.config)
+**Result**: App deployed and running, but health endpoint returned 502 Bad Gateway with ~60 second timeout
+**Issue**: Timeout indicated blocking operation (suspected database connection hanging)
+**Status**: ❌ FAILED - 502 error
+
+#### **Attempt #2: Enhanced Aggressive startup.sh (21:48 UTC)**
+**Action**: Completely rewrote startup.sh with:
+- `set -x` debug mode to trace execution
+- Hardcoded `/usr/bin/python3` path instead of `which python3`
+- Delete `.venv` directory entirely
+- `--force-reinstall` flag on pip to force package replacement
+- Explicit verification: fail with `exit 1` if mssql-python won't import
+- Better logging for each step
+
+**Commit**: `5d9e1a7` - "NUCLEAR FIX: Ultra-aggressive startup.sh with absolute paths, state checks, exit on failure"
+
+**Deployment**: Stopped and restarted web app to trigger new startup.sh
+**Result**: App transitioned to "Running" state
+**Expected**: mssql-python would replace pymssql
+**Actual**: ❌ **pymssql STILL ACTIVE** - Health endpoint still shows DB-Lib error
+
+#### **Final Verification - Health Check Results**
+
+**Attempt 1**: 
+```json
+{
+  "status":"unhealthy",
+  "database":"disconnected",
+  "error":"Database connection failed: (18456, b\"Login failed for user 'sa'...",
+  "driver":"DB-Lib",
+  "connection":"fe10492567c0.tr10023.northeurope1-a.worker.database.windows.net:11028"
+}
+```
+- Shows: `Login failed for user 'sa'` 
+- Protocol: DB-Lib (pymssql)
+- Hostname: OLD cached hostname `fe10492567c0...` (not Azure SQL)
+
+**Attempt 3** (After retry):
+```json
+{
+  "error":"Database connection failed: (18456, b'DB-Lib error message 20018...",
+  "connection":"fe10492567c0.tr10023.northeurope1-a.worker.database.windows.net:11028"
+}
+```
+- Still DB-Lib protocol (pymssql)
+- Still old hostname
+
+### Why the Fix Failed
+
+**Theory**: The aggressive startup.sh either:
+1. ❌ Never executed (script errors that were masked)
+2. ❌ Failed silently (pip install errors not caught)
+3. ❌ mssql-python installation failed but import test was skipped
+4. ❌ Old pymssql binary still cached somewhere Azure can't clean
+
+**Evidence**:
+- Code uses `from mssql_python import connect` (correct)
+- requirements.txt has ONLY `mssql-python>=1.0.0` (correct)
+- But Azure logs show `pymssql 2.3.0` is what's actually running
+- DB-Lib errors confirm pymssql is being used
+
+### What We Know
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| Code changes | ✅ Correct | main.py imports mssql_python, no hardcoded 'sa' |
+| requirements.txt | ✅ Correct | Only mssql-python>=1.0.0 listed |
+| startup.sh | ✅ Enhanced | Commit 5d9e1a7 deployed |
+| App deployment | ✅ Running | Web app state shows "Running" |
+| Database driver used | ❌ WRONG | Health endpoint shows DB-Lib/pymssql 2.3.0 |
+| Error | ❌ Persistent | "Login failed for user 'sa'" DB-Lib error |
+| Hostname | ❌ OLD | `fe10492567c0...` (not vxtdb.database.windows.net) |
+
+### Next Steps Required (NOT ATTEMPTED YET)
+
+**Option A: Deep Diagnostics** (Recommend)
+- SSH/Kudu into Azure App Service and manually check:
+  - `find /home/site -name "pymssql*"` (locate pymssql files)
+  - `ls -la /usr/local/lib/python3.11/site-packages/ | grep -i mssql` (check what's installed)
+  - Run startup.sh manually and capture full output
+  - Check if `/home/site/wwwroot/startup.sh` is actually being executed
+
+**Option B: Force Fresh Deployment**
+- Delete web app and recreate
+- Or redeploy as Docker container (more isolated)
+- Or manually run on VM to validate code
+
+**Option C: Investigate Azure Caching**
+- Clear Azure's local cache: `scm/command?command=rm%20-rf%20/home/site/.venv`
+- Restart SwiftKey cache
+- Force app recycling multiple times
+
+---
+
 ## ✅ DATABASE DRIVER MIGRATION - COMPLETED (March 21, 2026)
 
 ### Summary
