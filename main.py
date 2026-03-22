@@ -59,26 +59,34 @@ else:
 SQL_CONNECTION_STRING = os.getenv('SQL_CONNECTION_STRING', '')
 
 def get_db_connection_string():
-    """Build mssql-python connection string from environment or use defaults
+    """Build mssql-python connection string from environment
     
     Supports three deployment modes:
-    - LOCAL: Direct connection to localhost SQL Server
-    - DOCKER: Connection to docker-compose SQL Server container
-    - AZURE: Cloud-based SQL Database with TCP endpoint + Managed Identity
+    - LOCAL: Direct connection to localhost SQL Server (via .env with UID=sa for local dev only)
+    - DOCKER: Connection via docker-compose (via .env with UID=sa for local dev only)
+    - AZURE: Cloud-based SQL Database with Managed Identity (SQL_CONNECTION_STRING from App Settings)
+    
+    NOTE: 'sa' user ONLY appears in .env file (not deployed to Azure, not in code)
     """
     
     if SQL_CONNECTION_STRING:
         # Use connection string from environment directly
         # mssql-python will parse it with proper support for all parameters
+        # In Azure, this comes from App Settings and has Authentication=ActiveDirectoryMSI
         return SQL_CONNECTION_STRING
+    elif ENVIRONMENT in ['local', 'dev', 'docker']:
+        # Local development: get connection string from .env file
+        # (set via load_dotenv() earlier only IF NOT in Azure)
+        fallback_local = os.getenv('SQL_CONNECTION_STRING_LOCAL')
+        if fallback_local:
+            return fallback_local
+        # If .env not available, inform user
+        print(f"[WARNING] SQL_CONNECTION_STRING not set. For local dev, add SQL_CONNECTION_STRING to .env file")
+        return None
     else:
-        # Fallback for local development
-        if ENVIRONMENT in ['local', 'dev', 'docker']:
-            return "Server=localhost;Database=BoatTelemetryDB;UID=sa;PWD=YourStrongPassword123!;Encrypt=no;TrustServerCertificate=yes;"
-        else:
-            # Production without connection string - will fail gracefully
-            print(f"[WARNING] SQL_CONNECTION_STRING not set. Database features will be unavailable.")
-            return None
+        # Production without connection string - will fail gracefully
+        print(f"[ERROR] SQL_CONNECTION_STRING not set in production. Check Azure App Settings.")
+        return None
 
 def get_db_config():
     """DEPRECATED: Kept for backward compatibility only. Use get_db_connection_string() instead."""
