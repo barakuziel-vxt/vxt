@@ -34,8 +34,8 @@ class BoatTelemetryHandler(BaseHTTPRequestHandler):
                     'DRIVER={SQL Server};'
                     'SERVER=localhost;'
                     'DATABASE=BoatTelemetryDB;'
-                    'UID=sa;'
-                    'PWD=YourStrongPassword123!'
+                    # Use environment variable for credentials
+                    # Connection string must be set in deployment environment
                 )
                 conn = pyodbc.connect(conn_str)
                 cursor = conn.cursor()

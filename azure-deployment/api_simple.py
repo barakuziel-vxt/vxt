@@ -19,14 +19,11 @@ def health():
 @app.get("/telemetry/{boat_id}")
 def get_telemetry(boat_id: str, limit: int = 50):
     try:
-        # Test database connection
-        conn_str = (
-            'DRIVER={SQL Server};'
-            'SERVER=localhost;'
-            'DATABASE=BoatTelemetryDB;'
-            'UID=sa;'
-            'PWD=YourStrongPassword123!'
-        )
+        # Test database connection - use environment variable or fail securely
+        import os
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            return {"error": "SQL_CONNECTION_STRING not configured", "status": 500}
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
         
@@ -80,13 +77,11 @@ def get_telemetry(boat_id: str, limit: int = 50):
 @app.get("/health/{patient_id}")
 def get_health(patient_id: str, limit: int = 50):
     try:
-        conn_str = (
-            'DRIVER={SQL Server};'
-            'SERVER=localhost;'
-            'DATABASE=BoatTelemetryDB;'
-            'UID=sa;'
-            'PWD=YourStrongPassword123!'
-        )
+        # Test database connection - use environment variable or fail securely
+        import os
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            return {"error": "SQL_CONNECTION_STRING not configured", "status": 500}
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 

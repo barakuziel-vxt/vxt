@@ -12,13 +12,10 @@ def get_telemetry(boat_id):
     try:
         limit = request.args.get('limit', 50, type=int)
         
-        conn_str = (
-            'DRIVER={SQL Server};'
-            'SERVER=localhost;'
-            'DATABASE=BoatTelemetryDB;'
-            'UID=sa;'
-            'PWD=YourStrongPassword123!'
-        )
+        import os
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            return {"error": "SQL_CONNECTION_STRING not configured"}, 500
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
         
@@ -70,13 +67,10 @@ def get_health(patient_id):
     try:
         limit = request.args.get('limit', 50, type=int)
         
-        conn_str = (
-            'DRIVER={SQL Server};'
-            'SERVER=localhost;'
-            'DATABASE=BoatTelemetryDB;'
-            'UID=sa;'
-            'PWD=YourStrongPassword123!'
-        )
+        import os
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            return {"error": "SQL_CONNECTION_STRING not configured"}, 500
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
