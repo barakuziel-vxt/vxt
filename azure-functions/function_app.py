@@ -25,6 +25,7 @@ import json
 import os
 import logging
 from mssql_python import connect, errors as mssql_errors
+from azure.identity import ManagedIdentityCredential
 from datetime import datetime
 from typing import Optional, Dict, List
 
@@ -38,9 +39,7 @@ PROVIDER_NAME = os.environ.get('PROVIDER_NAME', 'N2KToSignalK')
 
 # Database configuration
 DB_SERVER = os.environ.get('DB_SERVER', 'vxtdb.database.windows.net')
-DB_NAME = os.environ.get('DB_NAME', 'vxtdb')
-DB_USER = os.environ.get('DB_USER', 'vxtadmin')
-DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+DB_NAME = os.environ.get('DB_NAME', 'free-sql-db-5949639')
 
 # IoT Hub device twin connection (optional, for reading setup config)
 IOT_HUB_CONNECTION_STRING = os.environ.get('IoTHubConnectionString', os.environ.get('IOT_HUB_CONNECTION_STRING', ''))
@@ -48,20 +47,18 @@ IOT_HUB_CONNECTION_STRING = os.environ.get('IoTHubConnectionString', os.environ.
 # Log startup configuration
 logger.info(f"[STARTUP] Provider: {PROVIDER_NAME}")
 logger.info(f"[STARTUP] Database: {DB_SERVER}/{DB_NAME}")
+logger.info(f"[STARTUP] Authentication: Managed Identity (azure_function)")
 logger.info(f"[STARTUP] IoT Hub Connection: {'SET' if IOT_HUB_CONNECTION_STRING else 'NOT SET'}")
-logger.info(f"[STARTUP] DB Password: {'SET' if DB_PASSWORD else 'WARNING: NOT SET'}")
 
 # ============================================================================
 # TELEMETRY PROCESSOR (Inline implementation)
 # ============================================================================
 class SimpleEventProcessor:
-    """Process telemetry events and insert to database"""
+    """Process telemetry events and insert to database using Managed Identity"""
     
-    def __init__(self, db_server: str, db_name: str, db_user: str, db_password: str, provider_name: str):
+    def __init__(self, db_server: str, db_name: str, provider_name: str):
         self.db_server = db_server
         self.db_name = db_name
-        self.db_user = db_user
-        self.db_password = db_password
         self.provider_name = provider_name
         self.stats = {
             'events_processed': 0,
@@ -71,15 +68,15 @@ class SimpleEventProcessor:
         }
     
     def get_db_connection(self):
-        """Get database connection with retry"""
+        """Get database connection with Managed Identity authentication (retry enabled)"""
         for attempt in range(2):
             try:
-                # Use official mssql-python driver (TDS protocol, no ODBC needed)
+                # Use official mssql-python driver with Managed Identity
+                # Function app's Managed Identity (azure_function) authenticates automatically
                 conn = connect(
                     server=self.db_server,
                     database=self.db_name,
-                    user=self.db_user,
-                    password=self.db_password,
+                    authentication="ActiveDirectoryMSI",
                     port=1433,
                     timeout=30
                 )
@@ -181,22 +178,27 @@ class SimpleEventProcessor:
 processor = None
 
 def get_processor():
-    """Get or initialize the event processor"""
+    """Get or initialize the event processor with Managed Identity"""
     global processor
     if processor is None:
-        logger.info("[PROCESSOR] Initializing processor...")
-        if not DB_PASSWORD:
-            logger.error("[PROCESSOR] CRITICAL: DB_PASSWORD not set - processor cannot connect to database")
-            raise ValueError("DB_PASSWORD environment variable required")
-        
-        processor = SimpleEventProcessor(
-            db_server=DB_SERVER,
-            db_name=DB_NAME,
-            db_user=DB_USER,
-            db_password=DB_PASSWORD,
-            provider_name=PROVIDER_NAME
-        )
-        logger.info(f"[PROCESSOR] Processor initialized for {PROVIDER_NAME} -> {DB_SERVER}/{DB_NAME}")
+        logger.info("[PROCESSOR] Initializing processor with Managed Identity...")
+        try:
+            processor = SimpleEventProcessor(
+                db_server=DB_SERVER,
+                db_name=DB_NAME,
+                provider_name=PROVIDER_NAME
+            )
+            # Test connection to ensure Managed Identity is working
+            conn = processor.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 as test")
+            cursor.close()
+            conn.close()
+            logger.info(f"[PROCESSOR] Processor initialized successfully for {PROVIDER_NAME} -> {DB_SERVER}/{DB_NAME}")
+            logger.info(f"[PROCESSOR] Authentication: Managed Identity (azure_function user)")
+        except Exception as e:
+            logger.error(f"[PROCESSOR] CRITICAL: Failed to initialize processor: {str(e)[:100]}")
+            raise
     return processor
 
 
