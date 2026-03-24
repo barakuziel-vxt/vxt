@@ -214,17 +214,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
         msg = f"Health check - Provider: {PROVIDER_NAME}, DB: {DB_SERVER}/{DB_NAME}"
         logger.info(f"[HEALTH] {msg}")
         
-        # Check if required config is present
-        if not DB_PASSWORD:
-            return func.HttpResponse(
-                json.dumps({
-                    "status": "error",
-                    "error": "DB_PASSWORD environment variable not set",
-                    "provider": PROVIDER_NAME
-                }),
-                status_code=503,
-                mimetype="application/json"
-            )
+        # Using Managed Identity for authentication - no password check needed
         
         if not IOT_HUB_CONNECTION_STRING:
             logger.warning("[HEALTH] IoTHubConnectionString not configured (optional)")
