@@ -183,7 +183,82 @@ POTENTIAL USE CASE:
 
 ---
 
-## 🔴 SESSION UPDATE - March 22, 2026 (ISSUE PERSISTS - pymssql STILL CACHED)
+## � DATABASE USERS & CONNECTION CONFIGURATION - March 24, 2026
+
+### ✅ Verified Database Users (In `free-sql-db-5949639`)
+
+**Users that EXIST in the database**:
+1. ✅ **`vxt`** - SQL user (UID/PWD authentication) - Password: `Barak1976!`
+2. ✅ **`azure_function`** - Azure Function App managed identity user (EXTERNAL PROVIDER)
+3. ✅ **`vxt-web-app`** - Web App managed identity user (EXTERNAL PROVIDER)
+
+**Verification SQL Queries**:
+```sql
+-- Check if vxt user exists
+SELECT * FROM sys.database_principals WHERE name = 'vxt';
+
+-- Check if azure_function user exists
+SELECT * FROM sys.database_principals WHERE name = 'azure_function';
+
+-- Check if vxt-web-app user exists
+SELECT * FROM sys.database_principals WHERE name = 'vxt-web-app';
+
+-- List ALL database users
+SELECT name, type, type_desc, authentication_type
+FROM sys.database_principals 
+WHERE type IN ('S', 'U', 'E')  -- SQL user, Windows user, External provider
+ORDER BY name;
+```
+
+### ✅ CONFIGURATION FIXED - Function App Uses Managed Identity (March 24, 2026)
+
+**Authentication Method**: Managed Identity (azure_function user) - ✅ SECURE & NO SECRETS NEEDED
+
+**GitHub Workflow Now Sets** (`.github/workflows/deploy-function-app.yml`):
+```yaml
+DB_SERVER="vxtdb.database.windows.net"      # ✅ Correct
+DB_NAME="free-sql-db-5949639"               # ✅ Correct database
+IoTHubConnectionString="${{ secrets... }}"  # ✅ Event Hub connection only
+# NO DB_USER or DB_PASSWORD - Using Managed Identity!
+```
+
+**Function Code Updated** (`azure-functions/function_app.py`):
+```python
+DB_SERVER = os.environ.get('DB_SERVER', 'vxtdb.database.windows.net')    # ✅
+DB_NAME = os.environ.get('DB_NAME', 'free-sql-db-5949639')                # ✅ Fixed
+# NO DB_USER or DB_PASSWORD - Using Managed Identity authentication!
+# Connection: authentication="ActiveDirectoryMSI"
+```
+
+**Why Managed Identity Is Better Than SQL Auth**:
+| Factor | SQL Auth (vxt user) | Managed Identity (azure_function) |
+|--------|---------------------|----------------------------------|
+| Secrets in GitHub | ✅ Required | ❌ NONE |
+| Password Management | 🔄 Manual rotation needed | ✅ Azure handles |
+| Security | ⚠️ Lower (password exposure risk) | ✅ Higher (no credentials) |
+| Complexity | ✅ Simple | ✅ (once setup) |
+| Azure Integration | ⚠️ Limited | ✅ Full |
+| Cost | ✅ $0 | ✅ $0 |
+
+### 📋 Changes Made (March 24, 2026)
+
+**Code Changes**:
+1. ✅ Added: `from azure.identity import ManagedIdentityCredential`
+2. ✅ Removed: `DB_USER` and `DB_PASSWORD` environment variables
+3. ✅ Updated: `connect()` to use `authentication="ActiveDirectoryMSI"`
+4. ✅ Fixed: `DB_NAME` default changed from `vxtdb` to `free-sql-db-5949639`
+5. ✅ Updated: `SimpleEventProcessor` constructor (no longer needs user/password)
+
+**Workflow Changes**:
+1. ✅ Removed: `DB_USER="vxtadmin"` setting 
+2. ✅ Removed: `DB_PASSWORD="${{ secrets.DB_PASSWORD }}"` setting
+3. ✅ Removed: Validation check for `DB_PASSWORD` secret
+4. ✅ Updated: Database config now uses only `DB_SERVER` and `DB_NAME`
+5. ✅ Fixed: `DB_NAME="free-sql-db-5949639"` (correct database)
+
+---
+
+## �🔴 SESSION UPDATE - March 22, 2026 (ISSUE PERSISTS - pymssql STILL CACHED)
 
 ### Timeline of Attempts Today
 

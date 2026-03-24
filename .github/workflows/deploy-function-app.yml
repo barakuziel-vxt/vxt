@@ -47,23 +47,20 @@ jobs:
     - name: Configure App Settings
       run: |
         # Check if secrets are set
-        if [ -z "${{ secrets.DB_PASSWORD }}" ]; then
-          echo "⚠️  WARNING: DB_PASSWORD secret is not set"
-        fi
         if [ -z "${{ secrets.IOT_HUB_CONNECTION_STRING }}" ]; then
           echo "⚠️  WARNING: IOT_HUB_CONNECTION_STRING secret is not set"
         fi
         
         # Set app settings
+        # Note: Using Managed Identity (azure_function) for database authentication
+        # No need for DB_USER or DB_PASSWORD - authentication via ActiveDirectoryMSI
         az functionapp config appsettings set \
           --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --settings \
             PROVIDER_NAME="N2KToSignalK" \
             DB_SERVER="vxtdb.database.windows.net" \
-            DB_NAME="vxtdb" \
-            DB_USER="vxtadmin" \
-            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            DB_NAME="free-sql-db-5949639" \
             IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
             ENABLE_INIT_SCRIPTS="1"
         
