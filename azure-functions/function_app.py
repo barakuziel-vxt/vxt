@@ -244,10 +244,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-@app.iot_hub_message_trigger(
-    arg_name="messages",
-    connection="IoTHubConnectionString"
-)
+@app.iot_hub_message_trigger(arg_name="messages")
 async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     """
     Process messages from IoT Hub
