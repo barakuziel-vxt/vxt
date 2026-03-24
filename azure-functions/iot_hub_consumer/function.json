@@ -8,7 +8,7 @@
       "path": "events",
       "connection": "IoTHubConnectionString",
       "cardinality": "many",
-      "consumerGroup": "function-consumer"
+      "consumerGroup": "$Default"
     }
   ]
 }
