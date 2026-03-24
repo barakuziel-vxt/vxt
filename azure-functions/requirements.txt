@@ -1,4 +1,5 @@
 azure-functions==1.18.0
+azure-identity==1.14.0
 azure-iot-hub==2.7.0
 mssql-python>=1.0.0
 python-dateutil==2.8.2
