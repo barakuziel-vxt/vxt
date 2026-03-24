@@ -14,7 +14,7 @@
   },
   "functionTimeout": "00:05:00",
   "pythonWorkerConfig": {
-    "workerDirectory": "",
+    "workerDirectory": ".",
     "scriptFile": "function_app.py"
   }
 }
