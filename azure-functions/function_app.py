@@ -258,12 +258,16 @@ async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     - Message filter: (properties.provider = 'N2KToSignalK') or leave empty for all
     """
     
+    logger.info("[IOT_HUB] ✅ TRIGGER INVOKED - Starting to process messages from IoT Hub")
+    
     if not IOT_HUB_CONNECTION_STRING:
         logger.error("[IOT_HUB] IoTHubConnectionString not configured - cannot process messages")
         return
     
     processor = get_processor()
     message_count = 0
+    
+    logger.info("[IOT_HUB] Processor initialized, waiting for messages...")
     
     async for message in messages:
         try:
@@ -294,6 +298,8 @@ async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
             
         except Exception as e:
             logger.error(f"Error processing message {message_count}: {str(e)[:100]}")
+    
+    logger.info(f"[IOT_HUB] ✅ BATCH COMPLETE - Processed {message_count} messages total")
 
 
 def try_parse_body(message) -> Dict:
