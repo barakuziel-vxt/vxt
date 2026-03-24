@@ -1,0 +1,13 @@
+{
+  "scriptFile": "../function_app.py",
+  "bindings": [
+    {
+      "type": "iotHubTrigger",
+      "name": "messages",
+      "direction": "in",
+      "path": "events",
+      "connection": "IoTHubConnectionString",
+      "cardinality": "many"
+    }
+  ]
+}
