@@ -127,4 +127,3 @@ jobs:
         echo "2. Check Azure Portal: Function Apps > vxt-function > Overview"
         echo "3. Monitor logs: Monitoring > Log stream"
         echo "4. Test health: curl https://vxt-function.azurewebsites.net/api/health"
-        echo """
