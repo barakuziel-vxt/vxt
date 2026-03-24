@@ -244,18 +244,23 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-@app.iot_hub_message_trigger(arg_name="messages")
+@app.event_hub_message_trigger(
+    arg_name="messages",
+    event_hub_name="vxt-iot-hub",
+    connection="IoTHubConnectionString"
+)
 async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     """
-    Process messages from IoT Hub
+    Process messages from IoT Hub (Event Hub compatible endpoint)
     
     Trigger binding reads from IoTHubConnectionString app setting
     This function is triggered whenever the IoT Hub receives a message
     that matches the routing rules configured in Azure Portal.
     
     Configuration:
-    - IoT Hub Routing: Create a route to this function endpoint
-    - Message filter: (properties.provider = 'N2KToSignalK') or leave empty for all
+    - IoT Hub Must have messages routed to this function endpoint
+    - Trigger uses built-in Event Hub-compatible endpoint
+    - Connection string format: Endpoint=sb://...;SharedAccessKey=...
     """
     
     logger.info("[IOT_HUB] ✅ TRIGGER INVOKED - Starting to process messages from IoT Hub")
