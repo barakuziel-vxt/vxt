@@ -14,9 +14,15 @@
   },
   "functionTimeout": "00:10:00",
   "pythonWorkerConfig": {
-    "enableDebugLogging": false
+    "enableDebugLogging": false,
+    "workerTimeout": "30"
   },
   "managedDependency": {
     "enabled": true
+  },
+  "functionLanguageWorkerConfigs": {
+    "python": {
+      "workerTimeout": "30"
+    }
   }
 }
