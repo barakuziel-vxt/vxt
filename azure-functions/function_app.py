@@ -21,6 +21,7 @@ Event from Raspberry Pi → IoT Hub → Function Trigger → TelemetryProcessor 
 """
 
 import azure.functions as func
+from azure.functions import AuthLevel
 import json
 import os
 import logging
@@ -205,7 +206,7 @@ def get_processor():
 # ============================================================================
 app = func.FunctionApp()
 
-@app.route("health", methods=["GET"])
+@app.route("health", methods=["GET"], auth_level=AuthLevel.ANONYMOUS)
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint - returns processor status"""
     try:
