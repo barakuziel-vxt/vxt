@@ -4,11 +4,16 @@ on:
   push:
     branches:
       - prod
-    paths-ignore:
-      - 'azure-functions/**'
-      - '.github/workflows/deploy-function-app.yml'
-      - 'docs/**'
-      - '*.md'
+    paths:
+      - 'api_*.py'
+      - 'app.py'
+      - 'requirements.txt'
+      - 'startup.sh'
+      - 'startup.py'
+      - 'gunicorn_config.py'
+      - 'static/**'
+      - 'templates/**'
+      - '.github/workflows/deploy-python-code.yml'
   workflow_dispatch:
 
 jobs:
