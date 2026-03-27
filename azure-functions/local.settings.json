@@ -1,12 +1,15 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "",
+    "AzureWebJobsStorage": "DefaultEndpointProtocol=https;AccountName=vxtstorage;AccountKey=<KEY>;EndpointSuffix=core.windows.net",
     "FUNCTIONS_WORKER_RUNTIME": "python",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+    "PYTHON_VERSION": "3.13",
+    "WEBSITE_RUN_FROM_PACKAGE": "1",
     "PROVIDER_NAME": "N2KToSignalK",
     "DB_SERVER": "vxtdb.database.windows.net",
     "DB_NAME": "free-sql-db-5949639",
-    "IoTHubConnectionString": "Endpoint=sb://vxt-iot-hub.servicebus.windows.net/;SharedAccessKeyName=owner;SharedAccessKey=YOUR_IOT_HUB_EVENT_HUB_KEY_HERE"
+    "IoTHubConnectionString": "Endpoint=sb://ihsuproddbres051dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=<KEY>;EntityPath=iothub-ehub-vxt-iot-hu-66946165-82f53700df"
   },
   "ConnectionStrings": {}
 }
