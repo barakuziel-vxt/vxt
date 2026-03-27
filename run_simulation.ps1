@@ -12,17 +12,16 @@ Write-Host "IoT Hub Telemetry Simulation" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Set device connection string (from environment or secure location)
-if (-not $env:IOT_DEVICE_CONNECTION_STRING) {
-    Write-Host "❌ Error: IOT_DEVICE_CONNECTION_STRING not set" -ForegroundColor Red
-    Write-Host "Please set the environment variable or run: az iot device compute-derived-key --device-id TestDevice --hub-name VXT-IoT-Hub" -ForegroundColor Yellow
-    exit 1
-}
-Write-Host "Using IOT_DEVICE_CONNECTION_STRING from environment" -ForegroundColor Green
 
-Write-Host "Device: TestDevice" -ForegroundColor Green
+# Set device connection string directly (no env needed)
+$env:IOT_DEVICE_CONNECTION_STRING = "REDACTED"
+Write-Host "Using hardcoded IOT_DEVICE_CONNECTION_STRING for TestDevice" -ForegroundColor Green
+
+
+Write-Host "Entities: 234567890, 234567891" -ForegroundColor Green
 Write-Host "Hub: VXT-IoT-Hub" -ForegroundColor Green
-Write-Host "Messages: 2" -ForegroundColor Green
+Write-Host "Messages per entity: 5" -ForegroundColor Green
+Write-Host "Total messages: 10" -ForegroundColor Green
 Write-Host ""
 
 # Run the simulation
