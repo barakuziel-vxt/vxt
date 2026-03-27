@@ -48,6 +48,8 @@ IOT_HUB_CONNECTION_STRING = os.environ.get('IoTHubConnectionString', os.environ.
 logger.info(f"[STARTUP] Provider: {PROVIDER_NAME}")
 logger.info(f"[STARTUP] Database: {DB_SERVER}/{DB_NAME}")
 logger.info(f"[STARTUP] Authentication: Managed Identity (azure_function)")
+logger.info(f"[STARTUP] IoTHubConnectionString configured: {bool(IOT_HUB_CONNECTION_STRING)}")
+logger.info("[STARTUP] Function app initialized and ready to receive events")
 logger.info(f"[STARTUP] IoT Hub Connection: {'SET' if IOT_HUB_CONNECTION_STRING else 'NOT SET'}")
 
 # ============================================================================
