@@ -266,6 +266,7 @@ async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
     """
     
     logger.info("[IOT_HUB] ✅ TRIGGER INVOKED - Starting to process messages from IoT Hub")
+    logger.info(f"[IOT_HUB] Connection: {IOT_HUB_CONNECTION_STRING[:50] if IOT_HUB_CONNECTION_STRING else 'NOT SET'}...")
     
     if not IOT_HUB_CONNECTION_STRING:
         logger.error("[IOT_HUB] IoTHubConnectionString not configured - cannot process messages")
