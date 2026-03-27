@@ -1,11 +1,4 @@
 #!/usr/bin/env pwsh
-<#
-.SYNOPSIS
-Run telemetry simulation - sends 2 test messages to IoT Hub
-.DESCRIPTION
-This script sends 2 telemetry events to the Azure IoT Hub using TestDevice
-and waits for the Azure Function to process them (5 second wait)
-#>
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "IoT Hub Telemetry Simulation" -ForegroundColor Cyan
