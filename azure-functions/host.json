@@ -1,5 +1,6 @@
 {
   "version": "2.0",
+  "comment": "Note: WEBSITE_RUN_FROM_PACKAGE=1 is configured in Azure Function App settings for optimized deployment",
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
