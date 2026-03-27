@@ -1,6 +1,5 @@
 {
   "version": "2.0",
-  "comment": "Note: WEBSITE_RUN_FROM_PACKAGE=1 is configured in Azure Function App settings for optimized deployment",
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
@@ -13,8 +12,11 @@
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.0.0)"
   },
-  "functionTimeout": "00:05:00",
+  "functionTimeout": "00:10:00",
   "pythonWorkerConfig": {
     "enableDebugLogging": false
+  },
+  "managedDependency": {
+    "enabled": true
   }
 }
