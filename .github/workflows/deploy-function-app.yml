@@ -13,7 +13,7 @@ env:
   FUNCTION_APP_NAME: vxt-function
   RESOURCE_GROUP: vxt-functions-linux
   RESOURCE_GROUP_STORAGE: vxt-functions-linux
-  STORAGE_ACCOUNT_NAME: vxtfunctionslinux
+  STORAGE_ACCOUNT_NAME: vxtfunct
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -81,8 +81,10 @@ jobs:
             PYTHON_VERSION="3.11" \
             PROVIDER_NAME="N2KToSignalK" \
             DATABASE_SERVER="vxtdb.database.windows.net" \
-            DATABASE_NAME="vxtdb" \
-            DATABASE_USER="vxt-web-app" \
+            DATABASE_NAME="free-sql-db-5949639" \
+            DB_SERVER="vxtdb.database.windows.net" \
+            DB_NAME="free-sql-db-5949639" \
+            DATABASE_USER="vxt-function" \
             EVENT_HUB_NAME="events" \
             AzureWebJobsStorage="${STORAGE_CONN}" \
             IoTHubConnectionString="${IOT_CONN}" \
