@@ -1,17 +1,19 @@
-{
-  "scriptFile": "../function_app.py",
-  "bindings": [
-    {
-      "type": "httpTrigger",
-      "name": "req",
-      "direction": "in",
-      "methods": ["GET"],
-      "route": "health/db"
-    },
-    {
-      "type": "http",
-      "name": "$return",
-      "direction": "out"
-    }
-  ]
+﻿{
+    "scriptFile":  "function_app.py",
+    "bindings":  [
+                     {
+                         "direction":  "in",
+                         "methods":  [
+                                         "GET"
+                                     ],
+                         "name":  "req",
+                         "type":  "httpTrigger",
+                         "route":  "health"
+                     },
+                     {
+                         "direction":  "out",
+                         "name":  "$return",
+                         "type":  "http"
+                     }
+                 ]
 }

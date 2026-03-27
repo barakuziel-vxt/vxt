@@ -1,15 +1,12 @@
-{
-  "scriptFile": "../function_app.py",
-  "bindings": [
-    {
-      "type": "eventHubTrigger",
-      "name": "messages",
-      "direction": "in",
-      "eventHubName": "events",
-      "connection": "IoTHubConnectionString",
-      "consumerGroup": "$Default",
-      "cardinality": "many",
-      "dataType": "string"
-    }
-  ]
+﻿{
+    "scriptFile":  "function_app.py",
+    "bindings":  [
+                     {
+                         "direction":  "in",
+                         "name":  "messages",
+                         "connection":  "IoTHubConnectionString",
+                         "type":  "eventHubTrigger",
+                         "eventHubName":  "events"
+                     }
+                 ]
 }

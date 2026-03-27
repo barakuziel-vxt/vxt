@@ -88,7 +88,6 @@ jobs:
             EVENT_HUB_NAME="events" \
             AzureWebJobsStorage="${STORAGE_CONN}" \
             IoTHubConnectionString="${IOT_CONN}" \
-            WEBSITE_RUN_FROM_PACKAGE="1" \
             ENABLE_INIT_SCRIPTS="1"
         
         echo "✅ All app settings configured"
