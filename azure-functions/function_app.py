@@ -248,36 +248,30 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     event_hub_name="events",
     connection="IoTHubConnectionString"
 )
-async def iot_hub_consumer(messages) -> None:
+def iot_hub_consumer(messages) -> None:
     """
     Process messages from IoT Hub (Event Hub compatible endpoint)
     
-    Trigger binding reads from IoTHubConnectionString app setting
-    This function is triggered whenever the IoT Hub receives a message
-    that matches the routing rules configured in Azure Portal.
-    
-    Configuration:
-    - IoT Hub Must have messages routed to this function endpoint
-    - Trigger uses built-in Event Hub-compatible endpoint
-    - Connection string format: Endpoint=sb://...;SharedAccessKey=...
+    Receives messages as a list (default cardinality=Many in v4)
+    or single message depending on batch settings.
     """
     
-    logger.info("[IOT_HUB] ✅ TRIGGER INVOKED - Starting to process messages from IoT Hub")
-    logger.info(f"[IOT_HUB] Connection: {IOT_HUB_CONNECTION_STRING[:50] if IOT_HUB_CONNECTION_STRING else 'NOT SET'}...")
+    logger.info("[IOT_HUB] ✅ TRIGGER INVOKED - Processing messages from IoT Hub")
+    logger.info(f"[IOT_HUB] Messages type: {type(messages)}, Connection: {IOT_HUB_CONNECTION_STRING[:50] if IOT_HUB_CONNECTION_STRING else 'NOT SET'}...")
     
     if not IOT_HUB_CONNECTION_STRING:
-        logger.error("[IOT_HUB] IoTHubConnectionString not configured - cannot process messages")
+        logger.error("[IOT_HUB] IoTHubConnectionString not configured")
         return
     
     processor = get_processor()
-    message_count = 0
     
-    logger.info("[IOT_HUB] Processor initialized, waiting for messages...")
+    # Handle both single message and list of messages
+    messages_list = messages if isinstance(messages, list) else [messages]
     
-    async for message in messages:
+    logger.info(f"[IOT_HUB] Processing {len(messages_list)} message(s)...")
+    
+    for idx, message in enumerate(messages_list, 1):
         try:
-            message_count += 1
-            
             # Extract message body
             try:
                 body = message.get_json() if hasattr(message, 'get_json') else json.loads(message.get_body())
@@ -288,7 +282,7 @@ async def iot_hub_consumer(messages) -> None:
             properties = dict(message.properties) if hasattr(message, 'properties') else {}
             device_id = properties.get('deviceId', properties.get('device_id', 'unknown'))
             
-            logger.info(f"[RCV {message_count}] Device: {device_id} | Body: {json.dumps(body)[:80]}...")
+            logger.info(f"[RCV {idx}] Device: {device_id} | Body: {json.dumps(body)[:80]}...")
             
             # Ensure body is a dict
             if isinstance(body, (str, bytes)):
@@ -299,12 +293,12 @@ async def iot_hub_consumer(messages) -> None:
             
             # Process event
             inserted_count = processor.process_event(event_payload)
-            logger.info(f"[PROC {message_count}] Inserted: {inserted_count} | Device: {device_id}")
+            logger.info(f"[PROC {idx}] Inserted: {inserted_count} | Device: {device_id}")
             
         except Exception as e:
-            logger.error(f"Error processing message {message_count}: {str(e)[:100]}")
+            logger.error(f"Error processing message {idx}: {str(e)[:100]}")
     
-    logger.info(f"[IOT_HUB] ✅ BATCH COMPLETE - Processed {message_count} messages total")
+    logger.info(f"[IOT_HUB] ✅ BATCH COMPLETE - Processed {len(messages_list)} messages total")
 
 
 def try_parse_body(message) -> Dict:
