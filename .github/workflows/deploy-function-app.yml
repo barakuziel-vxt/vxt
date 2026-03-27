@@ -45,26 +45,48 @@ jobs:
     
     - name: Configure App Settings
       run: |
-        # Check if secrets are set
-        if [ -z "${{ secrets.IOT_HUB_CONNECTION_STRING }}" ]; then
-          echo "⚠️  WARNING: IOT_HUB_CONNECTION_STRING secret is not set"
-        fi
+        echo "🔑 Fetching credentials from Azure..."
         
-        # Set app settings
-        # Note: Using Managed Identity (azure_function) for database authentication
-        # No need for DB_USER or DB_PASSWORD - authentication via ActiveDirectoryMSI
+        # Get storage account connection string directly from Azure
+        STORAGE_CONN=$(az storage account show-connection-string \
+          --resource-group VXT-IoT-Hub \
+          --name vxtstorage -o tsv)
+        echo "✅ Storage connection string retrieved"
+        
+        # Get IoT Hub Event Hub endpoint and key
+        IOT_ENDPOINT=$(az iot hub show \
+          --resource-group VXT-IoT-Hub \
+          --name VXT-IoT-Hub \
+          --query "properties.eventHubEndpoints.events.endpoint" -o tsv)
+        
+        IOT_KEY=$(az iot hub policy show \
+          --resource-group VXT-IoT-Hub \
+          --hub-name VXT-IoT-Hub \
+          --name iothubowner \
+          --query "primaryKey" -o tsv)
+        
+        IOT_ENTITY_PATH="iothub-ehub-vxt-iot-hu-66946165-82f53700df"
+        IOT_CONN="Endpoint=${IOT_ENDPOINT};SharedAccessKeyName=iothubowner;SharedAccessKey=${IOT_KEY};EntityPath=${IOT_ENTITY_PATH}"
+        echo "✅ IoT Hub connection string constructed"
+        
+        # Set all critical app settings
         az functionapp config appsettings set \
           --name vxt-function \
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --settings \
             FUNCTIONS_WORKER_RUNTIME="python" \
+            FUNCTIONS_EXTENSION_VERSION="~4" \
+            PYTHON_VERSION="3.13" \
             PROVIDER_NAME="N2KToSignalK" \
             DB_SERVER="vxtdb.database.windows.net" \
             DB_NAME="free-sql-db-5949639" \
-            IoTHubConnectionString="${{ secrets.IOT_HUB_CONNECTION_STRING }}" \
+            AzureWebJobsStorage="${STORAGE_CONN}" \
+            IoTHubConnectionString="${IOT_CONN}" \
+            WEBSITE_RUN_FROM_PACKAGE="1" \
             ENABLE_INIT_SCRIPTS="1"
         
-        echo "✅ App settings configured (Python runtime enabled)"
+        echo "✅ All app settings configured"
+        echo "⚡ App will restart automatically to apply settings"
     
     - name: Deploy to Azure Function
       run: |
