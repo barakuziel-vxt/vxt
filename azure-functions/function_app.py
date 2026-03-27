@@ -247,7 +247,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     event_hub_name="events",
     connection="IoTHubConnectionString"
 )
-async def iot_hub_consumer(messages: func.AsynchronousIterable) -> None:
+async def iot_hub_consumer(messages) -> None:
     """
     Process messages from IoT Hub (Event Hub compatible endpoint)
     
