@@ -245,7 +245,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.event_hub_message_trigger(
     arg_name="messages",
-    event_hub_name="events",
+    event_hub_name="iothub-ehub-vxt-iot-hu-66946165-82f53700df",
     connection="IoTHubConnectionString"
 )
 async def iot_hub_consumer(messages) -> None:
