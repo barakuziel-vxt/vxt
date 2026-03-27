@@ -47,22 +47,40 @@
 - [x] **Deployment Size**: ~50MB code (vs. 245MB Docker image)
 - [x] **Cost**: Remains $0 (Free tier)
 
-### 4. **Function App Deployment (NEW - March 21, 2026)**
-- [x] **Azure Function App**: `vxt-function` (Y1 Consumption, North Europe)
-- [x] **Trigger Type**: IoT Hub Message Trigger
+### 4. **Function App Deployment (UPDATED - March 27, 2026)**
+- [x] **Resource Group**: `vxt-functions-linux` (dedicated Linux container)
+- [x] **Azure Function App**: `vxt-function` (Linux Consumption Plan, North Europe)
+- [x] **App Service Plan**: `NorthEuropeLinuxDynamicPlan` (Linux Dynamic - FREE)
+- [x] **Cost**: ✅ **$0/month** (pay-as-you-go only for actual executions)
+- [x] **Trigger Type**: IoT Hub Message Trigger (Event Hub compatible)
 - [x] **Language**: Python 3.11
-- [x] **Database Driver**: ✅ **mssql-python** (UPDATED - matches Web App)
+- [x] **OS**: Linux ✅ (required for Python)
+- [x] **Functions Version**: 4
+- [x] **Storage Account**: `vxtfunctionslinux` (Standard LRS, North Europe)
+- [x] **Database Driver**: ✅ **mssql-python** (Official Microsoft driver)
+- [x] **Managed Identity**: ✅ Assigned (Principal ID: 419e0953-1215-4237-9dc5-e25f0df09901)
 - [x] **GitHub Actions Workflow**: [deploy-function-app.yml](./.github/workflows/deploy-function-app.yml)
 - [x] **Health Endpoint**: `https://vxt-function.azurewebsites.net/api/health`
 - [x] **Processing Flow**: IoT Hub → Function Trigger → Database Insert
 - [x] **Target Table**: `dbo.EntityTelemetry`
 
-**GitHub Secrets Required for Function App**:
-- `AZURE_CREDENTIALS` - Service Principal JSON (for GitHub → Azure authentication)
-- `DB_PASSWORD` - SQL Database admin password (vxtadmin user)
-- `IOT_HUB_CONNECTION_STRING` - Event Hub-compatible connection string
+**App Configuration**:
+- IOT_HUB_CONNECTION_STRING: (configured)
+- DATABASE_SERVER: vxtdb.database.windows.net
+- DATABASE_NAME: vxtdb
+- DATABASE_USER: vxt-web-app
+- EVENT_HUB_NAME: events
+- AZURE_TENANT_ID: cdbf3aaa-ae16-4201-af90-2d06a90c1cce
+- PYTHON_VERSION: 3.11
 
-**Status**: ⏳ Ready for deployment (secrets must be configured in GitHub)
+**Why Linux Consumption (NOT Free/Shared Plan)?**
+- ✅ Python only supported on Linux for Azure Functions
+- ✅ Free (F1) and Shared plans do NOT support Function Apps (minimum is B1 Basic at $13.14/month)
+- ✅ Linux Consumption plan = FREE (pay only for execution)
+- ⚠️  Retiring Sept 30, 2028 (migrate to Flex Consumption before then)
+- ✅ Supports IoT Hub triggers, mssql-python, Managed Identity
+
+**Status**: ✅ Ready for deployment (code push to `prod` branch triggers GitHub Actions)
 
 ---
 
@@ -111,7 +129,7 @@ See: [AZURE_PYTHON_SQL_F1_SETUP_GUIDE.md](./AZURE_PYTHON_SQL_F1_SETUP_GUIDE.md) 
 
 
 
-### **Current Production Status**
+### **Current Production Status - March 27, 2026**
 
 #### **Azure Web App (Direct File-Based Deployment) - ✅ DEPLOYED WITH FIX**
 ```
@@ -129,6 +147,33 @@ Components:
   ├─ FastAPI Backend (79 endpoints - Running) ✅
   ├─ Database Layer (Azure SQL + mssql-python) ⏳ READY TO TEST
   └─ Python 3.11 Runtime (Linux) ✅
+```
+
+#### **Azure Function App (Linux Consumption) - ✅ INFRASTRUCTURE COMPLETE**
+```
+Status: ✅ CONFIGURED & READY FOR CODE DEPLOYMENT
+App Name: vxt-function
+Resource Group: vxt-functions-linux (dedicated for Linux workloads)
+App Service Plan: NorthEuropeLinuxDynamicPlan (Linux Consumption - FREE)
+Region: North Europe
+Runtime: Python 3.11 (v4 functions)
+OS: Linux ✅
+Cost: $0/month (pay-as-you-go real execution only)
+Trigger: IoT Hub messages → Event Hub → Function processing
+Target: dbo.EntityTelemetry (SQL Database)
+
+Infrastructure:
+  ├─ Function App ✅
+  ├─ Storage Account (vxtfunctionslinux) ✅
+  ├─ App Service Plan (Linux Dynamic) ✅
+  ├─ Managed Identity ✅ (Principal: 419e0953-1215-4237-9dc5-e25f0df09901)
+  ├─ App Settings (6 configured) ✅
+  └─ Database Driver: mssql-python ✅
+
+Health Endpoint: https://vxt-function.azurewebsites.net/api/health
+
+NEXT STEP: Push code to `prod` branch to trigger GitHub Actions deployment
+```
 
 Azure Details:
   ├─ Resource Group: VXT-IoT-Hub
