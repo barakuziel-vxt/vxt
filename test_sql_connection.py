@@ -1,10 +1,14 @@
 import pyodbc
+import os
 
 # Connection details
 server = 'vxtdb.database.windows.net'
 database = 'vxtdb'
 username = 'vxtadmin'
-password = 'Barak1008!'
+password = os.getenv('DB_PASSWORD', '')
+
+if not password:
+    raise ValueError('DB_PASSWORD environment variable not set')
 
 # Create connection string
 connection_string = f'Driver={{ODBC Driver 17 for SQL Server}};Server={server},1433;Database={database};Uid={username};Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
