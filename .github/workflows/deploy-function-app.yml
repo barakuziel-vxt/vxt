@@ -76,7 +76,7 @@ jobs:
           --settings \
             FUNCTIONS_WORKER_RUNTIME="python" \
             FUNCTIONS_EXTENSION_VERSION="~4" \
-            PYTHON_VERSION="3.13" \
+            PYTHON_VERSION="3.11" \
             PROVIDER_NAME="N2KToSignalK" \
             DB_SERVER="vxtdb.database.windows.net" \
             DB_NAME="free-sql-db-5949639" \
