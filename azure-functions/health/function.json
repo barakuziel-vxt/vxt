@@ -3,15 +3,15 @@
   "bindings": [
     {
       "type": "httpTrigger",
-      "direction": "in",
       "name": "req",
-      "methods": ["get"],
-      "route": "health"
+      "direction": "in",
+      "methods": ["GET"],
+      "route": "health/db"
     },
     {
       "type": "http",
-      "direction": "out",
-      "name": "$return"
+      "name": "$return",
+      "direction": "out"
     }
   ]
 }
