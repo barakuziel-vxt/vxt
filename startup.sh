@@ -6,8 +6,9 @@ echo "[STARTUP] VXT Web App - PYMSSQL ELIMINATION"
 echo "======================================"
 echo "[$(date)] Starting up..."
 
-# Use /usr/bin/python3 directly (guaranteed available in Python App Service)
-PY="/usr/bin/python3"
+# Use 'python3' from PATH (Oryx activates antenv before calling this script,
+# so python3 points to antenv's Python, NOT /usr/bin/python3 which may not exist)
+PY=$(command -v python3.11 || command -v python3 || command -v python)
 echo "[STARTUP] Using Python: $PY"
 $PY --version
 
