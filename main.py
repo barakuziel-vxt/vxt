@@ -851,7 +851,7 @@ def delete_entity_category(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityCategory WHERE entityCategoryId = %s", (id,))
+        cur.execute("DELETE FROM EntityCategory WHERE entityCategoryId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -962,7 +962,7 @@ def delete_entity_type(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityType WHERE entityTypeId = %s", (id,))
+        cur.execute("DELETE FROM EntityType WHERE entityTypeId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1121,7 +1121,7 @@ def delete_entity_type_attribute(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityTypeAttribute WHERE entityTypeAttributeId = %s", (id,))
+        cur.execute("DELETE FROM EntityTypeAttribute WHERE entityTypeAttributeId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1301,7 +1301,7 @@ def delete_provider(provider_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM Provider WHERE providerId = %s", (provider_id,))
+        cur.execute("DELETE FROM Provider WHERE providerId = ?", (provider_id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1366,7 +1366,7 @@ def delete_protocol(protocol_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM Protocol WHERE protocolId = %s", (protocol_id,))
+        cur.execute("DELETE FROM Protocol WHERE protocolId = ?", (protocol_id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1446,7 +1446,7 @@ def delete_protocol_attribute(attribute_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = %s", (attribute_id,))
+        cur.execute("DELETE FROM ProtocolAttribute WHERE protocolAttributeId = ?", (attribute_id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1552,7 +1552,7 @@ def delete_provider_event(event_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = %s", (event_id,))
+        cur.execute("DELETE FROM ProviderEvent WHERE providerEventId = ?", (event_id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1660,7 +1660,7 @@ def delete_entity_type_attribute_score(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM EntityTypeAttributeScore WHERE entityTypeAttributeScoreId = %s", (id,))
+        cur.execute("DELETE FROM EntityTypeAttributeScore WHERE entityTypeAttributeScoreId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1837,7 +1837,7 @@ def delete_event(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE Event SET active = 'N' WHERE eventId = %s", (id,))
+        cur.execute("UPDATE Event SET active = 'N' WHERE eventId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -1911,7 +1911,7 @@ def delete_event_attribute(eventId: int, attributeId: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE EventAttribute SET active = 'N' WHERE eventId = %s AND entityTypeAttributeId = %s", 
+        cur.execute("UPDATE EventAttribute SET active = 'N' WHERE eventId = ? AND entityTypeAttributeId = ?", 
                    (eventId, attributeId))
         conn.commit()
         cur.close()
@@ -2092,7 +2092,7 @@ def delete_entity(id: str):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE Entity SET active = 'N' WHERE entityId = %s", (id,))
+        cur.execute("UPDATE Entity SET active = 'N' WHERE entityId = ?", (id,))
         conn.commit()
         cur.close()
         return_db_connection(conn)
@@ -2132,7 +2132,7 @@ async def get_latest_telemetry(entity_id: str):
           JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
           LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE et.entityId = %s
+          WHERE et.entityId = ?
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
         SELECT 
@@ -2238,9 +2238,9 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             et.longitude
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-        WHERE et.entityId = %s
-          AND et.endTimestampUTC >= CONVERT(DATETIME2, %s)
-          AND et.endTimestampUTC <= CONVERT(DATETIME2, %s)
+        WHERE et.entityId = ?
+          AND et.endTimestampUTC >= CONVERT(DATETIME2, ?)
+          AND et.endTimestampUTC <= CONVERT(DATETIME2, ?)
         ORDER BY et.endTimestampUTC ASC
         """
         
@@ -2322,9 +2322,9 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EventLog el
         LEFT JOIN dbo.Event e ON el.eventId = e.eventId
         LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
-        WHERE el.entityId = %s
-          AND el.triggeredAt >= CAST(%s AS DATETIME)
-          AND el.triggeredAt <= CAST(%s AS DATETIME)
+        WHERE el.entityId = ?
+          AND el.triggeredAt >= CAST(? AS DATETIME)
+          AND el.triggeredAt <= CAST(? AS DATETIME)
         GROUP BY el.eventLogId, el.eventId, e.eventCode, e.eventDescription, 
                  e.risk, el.cumulativeScore, el.probability, el.triggeredAt
         ORDER BY CASE e.risk

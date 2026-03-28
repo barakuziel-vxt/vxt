@@ -163,15 +163,15 @@ class SimpleEventProcessor:
                 for evt in normalized_events:
                     try:
                         # Filter: EntityTypeAttribute must exist for this entity + code
-                        # Note: mssql-python uses @param named format (not ? positional)
+                        # mssql_python 1.4: use ? positional params with native Python types
                         lookup_cursor.execute("""
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
                             JOIN Entity e ON e.entityTypeId = eta.entityTypeId
-                            WHERE e.entityId = @entityId
-                              AND eta.entityTypeAttributeCode = @code
+                            WHERE e.entityId = ?
+                              AND eta.entityTypeAttributeCode = ?
                               AND eta.active = 'Y'
-                        """, (('@entityId', evt.entity_id), ('@code', evt.attr_code)))
+                        """, (evt.entity_id, evt.attr_code))
 
                         row = lookup_cursor.fetchone()
                         if not row:
@@ -184,50 +184,41 @@ class SimpleEventProcessor:
 
                         attr_id = int(row[0])
 
-                        # mssql-python named params only support str reliably.
-                        # - Never pass None (can't infer SQL type)
-                        # - Never pass float/int/datetime (causes "Unsupported parameter type")
-                        # - Never put string literals '' in SQL (confuses the param parser)
-                        # Solution: build INSERT dynamically; omit nullable cols that are None.
-                        # Only include a col when it has a value, passing it as a str.
-                        # SQL functions CAST/CONVERT/TRY_CAST convert str → correct SQL type.
+                        # mssql_python 1.4: use ? positional params with native Python types.
+                        # - Pass datetime directly for DATETIME2 (no strftime/CONVERT needed)
+                        # - Pass int for INT, float for FLOAT
+                        # - Never pass None — omit the column instead
                         ts: datetime = evt.timestamp
-                        ts_str  = ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                        ing_str = ingestion_ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
 
                         # Required (non-nullable) columns — always present
                         ins_cols   = ['entityId', 'entityTypeAttributeId',
                                       'startTimestampUTC', 'endTimestampUTC',
                                       'ingestionTimestampUTC', 'providerDevice']
-                        ins_vals   = ['@entityId', 'CAST(@attrId AS INT)',
-                                      'CONVERT(DATETIME2,@startTs,126)',
-                                      'CONVERT(DATETIME2,@endTs,126)',
-                                      'CONVERT(DATETIME2,@ingTs,126)',
-                                      '@device']
-                        ins_params = [('@entityId', evt.entity_id),
-                                      ('@attrId',   str(attr_id)),
-                                      ('@startTs',  ts_str),
-                                      ('@endTs',    ts_str),
-                                      ('@ingTs',    ing_str),
-                                      ('@device',   evt.provider_device)]
+                        ins_vals   = ['?', '?', '?', '?', '?', '?']
+                        ins_params = [evt.entity_id,
+                                      int(attr_id),
+                                      ts,
+                                      ts,
+                                      ingestion_ts,
+                                      evt.provider_device]
 
                         # Optional (nullable) columns — only add when not None
                         if evt.numeric_value is not None:
                             ins_cols.append('numericValue')
-                            ins_vals.append('TRY_CAST(@numVal AS FLOAT)')
-                            ins_params.append(('@numVal', str(evt.numeric_value)))
+                            ins_vals.append('?')
+                            ins_params.append(float(evt.numeric_value))
                         if evt.string_value is not None:
                             ins_cols.append('stringValue')
-                            ins_vals.append('@strVal')
-                            ins_params.append(('@strVal', str(evt.string_value)))
+                            ins_vals.append('?')
+                            ins_params.append(str(evt.string_value))
                         if evt.latitude is not None:
                             ins_cols.append('latitude')
-                            ins_vals.append('TRY_CAST(@lat AS FLOAT)')
-                            ins_params.append(('@lat', str(evt.latitude)))
+                            ins_vals.append('?')
+                            ins_params.append(float(evt.latitude))
                         if evt.longitude is not None:
                             ins_cols.append('longitude')
-                            ins_vals.append('TRY_CAST(@lon AS FLOAT)')
-                            ins_params.append(('@lon', str(evt.longitude)))
+                            ins_vals.append('?')
+                            ins_params.append(float(evt.longitude))
 
                         ins_sql = (
                             f"INSERT INTO dbo.EntityTelemetry "
