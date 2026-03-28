@@ -74,24 +74,25 @@ class SimpleEventProcessor:
         """Get database connection with Managed Identity authentication (retry enabled)"""
         mssql = self._get_mssql_module()
         connect = mssql['connect']
+
+        conn_str = (
+            f"Server={self.db_server},1433;"
+            f"Database={self.db_name};"
+            "Authentication=ActiveDirectoryMSI;"
+            "Encrypt=yes;"
+            "TrustServerCertificate=no;"
+        )
         
         for attempt in range(2):
             try:
-                # Use official mssql-python driver with Managed Identity
-                conn = connect(
-                    server=self.db_server,
-                    database=self.db_name,
-                    authentication="ActiveDirectoryMSI",
-                    port=1433,
-                    timeout=30
-                )
+                conn = connect(conn_str)
                 return conn
             except Exception as e:
                 if attempt < 1:
                     import time
                     time.sleep(1)
                 else:
-                    raise Exception(f"DB connection failed: {str(e)[:100]}")
+                    raise Exception(f"DB connection failed: {str(e)[:200]}")
     
     def process_event(self, event: Dict) -> int:
         """
@@ -124,7 +125,8 @@ class SimpleEventProcessor:
             
             # Connect to database
             conn = self.get_db_connection()
-            cursor = conn.cursor()
+            write_cursor = conn.cursor()
+            lookup_cursor = conn.cursor()
             
             try:
                 # Extract telemetry values from SignalK format
@@ -143,7 +145,7 @@ class SimpleEventProcessor:
                         continue
                     try:
                         # Look up entityTypeAttributeId via entity -> entityType -> attribute
-                        cursor.execute("""
+                        lookup_cursor.execute("""
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
                             JOIN Entity e ON e.entityTypeId = eta.entityTypeId
@@ -151,7 +153,7 @@ class SimpleEventProcessor:
                               AND eta.entityTypeAttributeCode = @code
                               AND eta.active = 'Y'
                         """, (('@entityId', entity_id), ('@code', attr_code)))
-                        row = cursor.fetchone()
+                        row = lookup_cursor.fetchone()
                         if not row:
                             logger.debug(f"No attribute mapping: {entity_id}/{attr_code}")
                             self.stats['records_skipped'] += 1
@@ -173,7 +175,7 @@ class SimpleEventProcessor:
                             except (ValueError, TypeError):
                                 string_val = str(value)
 
-                        cursor.execute("""
+                        write_cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry
                             (entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC,
                              ingestionTimestampUTC, providerDevice, numericValue, stringValue,
@@ -202,13 +204,14 @@ class SimpleEventProcessor:
                 conn.commit()
                 
             finally:
-                cursor.close()
+                lookup_cursor.close()
+                write_cursor.close()
                 conn.close()
             
             logger.info(f"Entity {entity_id}: Inserted {inserted_count} records")
                 
         except Exception as e:
-            logger.error(f"Error processing event: {str(e)[:100]}")
+            logger.error(f"Error processing event: {str(e)}")
             self.stats['errors'] += 1
         
         return inserted_count
