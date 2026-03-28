@@ -10,7 +10,7 @@ import json
 from kafka import KafkaConsumer, KafkaAdminClient
 from kafka.admin import ConfigResource, ConfigResourceType
 import logging
-import pymssql
+from mssql_python import connect
 import time
 from datetime import datetime
 
@@ -119,17 +119,18 @@ def check_database_connection():
     for driver in drivers:
         try:
             conn_str = (
-                f'DRIVER={{{driver}}};'
-                f'SERVER=127.0.0.1;'
-                f'DATABASE=BoatTelemetryDB;'
+                f'Server=127.0.0.1,1433;'
+                f'Database=BoatTelemetryDB;'
                 f'UID=sa;'
-                f'PWD=YourStrongPassword123!'
+                f'PWD=YourStrongPassword123!;'
+                f'Encrypt=no;'
+                f'TrustServerCertificate=yes;'
             )
             
-            logger.info(f"Trying driver: {driver}...")
-            conn = pymssql.connect(conn_str)
+            logger.info(f"Trying mssql-python driver...")
+            conn = connect(conn_str)
             cursor = conn.cursor()
-            logger.info(f"[OK] Successfully connected using {driver}")
+            logger.info(f"[OK] Successfully connected using mssql-python")
             
             # Check if EntityTelemetry table exists
             cursor.execute("""

@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import schedule
-import pymssql
+from mssql_python import connect
 from dotenv import load_dotenv
 
 # Configure logging
@@ -47,21 +47,20 @@ class SubscriptionAnalysisWorker:
         self.processing_window_minutes = 5
         
     def connect_to_database(self):
-        """Establish database connection using pymssql (pure Python)"""
+        """Establish database connection using mssql-python"""
         try:
-            self.connection = pymssql.connect(
-                server=self.server,
-                user=self.username,
-                password=self.password,
-                database=self.database,
-                timeout=30,
-                as_dict=False
+            # Build connection string for mssql-python (official Microsoft driver)
+            conn_str = (
+                f"Server={self.server},1433;"
+                f"Database={self.database};"
+                f"UID={self.username};"
+                f"PWD={self.password};"
+                "Encrypt=no;"
+                "TrustServerCertificate=yes;"
             )
+            self.connection = connect(conn_str)
             logger.info(f"Connected to database: {self.database} on {self.server}")
             return True
-        except pymssql.Error as e:
-            logger.error(f"Database connection failed: {e}")
-            return False
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             return False
@@ -129,7 +128,7 @@ class SubscriptionAnalysisWorker:
             
             return results
             
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error retrieving Python subscriptions: {e}")
             return []
     
@@ -138,7 +137,7 @@ class SubscriptionAnalysisWorker:
         Get event criteria (attributes to check) using API
         """
         try:
-            cursomssqlself.connection.cursor()
+            cursor = self.connection.cursor()
             
             query = "EXEC dbo.sp_GetEventCriteria @eventId = ?"
             cursor.execute(query, (event_id,))
@@ -159,7 +158,7 @@ class SubscriptionAnalysisWorker:
             
             return criteria
             
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error retrieving event criteria for event {event_id}: {e}")
             return []
     
@@ -195,7 +194,7 @@ class SubscriptionAnalysisWorker:
             
             return telemetry
             
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error retrieving telemetry for entity {entity_id}: {e}")
             return []
     
@@ -210,7 +209,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Analysis started logged for entity: {entity_id}")
             return True
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error logging analysis started: {e}")
             return False
     
@@ -225,7 +224,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Event found logged: {event_code} (eventLogId: {event_log_id})")
             return True
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error logging event found: {e}")
             return False
     
@@ -240,7 +239,7 @@ class SubscriptionAnalysisWorker:
             cursor.close()
             logger.info(f"Analysis completed logged for entity: {entity_id} (events: {events_found})")
             return True
-        except pymssql.Error as e:
+        except Exception as e:
             logger.error(f"Error logging analysis completed: {e}")
             return False
     
@@ -290,7 +289,7 @@ class SubscriptionAnalysisWorker:
                     entity_id, event_id, cumulative_score, probability,
                     triggered_at, analysis_window_min, processing_time_ms, analysis_metadata_json
                 ))
-            except pymssql.Error as schema_error:
+            except Exception as schema_error:
                 # If column doesn't exist, fall back to old schema (backward compatibility)
                 if 'analysisMetadata' in str(schema_error) or 'Invalid column' in str(schema_error):
                     logger.warning(f"analysisMetadata column not found, using old schema. Migration needed.")

@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # 1. Database: Azure SQL Edge (גרסה אופטימלית ל-IoT)
-  sql-edge:
-    image: mcr.microsoft.com/azure-sql-edge:latest
+  # 1. Database: SQL Server 2022 (compatible with mssql-python, mirrors Azure SQL)
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: yacht-sql
     environment:
       - ACCEPT_EULA=Y
@@ -12,8 +12,15 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - sql_data:/var/opt/mssql # שמירת הנתונים גם אם הקונטיינר נסגר
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrongPassword123!' -Q 'SELECT 1' -C -N || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
+  # 2. Message broker: Redpanda (Kafka-compatible, mirrors Azure IoT Hub)
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:latest
     container_name: yacht-broker
@@ -29,7 +36,13 @@ services:
       - 127.0.0.1:9092
     ports:
       - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk broker list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
+  # 3. Redpanda Console (Kafka UI — http://localhost:8080)
   console:
     image: docker.redpanda.com/redpandadata/console:latest
     container_name: yacht-console
@@ -44,6 +57,5 @@ services:
       - "8080:8080"
     depends_on:
       - redpanda
-
 volumes:
   sql_data:

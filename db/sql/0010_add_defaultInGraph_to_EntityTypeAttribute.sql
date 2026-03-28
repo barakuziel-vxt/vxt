@@ -2,8 +2,8 @@
 -- Indicates whether attribute should be displayed by default in telemetry graph
 -- Used for showing/hiding metrics: Health=Y, Environment/Navigation/Other=N
 
-ALTER TABLE EntityTypeAttribute
-ADD defaultInGraph CHAR(1) DEFAULT 'N';
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('EntityTypeAttribute') AND name = 'defaultInGraph')
+    ALTER TABLE EntityTypeAttribute ADD defaultInGraph CHAR(1) DEFAULT 'N';
 GO
 
 -- Update health-related attributes to defaultInGraph = 'Y'

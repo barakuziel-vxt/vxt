@@ -14,6 +14,7 @@ CREATE TABLE EntityTypeAttribute (
     entityTypeAttributeUnit NVARCHAR(50) NOT NULL, -- e.g. 'bpm', 'mmHg', '°C', 'knots', etc (optional, for quick querying)
     providerId INT NULL,  
     providerEventType NVARCHAR(100) NULL,
+    defaultInGraph CHAR(1) NOT NULL CONSTRAINT DF_EntityTypeAttribute_defaultInGraph DEFAULT 'N',
     active CHAR(1) NOT NULL CONSTRAINT DF_EntityTypeAttribute_active DEFAULT 'Y',
     createDate DATETIME NOT NULL CONSTRAINT DF_EntityTypeAttribute_createDate DEFAULT (GETDATE()),
     lastUpdateTimestamp DATETIME NOT NULL CONSTRAINT DF_EntityTypeAttribute_lastUpdateTimestamp DEFAULT (GETDATE()),

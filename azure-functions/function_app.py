@@ -71,18 +71,41 @@ class SimpleEventProcessor:
         return self._mssql_module
     
     def get_db_connection(self):
-        """Get database connection with Managed Identity authentication (retry enabled)"""
+        """Get database connection.
+        
+        - LOCAL (ENVIRONMENT=local): SQL auth via SQL_CONNECTION_STRING or defaults
+          e.g. Server=localhost,1433;Database=BoatTelemetryDB;User=sa;Password=YourStrongPassword123!;Encrypt=no;
+        - PROD (ENVIRONMENT=production or unset): Managed Identity (no password)
+        """
         mssql = self._get_mssql_module()
         connect = mssql['connect']
 
-        conn_str = (
-            f"Server={self.db_server},1433;"
-            f"Database={self.db_name};"
-            "Authentication=ActiveDirectoryMSI;"
-            "Encrypt=yes;"
-            "TrustServerCertificate=no;"
-        )
-        
+        # Allow full override via SQL_CONNECTION_STRING (used for both local and prod)
+        sql_conn_str = os.environ.get('SQL_CONNECTION_STRING', '')
+        if sql_conn_str:
+            conn_str = sql_conn_str
+        elif os.environ.get('ENVIRONMENT', '').lower() == 'local':
+            # Local dev defaults: SQL Server in docker-compose (SA auth)
+            db_user = os.environ.get('DB_USER', 'sa')
+            db_pass = os.environ.get('DB_PASSWORD', 'YourStrongPassword123!')
+            conn_str = (
+                f"Server={self.db_server},1433;"
+                f"Database={self.db_name};"
+                f"UID={db_user};"
+                f"PWD={db_pass};"
+                "Encrypt=no;"
+                "TrustServerCertificate=yes;"
+            )
+        else:
+            # Production: Managed Identity (no secrets)
+            conn_str = (
+                f"Server={self.db_server},1433;"
+                f"Database={self.db_name};"
+                "Authentication=ActiveDirectoryMSI;"
+                "Encrypt=yes;"
+                "TrustServerCertificate=no;"
+            )
+
         for attempt in range(2):
             try:
                 conn = connect(conn_str)

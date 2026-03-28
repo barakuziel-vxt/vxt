@@ -1,20 +1,23 @@
 import json
-import pymssql
+from mssql_python import connect
 from confluent_kafka import Consumer
 
-# Database Connection
-CONN_STR = (
-    # Fallback to the older 'SQL Server' driver available on this machine
-    'DRIVER={SQL Server};'
-    'SERVER=localhost;'
-    'DATABASE=BoatTelemetryDB;'
-    # Use environment variable for UID
-    'PWD=YourStrongPassword123!'
-)
+# Database Connection (mssql-python format)
+def get_db_connection():
+    conn_str = (
+        'Server=localhost,1433;'
+        'Database=BoatTelemetryDB;'
+        'UID=sa;'
+        'PWD=YourStrongPassword123!;'
+        'Encrypt=no;'
+        'TrustServerCertificate=yes;'
+    )
+    return connect(conn_str)
 
 def save_to_mssql(json_payload):
     try:
-        with pymssql.connect(CONN_STR) as conn:
+        conn = get_db_connection()
+        with conn:
             with conn.cursor() as cursor:
                 # We only need to insert into 'RawJson'
                 # The 'HealthVitals' table computed columns handle the rest automatically

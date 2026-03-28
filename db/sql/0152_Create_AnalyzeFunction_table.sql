@@ -14,6 +14,7 @@ CREATE TABLE AnalyzeFunction (
     createDate DATETIME NOT NULL CONSTRAINT DF_AnalyzeFunction_createDate DEFAULT (GETDATE()),
     lastUpdateTimestamp DATETIME NOT NULL CONSTRAINT DF_AnalyzeFunction_lastUpdateTimestamp DEFAULT (GETDATE()),
     lastUpdateUser VARCHAR(128) NOT NULL CONSTRAINT DF_AnalyzeFunction_lastUpdateUser DEFAULT (SUSER_SNAME()),
+    functionDescription NVARCHAR(MAX) NULL,
 
     CONSTRAINT PK_AnalyzeFunction PRIMARY KEY (AnalyzeFunctionId),
     CONSTRAINT UQ_AnalyzeFunction_FunctionName UNIQUE (FunctionName)

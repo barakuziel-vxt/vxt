@@ -9,7 +9,7 @@ from select import select
 from kafka import KafkaConsumer
 from datetime import datetime
 import logging
-import pymssql
+from mssql_python import connect
 from typing import List, Dict, Tuple
 import sys
 import time
@@ -35,11 +35,12 @@ class EntityTelemetryConsumer:
         self.db_user = db_user
         self.db_password = db_password
         self.connection_string = (
-            'DRIVER={SQL Server};'
-            f'SERVER={db_server};'
-            f'DATABASE={db_name};'
+            f'Server={db_server},1433;'
+            f'Database={db_name};'
             f'UID={db_user};'
-            f'PWD={db_password}'
+            f'PWD={db_password};'
+            f'Encrypt=no;'
+            f'TrustServerCertificate=yes;'
         )
         
         logger.info(f"Connection string: SERVER={db_server}, DATABASE={db_name}")
@@ -87,7 +88,7 @@ class EntityTelemetryConsumer:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                connection = pymssql.connect(self.connection_string)
+                connection = connect(self.connection_string)
                 return connection
             except Exception as e:
                 if attempt < max_retries - 1:
