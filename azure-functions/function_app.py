@@ -54,6 +54,7 @@ class SimpleEventProcessor:
             'events_processed': 0,
             'records_inserted': 0,
             'records_skipped': 0,
+            'records_failed': 0,
             'errors': 0
         }
         self._mssql_module = None  # Lazy load on first use
@@ -160,14 +161,15 @@ class SimpleEventProcessor:
 
                         attr_id = int(row[0])
 
-                        # mssql-python named params only reliably handle str/None.
-                        # Pass datetime as ISO string and numeric as str, let SQL cast.
+                        # mssql-python named params can't infer type for Python None.
+                        # Pass '' for all nullable values; NULLIF in SQL converts '' → NULL.
                         ts: datetime = evt.timestamp
                         ts_str  = ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
                         ing_str = ingestion_ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                        num_str = str(evt.numeric_value) if evt.numeric_value is not None else None
-                        lat_str = str(evt.latitude)      if evt.latitude      is not None else None
-                        lon_str = str(evt.longitude)     if evt.longitude     is not None else None
+                        num_str = str(evt.numeric_value) if evt.numeric_value is not None else ''
+                        str_val = evt.string_value       if evt.string_value  is not None else ''
+                        lat_str = str(evt.latitude)      if evt.latitude      is not None else ''
+                        lon_str = str(evt.longitude)     if evt.longitude     is not None else ''
 
                         write_cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry
@@ -176,15 +178,15 @@ class SimpleEventProcessor:
                              ingestionTimestampUTC, providerDevice,
                              numericValue, stringValue, latitude, longitude)
                             VALUES
-                            (@entityId, @attrId,
+                            (@entityId, CAST(@attrId AS INT),
                              CONVERT(DATETIME2, @startTs, 126),
                              CONVERT(DATETIME2, @endTs,   126),
                              CONVERT(DATETIME2, @ingTs,   126),
                              @device,
-                             TRY_CAST(@numVal AS FLOAT),
-                             @strVal,
-                             TRY_CAST(@lat AS FLOAT),
-                             TRY_CAST(@lon AS FLOAT))
+                             TRY_CAST(NULLIF(@numVal, '') AS FLOAT),
+                             NULLIF(@strVal, ''),
+                             TRY_CAST(NULLIF(@lat, '') AS FLOAT),
+                             TRY_CAST(NULLIF(@lon, '') AS FLOAT))
                         """, (
                             ('@entityId', evt.entity_id),
                             ('@attrId',   str(attr_id)),
@@ -193,7 +195,7 @@ class SimpleEventProcessor:
                             ('@ingTs',    ing_str),
                             ('@device',   evt.provider_device),
                             ('@numVal',   num_str),
-                            ('@strVal',   evt.string_value),
+                            ('@strVal',   str_val),
                             ('@lat',      lat_str),
                             ('@lon',      lon_str),
                         ))
@@ -206,7 +208,7 @@ class SimpleEventProcessor:
                             f"[FAIL] Insert [{evt.attr_code}] entity={evt.entity_id}: "
                             f"{str(e)[:120]}"
                         )
-                        self.stats['records_skipped'] += 1
+                        self.stats['records_failed'] += 1
 
                 conn.commit()
 
