@@ -97,8 +97,18 @@ jobs:
       run: |
         echo "🚀 Preparing deployment..."
         
-        # Zip the function code from azure-functions directory
+        # Bundle Python packages inside the zip so they are available when the function
+        # runs from package (WEBSITE_RUN_FROM_PACKAGE). Azure Functions looks for packages
+        # in .python_packages/lib/site-packages/ relative to the function root.
         cd azure-functions
+        echo "📦 Installing Python packages for bundled deployment..."
+        pip install -r requirements.txt \
+          --target .python_packages/lib/site-packages \
+          --upgrade \
+          --no-cache-dir
+        echo "✅ Packages installed into .python_packages/"
+        
+        # Zip the function code from azure-functions directory (includes .python_packages)
         echo "📦 Creating deployment package..."
         zip -r ../function-code.zip . \
           -x "*.git*" "__pycache__/*" "*.pyc" ".venv/*" ".vscode/*" "*.md" "local.settings.json"

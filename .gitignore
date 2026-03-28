@@ -5,6 +5,7 @@ __pycache__/
 .env
 .venv/
 .env.*
+azure-functions/.python_packages/
 
 # Node
 node_modules/
