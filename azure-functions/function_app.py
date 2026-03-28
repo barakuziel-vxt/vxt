@@ -161,44 +161,57 @@ class SimpleEventProcessor:
 
                         attr_id = int(row[0])
 
-                        # mssql-python named params can't infer type for Python None.
-                        # Pass '' for all nullable values; NULLIF in SQL converts '' → NULL.
+                        # mssql-python named params only support str reliably.
+                        # - Never pass None (can't infer SQL type)
+                        # - Never pass float/int/datetime (causes "Unsupported parameter type")
+                        # - Never put string literals '' in SQL (confuses the param parser)
+                        # Solution: build INSERT dynamically; omit nullable cols that are None.
+                        # Only include a col when it has a value, passing it as a str.
+                        # SQL functions CAST/CONVERT/TRY_CAST convert str → correct SQL type.
                         ts: datetime = evt.timestamp
                         ts_str  = ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
                         ing_str = ingestion_ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                        num_str = str(evt.numeric_value) if evt.numeric_value is not None else ''
-                        str_val = evt.string_value       if evt.string_value  is not None else ''
-                        lat_str = str(evt.latitude)      if evt.latitude      is not None else ''
-                        lon_str = str(evt.longitude)     if evt.longitude     is not None else ''
 
-                        write_cursor.execute("""
-                            INSERT INTO dbo.EntityTelemetry
-                            (entityId, entityTypeAttributeId,
-                             startTimestampUTC, endTimestampUTC,
-                             ingestionTimestampUTC, providerDevice,
-                             numericValue, stringValue, latitude, longitude)
-                            VALUES
-                            (@entityId, CAST(@attrId AS INT),
-                             CONVERT(DATETIME2, @startTs, 126),
-                             CONVERT(DATETIME2, @endTs,   126),
-                             CONVERT(DATETIME2, @ingTs,   126),
-                             @device,
-                             TRY_CAST(NULLIF(@numVal, '') AS FLOAT),
-                             NULLIF(@strVal, ''),
-                             TRY_CAST(NULLIF(@lat, '') AS FLOAT),
-                             TRY_CAST(NULLIF(@lon, '') AS FLOAT))
-                        """, (
-                            ('@entityId', evt.entity_id),
-                            ('@attrId',   str(attr_id)),
-                            ('@startTs',  ts_str),
-                            ('@endTs',    ts_str),
-                            ('@ingTs',    ing_str),
-                            ('@device',   evt.provider_device),
-                            ('@numVal',   num_str),
-                            ('@strVal',   str_val),
-                            ('@lat',      lat_str),
-                            ('@lon',      lon_str),
-                        ))
+                        # Required (non-nullable) columns — always present
+                        ins_cols   = ['entityId', 'entityTypeAttributeId',
+                                      'startTimestampUTC', 'endTimestampUTC',
+                                      'ingestionTimestampUTC', 'providerDevice']
+                        ins_vals   = ['@entityId', 'CAST(@attrId AS INT)',
+                                      'CONVERT(DATETIME2,@startTs,126)',
+                                      'CONVERT(DATETIME2,@endTs,126)',
+                                      'CONVERT(DATETIME2,@ingTs,126)',
+                                      '@device']
+                        ins_params = [('@entityId', evt.entity_id),
+                                      ('@attrId',   str(attr_id)),
+                                      ('@startTs',  ts_str),
+                                      ('@endTs',    ts_str),
+                                      ('@ingTs',    ing_str),
+                                      ('@device',   evt.provider_device)]
+
+                        # Optional (nullable) columns — only add when not None
+                        if evt.numeric_value is not None:
+                            ins_cols.append('numericValue')
+                            ins_vals.append('TRY_CAST(@numVal AS FLOAT)')
+                            ins_params.append(('@numVal', str(evt.numeric_value)))
+                        if evt.string_value is not None:
+                            ins_cols.append('stringValue')
+                            ins_vals.append('@strVal')
+                            ins_params.append(('@strVal', str(evt.string_value)))
+                        if evt.latitude is not None:
+                            ins_cols.append('latitude')
+                            ins_vals.append('TRY_CAST(@lat AS FLOAT)')
+                            ins_params.append(('@lat', str(evt.latitude)))
+                        if evt.longitude is not None:
+                            ins_cols.append('longitude')
+                            ins_vals.append('TRY_CAST(@lon AS FLOAT)')
+                            ins_params.append(('@lon', str(evt.longitude)))
+
+                        ins_sql = (
+                            f"INSERT INTO dbo.EntityTelemetry "
+                            f"({','.join(ins_cols)}) "
+                            f"VALUES ({','.join(ins_vals)})"
+                        )
+                        write_cursor.execute(ins_sql, tuple(ins_params))
 
                         inserted_count += 1
                         self.stats['records_inserted'] += 1
