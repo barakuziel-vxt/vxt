@@ -139,14 +139,17 @@ class SimpleEventProcessor:
                 for evt in normalized_events:
                     try:
                         # Filter: EntityTypeAttribute must exist for this entity + code
-                        lookup_cursor.execute("""
+                        lookup_cursor.execute(
+                            """
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
                             JOIN Entity e ON e.entityTypeId = eta.entityTypeId
-                            WHERE e.entityId = @entityId
-                              AND eta.entityTypeAttributeCode = @code
+                            WHERE e.entityId = ?
+                              AND eta.entityTypeAttributeCode = ?
                               AND eta.active = 'Y'
-                        """, (('@entityId', evt.entity_id), ('@code', evt.attr_code)))
+                            """,
+                            (evt.entity_id, evt.attr_code)
+                        )
 
                         row = lookup_cursor.fetchone()
                         if not row:
@@ -157,34 +160,33 @@ class SimpleEventProcessor:
                             self.stats['records_skipped'] += 1
                             continue
 
-                        attr_id = row[0]
+                        attr_id = int(row[0])
 
                         # evt.timestamp is already a Python datetime (from _parse_dt)
                         ts: datetime = evt.timestamp
 
-                        write_cursor.execute("""
+                        write_cursor.execute(
+                            """
                             INSERT INTO dbo.EntityTelemetry
                             (entityId, entityTypeAttributeId,
                              startTimestampUTC, endTimestampUTC,
                              ingestionTimestampUTC, providerDevice,
                              numericValue, stringValue, latitude, longitude)
-                            VALUES
-                            (@entityId, @attrId,
-                             @startTs, @endTs,
-                             @ingTs, @device,
-                             @numVal, @strVal, @lat, @lon)
-                        """, (
-                            ('@entityId', evt.entity_id),
-                            ('@attrId',   attr_id),
-                            ('@startTs',  ts),
-                            ('@endTs',    ts),
-                            ('@ingTs',    ingestion_ts),
-                            ('@device',   evt.provider_device),
-                            ('@numVal',   evt.numeric_value),
-                            ('@strVal',   evt.string_value),
-                            ('@lat',      evt.latitude),
-                            ('@lon',      evt.longitude),
-                        ))
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                evt.entity_id,
+                                attr_id,
+                                ts,
+                                ts,
+                                ingestion_ts,
+                                evt.provider_device,
+                                evt.numeric_value,
+                                evt.string_value,
+                                evt.latitude,
+                                evt.longitude,
+                            )
+                        )
 
                         inserted_count += 1
                         self.stats['records_inserted'] += 1
