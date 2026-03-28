@@ -13,15 +13,9 @@
     "version": "[4.*, 5.0.0)"
   },
   "functionTimeout": "00:10:00",
-  "managedDependency": {
-    "enabled": true
-  },
-  "pythonWorkerConfig": {
-    "workerTimeout": 30
-  },
-  "functionLanguageWorkerConfigs": {
-    "python": {
-      "workerTimeout": 30
+  "extensions": {
+    "eventHubs": {
+      "initialOffsetPolicy": "earliest"
     }
   }
 }

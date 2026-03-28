@@ -56,15 +56,15 @@ async def send_telemetry_event(client, event_num: int, device_id: str = 'test-de
     # Generate telemetry data matching the boat simulation structure
     lat_base = 32.8315366 if device_id == "234567890" else 32.8415366
     lon_base = 35.0036234 if device_id == "234567890" else 35.0136234
-    lat = lat_base + random.uniform(-0.1115, 0.1115)
-    lon = lon_base + random.uniform(-0.1115, 0.1115)
+    lat = round(lat_base + random.uniform(-0.1115, 0.1115), 6)
+    lon = round(lon_base + random.uniform(-0.1115, 0.1115), 6)
     rpm = random.randint(1000, 1400)
-    temp_k = 358.15 + random.uniform(-0.5, 1.5)
-    oil_press_pa = 350000 + random.uniform(-5000, 5000)
-    voltage = 13.6 + random.uniform(-0.2, 0.2)
-    sog = random.uniform(5, 10)
-    batteryVoltage = 12.8 + random.uniform(-0.3, 0.3)
-    depth = 20 + random.uniform(-2, 2)
+    oil_press_pa = round(350000 + random.uniform(-5000, 5000), 2)
+    sog = round(random.uniform(5, 10), 3)
+    cog = round(random.uniform(0, 6.28), 4)
+    water_temp_k = round(291.15 + random.uniform(-2, 2), 2)
+    wind_speed = round(random.uniform(3, 8), 2)
+    fuel_level = round(random.uniform(0.3, 0.9), 3)
 
     telemetry = {
         'entityId': device_id,
@@ -72,15 +72,14 @@ async def send_telemetry_event(client, event_num: int, device_id: str = 'test-de
         'timestamp': datetime.utcnow().isoformat(),
         'provider': 'test-simulator',
         'values': {
-            'propulsion.mainEngine.drive.rpm': rpm,
-            'propulsion.mainEngine.coolantTemperature': temp_k,
-            'propulsion.mainEngine.oilPressure': oil_press_pa,
-            'electrical.batteries.1.voltage': voltage,
-            'electrical.batteryVoltage': batteryVoltage,
-            'navigation.depth': depth,
-            'navigation.sog': sog,
-            'navigation.latitude': lat,
-            'navigation.longitude': lon
+            'navigation.speedOverGround': sog,
+            'navigation.courseOverGround': cog,
+            'navigation.position': {'lat': lat, 'lon': lon},
+            'propulsion.main.revolutions': rpm,
+            'propulsion.main.oilPressure': oil_press_pa,
+            'environment.water.temperature': water_temp_k,
+            'environment.wind.speedApparent': wind_speed,
+            'tanks.fuelTank.level': fuel_level
         }
     }
 

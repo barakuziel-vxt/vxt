@@ -128,37 +128,77 @@ class SimpleEventProcessor:
             
             try:
                 # Extract telemetry values from SignalK format
-                # Standard SignalK structure: event['values'] = {...} or event['data'] = {...}
                 telemetry_data = event.get('values', {}) or event.get('data', {})
                 
                 if not telemetry_data:
                     logger.info(f"No telemetry data in event for entity {entity_id}")
                     cursor.close()
                     return 0
-                
-                # Insert each telemetry value
-                for key, value in telemetry_data.items():
-                    if value is not None:
-                        try:
-                            # Generic insert into EntityTelemetry using mssql-python syntax
-                            # Parameter format: @ instead of ?
-                            cursor.execute("""
-                            INSERT INTO dbo.EntityTelemetry 
-                            (entityId, attributeName, attributeValue, timestamp)
-                            VALUES (@entityId, @attrName, @attrValue, @ts)
-                            """, (
-                                ('@entityId', entity_id),
-                                ('@attrName', key),
-                                ('@attrValue', str(value)),
-                                ('@ts', timestamp)
-                            ))
-                            
-                            inserted_count += 1
-                            self.stats['records_inserted'] += 1
-                        except Exception as e:
-                            logger.warning(f"Failed to insert {key}: {str(e)[:50]}")
+
+                ingestion_ts = datetime.utcnow().isoformat()
+
+                # Insert each telemetry value using correct EntityTelemetry schema
+                for attr_code, value in telemetry_data.items():
+                    if value is None:
+                        continue
+                    try:
+                        # Look up entityTypeAttributeId via entity -> entityType -> attribute
+                        cursor.execute("""
+                            SELECT eta.entityTypeAttributeId
+                            FROM EntityTypeAttribute eta
+                            JOIN Entity e ON e.entityTypeId = eta.entityTypeId
+                            WHERE e.entityId = @entityId
+                              AND eta.entityTypeAttributeCode = @code
+                              AND eta.active = 'Y'
+                        """, (('@entityId', entity_id), ('@code', attr_code)))
+                        row = cursor.fetchone()
+                        if not row:
+                            logger.debug(f"No attribute mapping: {entity_id}/{attr_code}")
                             self.stats['records_skipped'] += 1
-                
+                            continue
+
+                        attr_id = row[0]
+
+                        # Handle position dict vs scalar values
+                        lat = None
+                        lon = None
+                        numeric_val = None
+                        string_val = None
+                        if isinstance(value, dict):
+                            lat = value.get('lat') or value.get('latitude')
+                            lon = value.get('lon') or value.get('longitude')
+                        else:
+                            try:
+                                numeric_val = float(value)
+                            except (ValueError, TypeError):
+                                string_val = str(value)
+
+                        cursor.execute("""
+                            INSERT INTO dbo.EntityTelemetry
+                            (entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC,
+                             ingestionTimestampUTC, providerDevice, numericValue, stringValue,
+                             latitude, longitude)
+                            VALUES (@entityId, @attrId, @startTs, @endTs, @ingTs, @device,
+                                    @numVal, @strVal, @lat, @lon)
+                        """, (
+                            ('@entityId', entity_id),
+                            ('@attrId', attr_id),
+                            ('@startTs', timestamp),
+                            ('@endTs', timestamp),
+                            ('@ingTs', ingestion_ts),
+                            ('@device', device_id),
+                            ('@numVal', numeric_val),
+                            ('@strVal', string_val),
+                            ('@lat', lat),
+                            ('@lon', lon)
+                        ))
+
+                        inserted_count += 1
+                        self.stats['records_inserted'] += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to insert {attr_code}: {str(e)[:80]}")
+                        self.stats['records_skipped'] += 1
+
                 conn.commit()
                 
             finally:
@@ -246,7 +286,8 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
 @app.event_hub_message_trigger(
     arg_name="messages",
     event_hub_name="iothub-ehub-vxt-iot-hu-66946165-82f53700df",
-    connection="IoTHubConnectionString"
+    connection="IoTHubConnectionString",
+    consumer_group="vxt-function"
 )
 def iot_hub_consumer(messages) -> None:
     """
