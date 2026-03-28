@@ -109,7 +109,7 @@ if SQL_CONNECTION_STRING:
         server = config_preview.get('server', 'unknown')
         database = config_preview.get('database', 'unknown')
         auth_method = "Managed Identity" if "Authentication=ActiveDirectoryMSI" in SQL_CONNECTION_STRING else "SQL Authentication"
-        print(f"[INFO] ✓ Connection string found:")
+        print(f"[INFO] [OK] Connection string found:")
         print(f"[INFO]   Server: {server}")
         print(f"[INFO]   Database: {database}")
         print(f"[INFO]   Authentication: {auth_method}")
@@ -247,7 +247,7 @@ def get_db_connection():
         try:
             print(f"[DEBUG] Connecting to database (attempt {attempt + 1}/2)")
             conn = connect(conn_string)
-            print(f"[INFO] ✓ Database connection successful")
+            print(f"[INFO] [OK] Database connection successful")
             return conn
         except Exception as e:
             print(f"[ERROR] Connection attempt {attempt + 1} failed: {str(e)}")
