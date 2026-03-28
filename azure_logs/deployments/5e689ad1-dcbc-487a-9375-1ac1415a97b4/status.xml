@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>5e689ad1-dcbc-487a-9375-1ac1415a97b4</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"72cf81fe3909556f2dac7ff60aa599c7328c58fc","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: remove deprecated v1 function.json, use only v2 decorator model; remove hardcoded secrets"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T12:50:17.4137364Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T12:49:33.0966449Z</receivedTime>
+  <startTime>2026-03-27T12:49:34.4181429Z</startTime>
+  <endTime>2026-03-27T12:50:17.4137364Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>b75a8a1c7b7e</containerId>
+  <buildSummary />
+</deployment>

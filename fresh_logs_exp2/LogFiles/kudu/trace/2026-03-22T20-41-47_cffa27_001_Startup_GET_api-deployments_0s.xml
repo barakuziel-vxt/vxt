@@ -1,0 +1,5 @@
+<step title="Startup Request" date="2026-03-22T20:41:47.136" instance="cffa27" url="/api/deployments?warmup=true" method="GET" type="request" pid="768,1,15" SCM_STARTUP_COMMAND="bash startup.sh" ScmType="ExternalGit" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T20:41:47.142" >
+    <step title="Cleanup Infos" date="2026-03-22T20:41:47.161" totalFiles="641" totalCleanup="481" /><!-- duration: 5ms -->
+  </step><!-- duration: 28ms -->
+</step><!-- duration: 37ms -->

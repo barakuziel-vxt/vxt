@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>8ce2daa6-b903-4fc6-937a-261e76de5708</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"01b79caabb83e0936cf9a7e305c34021ddc70a78","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"Resolve merge conflicts from main pull"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T22:53:18.9125961Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T22:52:56.6890094Z</receivedTime>
+  <startTime>2026-03-27T22:52:57.9790052Z</startTime>
+  <endTime>2026-03-27T22:53:18.9125961Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>237ecc53a7df</containerId>
+  <buildSummary />
+</deployment>

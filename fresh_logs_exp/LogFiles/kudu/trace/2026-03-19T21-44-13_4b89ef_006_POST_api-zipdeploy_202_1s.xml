@@ -1,0 +1,17 @@
+<step title="Incoming Request" date="2026-03-19T21:44:13.705" instance="4b89ef" url="/api/zipdeploy?isAsync=true&amp;deployer=GITHUB_ZIP_DEPLOY&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%2280fbe6e5363fd2f974e2fc4275ec72b600663da4%22%2C%22repoName%22%3A%22barakuziel-vxt%2Fvxt%22%2C%22actor%22%3A%22barakuziel-vxt%22%2C%22slotName%22%3A%22production%22%2C%22commitMessage%22%3A%22feat%3A%20increase%20timeout%20to%20120s%20and%20add%20exponential%20backoff%20retry%20(5%20attempts)%22%7D" method="POST" type="request" pid="769,1,17" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4cd4d8a04f24add4fe50f51bdf495c1e1a89b0eee5975e0439f6f3c52e45ded9_2.2.18" Authorization="Bas..." Content-Type="application/octet-stream" Cookie="ARRAffinity=4b89ef3bea84295e3a312e91051f974227d3482591dbcd0593af35fbce4f560a;Path=/;HttpOnly;Secure;Domain=vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net; ARRAffinitySameSite=4b89ef3bea84295e3a312e91051f974227d3482591dbcd0593af35fbce4f560a;Path=/;HttpOnly;SameSite=None;Secure;Domain=vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" Transfer-Encoding="chunked" X-ARR-LOG-ID="0c205871-1b36-4fd1-b4cc-0d1f5da28424" CLIENT-IP="52.159.245.169:47168" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/zipdeploy?isAsync=true&amp;deployer=GITHUB_ZIP_DEPLOY&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%2280fbe6e5363fd2f974e2fc4275ec72b600663da4%22%2C%22repoName%22%3A%22barakuziel-vxt%2Fvxt%22%2C%22actor%22%3A%22barakuziel-vxt%22%2C%22slotName%22%3A%22production%22%2C%22commitMessage%22%3A%22feat%3A%20increase%20timeout%20to%20120s%20and%20add%20exponential%20backoff%20retry%20(5%20attempts)%22%7D" X-Client-IP="52.159.245.169" X-Client-Port="47168" >
+  <step title="ZipPushDeploy" date="2026-03-19T21:44:13.721" >
+    <step title="ZipDeploy. Extract zip." date="2026-03-19T21:44:13.727" /><!-- duration: 5ms -->
+    <step title="None repository commit" date="2026-03-19T21:44:13.737" >
+      <step title="Commit id: a1ed2908-bb5c-442b-9c19-8945a16b5adb" date="2026-03-19T21:44:13.740" Message="N/A" AuthorName="N/A" AuthorEmail="N/A" /><!-- duration: 3ms -->
+    </step><!-- duration: 9ms -->
+    <step title="Starting PushDeployAsync" date="2026-03-19T21:44:13.749" /><!-- duration: 4ms -->
+    <step title="Writing artifact to /tmp/zipdeploy/9d5f8ceb-8101-4da6-ade8-037738a8f5b1.zip" date="2026-03-19T21:44:13.767" >
+      <step title="Writing multipart request body to /tmp/zipdeploy/9d5f8ceb-8101-4da6-ade8-037738a8f5b1.zip" date="2026-03-19T21:44:13.771" /><!-- duration: 7ms -->
+    </step><!-- duration: 1251ms -->
+    <step title="Start deployment in the background" date="2026-03-19T21:44:15.029" >
+      <step title="Acquiring Deployment Lock" date="2026-03-19T21:44:15.053" /><!-- duration: 5ms -->
+      <step title="Acquired Deployment Lock" date="2026-03-19T21:44:15.113" /><!-- duration: 10ms -->
+    </step><!-- duration: 151ms -->
+  </step><!-- duration: 1465ms -->
+  <step title="Outgoing response" date="2026-03-19T21:44:15.193" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 3ms -->
+</step><!-- duration: 1494ms -->

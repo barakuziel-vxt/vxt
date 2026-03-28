@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>4bf3e826-917d-4a36-a5ce-709ce28d520e</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"8ee8456c9beec8743860e2487b656da243464d7b","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: Add --force-reinstall and --no-deps flags to ensure mssql-python replaces pymssql"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T21:04:52.2281345Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T21:04:29.1557415Z</receivedTime>
+  <startTime>2026-03-27T21:04:30.4940972Z</startTime>
+  <endTime>2026-03-27T21:04:52.2281345Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>2787ce0549e8</containerId>
+  <buildSummary />
+</deployment>

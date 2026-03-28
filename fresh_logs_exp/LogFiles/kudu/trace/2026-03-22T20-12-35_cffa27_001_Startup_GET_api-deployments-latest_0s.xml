@@ -1,0 +1,5 @@
+<step title="Startup Request" date="2026-03-22T20:12:35.784" instance="cffa27" url="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-03-22_20-12-29Z" method="GET" type="request" pid="769,1,6" ScmType="ExternalGit" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T20:12:35.788" >
+    <step title="Cleanup Infos" date="2026-03-22T20:12:35.805" totalFiles="595" totalCleanup="435" /><!-- duration: 4ms -->
+  </step><!-- duration: 29ms -->
+</step><!-- duration: 35ms -->

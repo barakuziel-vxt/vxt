@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>9f9961be-de69-40f6-b234-f7784d7ae4a9</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"126429e44560bcf6321d02d9e3d18ce3ddfb2180","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: Prevent web app deployment from triggering on documentation changes\n\nUpdated deploy-python-code.yml to ignore:\n- All files in azure-functions/ (function app specific)\n- All markdown files in docs/\n- All root-level markdown files (*.md)\n\nThis ensures the web app workflow only triggers when actual application code changes,\nnot when documentation or function app configuration is updated.\n\nPreviously, changes to docs/DEPLOYMENT_STATUS.md would incorrectly trigger the web app\ndeployment workflow instead of (or in addition to) the function app deployment."}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-24T21:34:52.1172178Z</lastSuccessEndTime>
+  <receivedTime>2026-03-24T21:34:31.3748495Z</receivedTime>
+  <startTime>2026-03-24T21:34:32.6948982Z</startTime>
+  <endTime>2026-03-24T21:34:52.1172178Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>b3eb9438e2e6</containerId>
+  <buildSummary />
+</deployment>

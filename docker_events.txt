@@ -1,0 +1,880 @@
+2026-03-28T10:43:59.7215931Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:43:59.7215317Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:44:01.4714494Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:44:01.4714724Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:44:05.5666705Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:44:05.5671474Z Container start method called.
+2026-03-28T10:44:05.5673194Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:05.5674881Z Establishing network.
+2026-03-28T10:44:05.5675930Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T10:44:05.5667016Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-28T10:44:05.5687746Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:05.5673259Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:05.5686431Z Container start method called.
+2026-03-28T10:44:05.5687805Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:05.5689176Z Establishing network.
+2026-03-28T10:44:05.5692770Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T10:44:21.4486060Z Image index.docker.io/barakdoc/vxt-web-app:latest is pulled from registry index.docker.io
+2026-03-28T10:44:21.5935168Z Container is starting.
+2026-03-28T10:44:21.6850159Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:21.6850352Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:21.6856814Z Establishing user namespace if not established already.
+2026-03-28T10:44:21.6859374Z Establishing network if not established already.
+2026-03-28T10:44:21.6921259Z Mounting volumes.
+2026-03-28T10:44:21.7342071Z Nested mountpoint 
+2026-03-28T10:44:21.7948195Z Nested mountpoint volatile/logs
+2026-03-28T10:44:21.7966986Z Nested mountpoint 
+2026-03-28T10:44:21.8258687Z Nested mountpoint 
+2026-03-28T10:44:21.8354268Z Nested mountpoint 
+2026-03-28T10:44:21.8400400Z Nested mountpoint 
+2026-03-28T10:44:25.1500133Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:44:25.1500299Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:44:25.1501615Z Creating container.
+2026-03-28T10:44:25.1503304Z Creating pipes for streaming container io.
+2026-03-28T10:44:25.1538073Z Creating stdout named pipe at /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stdout_848540497e4e4266b125b01b7f29cccd.
+2026-03-28T10:44:25.2223305Z Successfully created stdout named pipe at: /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stdout_848540497e4e4266b125b01b7f29cccd.
+2026-03-28T10:44:25.2233845Z Opening named pipe /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stdout_848540497e4e4266b125b01b7f29cccd for reading in non-blocking mode.
+2026-03-28T10:44:25.2248182Z Successfully opened named pipe: /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stdout_848540497e4e4266b125b01b7f29cccd.
+2026-03-28T10:44:25.2275867Z Successfully removed non-blocking flag from /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stdout_848540497e4e4266b125b01b7f29cccd.
+2026-03-28T10:44:25.2311387Z Creating stderr named pipe at /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stderr_a0c7799cfbe540b29e404af86f9aa431.
+2026-03-28T10:44:25.2314260Z Successfully created stderr named pipe at: /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stderr_a0c7799cfbe540b29e404af86f9aa431.
+2026-03-28T10:44:25.2315454Z Opening named pipe /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stderr_a0c7799cfbe540b29e404af86f9aa431 for reading in non-blocking mode.
+2026-03-28T10:44:25.2316812Z Successfully opened named pipe: /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stderr_a0c7799cfbe540b29e404af86f9aa431.
+2026-03-28T10:44:25.2318104Z Successfully removed non-blocking flag from /podr/container/pipe/f7e23acab8e6_vxt-web-app_vxt-web-app/stderr_a0c7799cfbe540b29e404af86f9aa431.
+2026-03-28T10:44:25.2339593Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T10:44:25.9012237Z Container get mounts received unexpected exception.
+2026-03-28T10:44:25.9294713Z Container get mounts received unexpected exception.
+2026-03-28T10:44:26.0784622Z Container get processes received unexpected exception.
+2026-03-28T10:44:26.0832361Z Container get processes received unexpected exception.
+2026-03-28T10:44:27.5396192Z Starting container: f7e23acab8e6_vxt-web-app_vxt-web-app.
+2026-03-28T10:44:27.5728847Z Starting watchers and probes.
+2026-03-28T10:44:27.5733175Z Starting metrics collection.
+2026-03-28T10:44:27.5758845Z Container is running.
+2026-03-28T10:44:27.5760024Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:27.5759958Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:27.6873807Z Container start method finished after 22118 ms.
+2026-03-28T10:44:38.4316065Z Image appsvc/python:3.11_20260203.2.tuxprod is pulled from registry 10.1.0.4:13209
+2026-03-28T10:44:38.4324025Z Container is starting.
+2026-03-28T10:44:38.4349181Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:38.4352066Z Establishing user namespace if not established already.
+2026-03-28T10:44:38.4353546Z Establishing network if not established already.
+2026-03-28T10:44:38.4355707Z Mounting volumes.
+2026-03-28T10:44:38.4357852Z Nested mountpoint 
+2026-03-28T10:44:38.4349943Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:44:38.4433796Z Nested mountpoint volatile/logs
+2026-03-28T10:44:38.4473286Z Nested mountpoint 
+2026-03-28T10:44:38.4482480Z Nested mountpoint 
+2026-03-28T10:44:38.4489341Z Nested mountpoint 
+2026-03-28T10:44:38.4525308Z Nested mountpoint 
+2026-03-28T10:44:38.4555037Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:44:38.4558807Z Creating container.
+2026-03-28T10:44:38.4562269Z Creating pipes for streaming container io.
+2026-03-28T10:44:38.4555131Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:44:38.4567722Z Creating stdout named pipe at /podr/container/pipe/a750ab79649a_vxt-web-app/stdout_61ec68da60f44e3dbb98dd8250e5a34e.
+2026-03-28T10:44:38.4572312Z Successfully created stdout named pipe at: /podr/container/pipe/a750ab79649a_vxt-web-app/stdout_61ec68da60f44e3dbb98dd8250e5a34e.
+2026-03-28T10:44:38.4576484Z Opening named pipe /podr/container/pipe/a750ab79649a_vxt-web-app/stdout_61ec68da60f44e3dbb98dd8250e5a34e for reading in non-blocking mode.
+2026-03-28T10:44:38.4580329Z Successfully opened named pipe: /podr/container/pipe/a750ab79649a_vxt-web-app/stdout_61ec68da60f44e3dbb98dd8250e5a34e.
+2026-03-28T10:44:38.4583186Z Successfully removed non-blocking flag from /podr/container/pipe/a750ab79649a_vxt-web-app/stdout_61ec68da60f44e3dbb98dd8250e5a34e.
+2026-03-28T10:44:38.4588284Z Creating stderr named pipe at /podr/container/pipe/a750ab79649a_vxt-web-app/stderr_61a04c04a5764a52ada7d47de7cc25fc.
+2026-03-28T10:44:38.4590000Z Successfully created stderr named pipe at: /podr/container/pipe/a750ab79649a_vxt-web-app/stderr_61a04c04a5764a52ada7d47de7cc25fc.
+2026-03-28T10:44:38.4592245Z Opening named pipe /podr/container/pipe/a750ab79649a_vxt-web-app/stderr_61a04c04a5764a52ada7d47de7cc25fc for reading in non-blocking mode.
+2026-03-28T10:44:38.4593751Z Successfully opened named pipe: /podr/container/pipe/a750ab79649a_vxt-web-app/stderr_61a04c04a5764a52ada7d47de7cc25fc.
+2026-03-28T10:44:38.4594965Z Successfully removed non-blocking flag from /podr/container/pipe/a750ab79649a_vxt-web-app/stderr_61a04c04a5764a52ada7d47de7cc25fc.
+2026-03-28T10:44:38.4601615Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T10:44:38.7438201Z Starting container: a750ab79649a_vxt-web-app.
+2026-03-28T10:44:38.7855918Z Starting watchers and probes.
+2026-03-28T10:44:38.7861501Z Starting metrics collection.
+2026-03-28T10:44:38.7878035Z Container is running.
+2026-03-28T10:44:38.7879368Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:38.7879427Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:38.8097069Z Container start method finished after 33242 ms.
+2026-03-28T10:44:38.8123879Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:38.8123966Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:44:38.8420522Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T10:44:38.8423116Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T10:44:38.8921742Z Site startup probe succeeded after 0.0288188 seconds.
+2026-03-28T10:44:38.8921823Z Site startup probe succeeded after 0.0288188 seconds.
+2026-03-28T10:44:39.0039498Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 0.0288188 seconds., DetailsLevel: INFO
+2026-03-28T10:44:39.0039641Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 0.0288188 seconds., DetailsLevel: INFO
+2026-03-28T10:44:39.9337094Z Site is running with deployment version: 8ce2daa6-b903-4fc6-937a-261e76de5708
+2026-03-28T10:44:39.9344362Z Site started.
+2026-03-28T10:44:39.9345551Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:39.9337308Z Site is running with deployment version: 8ce2daa6-b903-4fc6-937a-261e76de5708
+2026-03-28T10:44:39.9344429Z Site started.
+2026-03-28T10:44:39.9345598Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:52.6340768Z Container has finished running with exit code: 1.
+2026-03-28T10:44:52.6344780Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T10:44:52.6400850Z Stop and delete container. Retry count = 0
+2026-03-28T10:44:52.6409322Z Stopping container: a750ab79649a_vxt-web-app.
+2026-03-28T10:44:52.6908272Z Deleting container: a750ab79649a_vxt-web-app. Retry count = 0
+2026-03-28T10:44:53.3259744Z Container spec TerminationMessagePolicy  path 
+2026-03-28T10:44:53.3282659Z Container is terminated. Total time elapsed: 693 ms.
+2026-03-28T10:44:53.3346733Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T10:44:53.3348968Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:53.3346896Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T10:44:53.3349018Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:53.3414121Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:53.3414203Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:53.3426204Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T10:44:53.3758731Z Stop and delete container. Retry count = 0
+2026-03-28T10:44:53.3760117Z Stopping container: f7e23acab8e6_vxt-web-app_vxt-web-app.
+2026-03-28T10:44:54.2820335Z Deleting container: f7e23acab8e6_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T10:44:54.8244150Z Container spec TerminationMessagePolicy  path 
+2026-03-28T10:44:54.8245825Z Container is terminated. Total time elapsed: 1481 ms.
+2026-03-28T10:44:54.8261371Z Site: vxt-web-app stopped.
+2026-03-28T10:44:54.8261472Z Site: vxt-web-app stopped.
+2026-03-28T10:44:54.8408396Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.1191075Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.2948251Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.3150625Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.3153380Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:19.2137982Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:54.8409036Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.1191190Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:44:39 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.2948373Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.3150735Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:44:56.3153441Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:19.2138079Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:19.6765601Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:19.6765745Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:22.6221556Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:22.6223554Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.6233511Z Container start method called.
+2026-03-28T10:45:22.6234374Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.6235713Z Establishing network.
+2026-03-28T10:45:22.6221245Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:44:56 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:22.6222877Z Container start method called.
+2026-03-28T10:45:22.6223511Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.6224893Z Establishing network.
+2026-03-28T10:45:22.6226530Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T10:45:22.6234324Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.6237318Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T10:45:22.7467257Z Container is starting.
+2026-03-28T10:45:22.7468066Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.7470572Z Establishing user namespace if not established already.
+2026-03-28T10:45:22.7468108Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:22.7512451Z Establishing network if not established already.
+2026-03-28T10:45:22.7514681Z Mounting volumes.
+2026-03-28T10:45:22.7517199Z Nested mountpoint 
+2026-03-28T10:45:22.7619563Z Nested mountpoint volatile/logs
+2026-03-28T10:45:22.7698031Z Nested mountpoint 
+2026-03-28T10:45:22.7705910Z Nested mountpoint 
+2026-03-28T10:45:22.7888070Z Nested mountpoint 
+2026-03-28T10:45:22.8113364Z Nested mountpoint 
+2026-03-28T10:45:22.9409352Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:45:22.9412763Z Creating container.
+2026-03-28T10:45:22.9460034Z Creating pipes for streaming container io.
+2026-03-28T10:45:22.9491235Z Creating stdout named pipe at /podr/container/pipe/95f62b09510c_vxt-web-app/stdout_71823ae587cf48549ef48b251c2d02b1.
+2026-03-28T10:45:22.9409479Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:45:22.9525319Z Successfully created stdout named pipe at: /podr/container/pipe/95f62b09510c_vxt-web-app/stdout_71823ae587cf48549ef48b251c2d02b1.
+2026-03-28T10:45:22.9529451Z Opening named pipe /podr/container/pipe/95f62b09510c_vxt-web-app/stdout_71823ae587cf48549ef48b251c2d02b1 for reading in non-blocking mode.
+2026-03-28T10:45:22.9542531Z Successfully opened named pipe: /podr/container/pipe/95f62b09510c_vxt-web-app/stdout_71823ae587cf48549ef48b251c2d02b1.
+2026-03-28T10:45:22.9544305Z Successfully removed non-blocking flag from /podr/container/pipe/95f62b09510c_vxt-web-app/stdout_71823ae587cf48549ef48b251c2d02b1.
+2026-03-28T10:45:22.9546441Z Creating stderr named pipe at /podr/container/pipe/95f62b09510c_vxt-web-app/stderr_d5ecb19a64734485961f3627d80c7a66.
+2026-03-28T10:45:22.9557077Z Successfully created stderr named pipe at: /podr/container/pipe/95f62b09510c_vxt-web-app/stderr_d5ecb19a64734485961f3627d80c7a66.
+2026-03-28T10:45:22.9558462Z Opening named pipe /podr/container/pipe/95f62b09510c_vxt-web-app/stderr_d5ecb19a64734485961f3627d80c7a66 for reading in non-blocking mode.
+2026-03-28T10:45:22.9560681Z Successfully opened named pipe: /podr/container/pipe/95f62b09510c_vxt-web-app/stderr_d5ecb19a64734485961f3627d80c7a66.
+2026-03-28T10:45:22.9562110Z Successfully removed non-blocking flag from /podr/container/pipe/95f62b09510c_vxt-web-app/stderr_d5ecb19a64734485961f3627d80c7a66.
+2026-03-28T10:45:22.9564931Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T10:45:23.1995034Z Starting container: 95f62b09510c_vxt-web-app.
+2026-03-28T10:45:23.2229802Z Starting watchers and probes.
+2026-03-28T10:45:23.2233200Z Starting metrics collection.
+2026-03-28T10:45:23.2283263Z Container is running.
+2026-03-28T10:45:23.2285444Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.2285508Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.2622377Z Container start method finished after 639 ms.
+2026-03-28T10:45:23.5727106Z Container is starting.
+2026-03-28T10:45:23.5728394Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:23.5732211Z Establishing user namespace if not established already.
+2026-03-28T10:45:23.5728319Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T10:45:23.5750744Z Establishing network if not established already.
+2026-03-28T10:45:23.5752567Z Mounting volumes.
+2026-03-28T10:45:23.5754532Z Nested mountpoint 
+2026-03-28T10:45:23.5777806Z Nested mountpoint volatile/logs
+2026-03-28T10:45:23.5796767Z Nested mountpoint 
+2026-03-28T10:45:23.5804317Z Nested mountpoint 
+2026-03-28T10:45:23.5810638Z Nested mountpoint 
+2026-03-28T10:45:23.5827851Z Nested mountpoint 
+2026-03-28T10:45:23.5878191Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:45:23.5878266Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T10:45:23.5879282Z Creating container.
+2026-03-28T10:45:23.5880214Z Creating pipes for streaming container io.
+2026-03-28T10:45:23.5881059Z Creating stdout named pipe at /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stdout_92d672aaec4f47269799a7a9f73bf9d6.
+2026-03-28T10:45:23.5882751Z Successfully created stdout named pipe at: /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stdout_92d672aaec4f47269799a7a9f73bf9d6.
+2026-03-28T10:45:23.5883669Z Opening named pipe /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stdout_92d672aaec4f47269799a7a9f73bf9d6 for reading in non-blocking mode.
+2026-03-28T10:45:23.5884842Z Successfully opened named pipe: /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stdout_92d672aaec4f47269799a7a9f73bf9d6.
+2026-03-28T10:45:23.5885793Z Successfully removed non-blocking flag from /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stdout_92d672aaec4f47269799a7a9f73bf9d6.
+2026-03-28T10:45:23.5887806Z Creating stderr named pipe at /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stderr_198705dc69c64928883a9de64ac14b5d.
+2026-03-28T10:45:23.5889283Z Successfully created stderr named pipe at: /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stderr_198705dc69c64928883a9de64ac14b5d.
+2026-03-28T10:45:23.5890261Z Opening named pipe /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stderr_198705dc69c64928883a9de64ac14b5d for reading in non-blocking mode.
+2026-03-28T10:45:23.5943991Z Successfully opened named pipe: /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stderr_198705dc69c64928883a9de64ac14b5d.
+2026-03-28T10:45:23.5945984Z Successfully removed non-blocking flag from /podr/container/pipe/93c973ff6fcb_vxt-web-app_vxt-web-app/stderr_198705dc69c64928883a9de64ac14b5d.
+2026-03-28T10:45:23.5950284Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T10:45:23.8386123Z Starting container: 93c973ff6fcb_vxt-web-app_vxt-web-app.
+2026-03-28T10:45:23.8762043Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.8744540Z Starting watchers and probes.
+2026-03-28T10:45:23.8748657Z Starting metrics collection.
+2026-03-28T10:45:23.8761269Z Container is running.
+2026-03-28T10:45:23.8762101Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.9340360Z Container start method finished after 1310 ms.
+2026-03-28T10:45:23.9342458Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.9342827Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T10:45:23.9342381Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T10:45:23.9342795Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T10:45:27.9568408Z Site startup probe succeeded after 4.0218412 seconds.
+2026-03-28T10:45:27.9568511Z Site startup probe succeeded after 4.0218412 seconds.
+2026-03-28T10:45:28.0392938Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0218412 seconds., DetailsLevel: INFO
+2026-03-28T10:45:28.0393083Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0218412 seconds., DetailsLevel: INFO
+2026-03-28T10:45:28.2344340Z Site is running with deployment version: 8ce2daa6-b903-4fc6-937a-261e76de5708
+2026-03-28T10:45:28.2356237Z Site started.
+2026-03-28T10:45:28.2357046Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:28.2344491Z Site is running with deployment version: 8ce2daa6-b903-4fc6-937a-261e76de5708
+2026-03-28T10:45:28.2356311Z Site started.
+2026-03-28T10:45:28.2357084Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:37.6105745Z Container has finished running with exit code: 1.
+2026-03-28T10:45:37.6107591Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T10:45:37.6111558Z Stop and delete container. Retry count = 0
+2026-03-28T10:45:37.6112676Z Stopping container: 95f62b09510c_vxt-web-app.
+2026-03-28T10:45:37.6540516Z Deleting container: 95f62b09510c_vxt-web-app. Retry count = 0
+2026-03-28T10:45:38.1962663Z Container spec TerminationMessagePolicy  path 
+2026-03-28T10:45:38.1964517Z Container is terminated. Total time elapsed: 585 ms.
+2026-03-28T10:45:38.2045895Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T10:45:38.2048257Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:38.2062394Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:38.2045990Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T10:45:38.2048321Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:38.2062452Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 10:45:28 (UTC), DetailsLevel: INFO
+2026-03-28T10:45:38.2064755Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T10:45:38.2221804Z Stop and delete container. Retry count = 0
+2026-03-28T10:45:38.2223082Z Stopping container: 93c973ff6fcb_vxt-web-app_vxt-web-app.
+2026-03-28T10:45:38.5824692Z Deleting container: 93c973ff6fcb_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T10:45:38.7058824Z Container spec TerminationMessagePolicy  path 
+2026-03-28T10:45:38.7060450Z Container is terminated. Total time elapsed: 499 ms.
+2026-03-28T10:45:38.7061702Z Site: vxt-web-app stopped.
+2026-03-28T10:45:38.7061633Z Site: vxt-web-app stopped.
+2026-03-28T11:32:21.1891246Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:21.1892155Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:22.3480269Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:22.3480436Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:25.5278135Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:25.5279781Z Container start method called.
+2026-03-28T11:32:25.5278337Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 10:45:39 (UTC), DetailsLevel: WARN
+2026-03-28T11:32:25.5280385Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.5287928Z Container start method called.
+2026-03-28T11:32:25.5288488Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.5280342Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.5289960Z Establishing network.
+2026-03-28T11:32:25.5291507Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T11:32:25.5282063Z Establishing network.
+2026-03-28T11:32:25.5283676Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T11:32:25.5288448Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.8470218Z Image appsvc/python:3.11_20260203.2.tuxprod is pulled from registry 10.1.0.6:13209
+2026-03-28T11:32:25.8472939Z Container is starting.
+2026-03-28T11:32:25.8473915Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.8475295Z Establishing user namespace if not established already.
+2026-03-28T11:32:25.8476961Z Establishing network if not established already.
+2026-03-28T11:32:25.8478333Z Mounting volumes.
+2026-03-28T11:32:25.8473969Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:25.8480721Z Nested mountpoint 
+2026-03-28T11:32:25.8762109Z Nested mountpoint volatile/logs
+2026-03-28T11:32:25.8827629Z Nested mountpoint 
+2026-03-28T11:32:25.8835062Z Nested mountpoint 
+2026-03-28T11:32:25.9691671Z Nested mountpoint 
+2026-03-28T11:32:25.9723953Z Nested mountpoint 
+2026-03-28T11:32:26.2906424Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:32:26.2908551Z Creating container.
+2026-03-28T11:32:26.2909767Z Creating pipes for streaming container io.
+2026-03-28T11:32:26.2910782Z Creating stdout named pipe at /podr/container/pipe/aea3b7f659a4_vxt-web-app/stdout_b6b0873dfed949a19cc249169fc1a0cb.
+2026-03-28T11:32:26.2906623Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:32:26.2919273Z Successfully created stdout named pipe at: /podr/container/pipe/aea3b7f659a4_vxt-web-app/stdout_b6b0873dfed949a19cc249169fc1a0cb.
+2026-03-28T11:32:26.2920488Z Opening named pipe /podr/container/pipe/aea3b7f659a4_vxt-web-app/stdout_b6b0873dfed949a19cc249169fc1a0cb for reading in non-blocking mode.
+2026-03-28T11:32:26.2926677Z Successfully opened named pipe: /podr/container/pipe/aea3b7f659a4_vxt-web-app/stdout_b6b0873dfed949a19cc249169fc1a0cb.
+2026-03-28T11:32:26.2927978Z Successfully removed non-blocking flag from /podr/container/pipe/aea3b7f659a4_vxt-web-app/stdout_b6b0873dfed949a19cc249169fc1a0cb.
+2026-03-28T11:32:26.2929387Z Creating stderr named pipe at /podr/container/pipe/aea3b7f659a4_vxt-web-app/stderr_67ef3060a12b426b8aeaef261c4cdf38.
+2026-03-28T11:32:26.2931087Z Successfully created stderr named pipe at: /podr/container/pipe/aea3b7f659a4_vxt-web-app/stderr_67ef3060a12b426b8aeaef261c4cdf38.
+2026-03-28T11:32:26.2932291Z Opening named pipe /podr/container/pipe/aea3b7f659a4_vxt-web-app/stderr_67ef3060a12b426b8aeaef261c4cdf38 for reading in non-blocking mode.
+2026-03-28T11:32:26.2958911Z Successfully opened named pipe: /podr/container/pipe/aea3b7f659a4_vxt-web-app/stderr_67ef3060a12b426b8aeaef261c4cdf38.
+2026-03-28T11:32:26.2960539Z Successfully removed non-blocking flag from /podr/container/pipe/aea3b7f659a4_vxt-web-app/stderr_67ef3060a12b426b8aeaef261c4cdf38.
+2026-03-28T11:32:26.2962359Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T11:32:26.6247504Z Container is starting.
+2026-03-28T11:32:26.6248603Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:26.6248542Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:32:26.6252183Z Establishing user namespace if not established already.
+2026-03-28T11:32:26.6254401Z Establishing network if not established already.
+2026-03-28T11:32:26.6255912Z Mounting volumes.
+2026-03-28T11:32:26.9903815Z Nested mountpoint 
+2026-03-28T11:32:27.0019562Z Nested mountpoint volatile/logs
+2026-03-28T11:32:27.0189330Z Nested mountpoint 
+2026-03-28T11:32:27.0197832Z Nested mountpoint 
+2026-03-28T11:32:27.0245451Z Nested mountpoint 
+2026-03-28T11:32:27.0252259Z Nested mountpoint 
+2026-03-28T11:32:27.0259691Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:32:27.0260891Z Creating container.
+2026-03-28T11:32:27.0262055Z Creating pipes for streaming container io.
+2026-03-28T11:32:27.0263353Z Creating stdout named pipe at /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stdout_d263b9697b4648079e53eef37a45fe8a.
+2026-03-28T11:32:27.0265603Z Successfully created stdout named pipe at: /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stdout_d263b9697b4648079e53eef37a45fe8a.
+2026-03-28T11:32:27.0266781Z Opening named pipe /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stdout_d263b9697b4648079e53eef37a45fe8a for reading in non-blocking mode.
+2026-03-28T11:32:27.0268269Z Successfully opened named pipe: /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stdout_d263b9697b4648079e53eef37a45fe8a.
+2026-03-28T11:32:27.0270316Z Successfully removed non-blocking flag from /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stdout_d263b9697b4648079e53eef37a45fe8a.
+2026-03-28T11:32:27.0259618Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:32:27.0329865Z Creating stderr named pipe at /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stderr_a31695a2812d4cb88140ceb10b3886af.
+2026-03-28T11:32:27.0332614Z Successfully created stderr named pipe at: /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stderr_a31695a2812d4cb88140ceb10b3886af.
+2026-03-28T11:32:27.0335313Z Opening named pipe /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stderr_a31695a2812d4cb88140ceb10b3886af for reading in non-blocking mode.
+2026-03-28T11:32:27.0348295Z Successfully opened named pipe: /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stderr_a31695a2812d4cb88140ceb10b3886af.
+2026-03-28T11:32:27.0354417Z Successfully removed non-blocking flag from /podr/container/pipe/f55783a29a3e_vxt-web-app_vxt-web-app/stderr_a31695a2812d4cb88140ceb10b3886af.
+2026-03-28T11:32:27.0365874Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T11:32:27.2017884Z Starting container: aea3b7f659a4_vxt-web-app.
+2026-03-28T11:32:27.2060650Z Container get processes received unexpected exception.
+2026-03-28T11:32:27.2667741Z Starting watchers and probes.
+2026-03-28T11:32:27.2670026Z Starting metrics collection.
+2026-03-28T11:32:27.2671507Z Container is running.
+2026-03-28T11:32:27.2672156Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:27.2672192Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:27.3559976Z Container start method finished after 1827 ms.
+2026-03-28T11:32:28.1724295Z Starting container: f55783a29a3e_vxt-web-app_vxt-web-app.
+2026-03-28T11:32:28.2190793Z Starting watchers and probes.
+2026-03-28T11:32:28.2204800Z Starting metrics collection.
+2026-03-28T11:32:28.2232366Z Container is running.
+2026-03-28T11:32:28.2236521Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:28.2236597Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:28.2576013Z Container start method finished after 2728 ms.
+2026-03-28T11:32:28.2591558Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:28.2594686Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:32:28.2591448Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:32:28.2594622Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:32:34.2891025Z Site startup probe succeeded after 6.015436 seconds.
+2026-03-28T11:32:34.2891345Z Site startup probe succeeded after 6.015436 seconds.
+2026-03-28T11:32:34.4763407Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 6.015436 seconds., DetailsLevel: INFO
+2026-03-28T11:32:34.4763545Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 6.015436 seconds., DetailsLevel: INFO
+2026-03-28T11:32:34.6585494Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:32:34.6588189Z Site started.
+2026-03-28T11:32:34.6596637Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:32:34.6585367Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:32:34.6588126Z Site started.
+2026-03-28T11:32:34.6596575Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:10.4349498Z Container has finished running with exit code: 1.
+2026-03-28T11:33:10.4359369Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:33:10.4372865Z Stop and delete container. Retry count = 0
+2026-03-28T11:33:10.4376308Z Stopping container: aea3b7f659a4_vxt-web-app.
+2026-03-28T11:33:10.5200820Z Deleting container: aea3b7f659a4_vxt-web-app. Retry count = 0
+2026-03-28T11:33:11.2079034Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:33:11.2092530Z Container is terminated. Total time elapsed: 773 ms.
+2026-03-28T11:33:11.3432565Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:33:11.3432970Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:33:11.3721466Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:11.3732813Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:11.3721743Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:11.3732864Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:11.3754476Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:33:11.4297692Z Stop and delete container. Retry count = 0
+2026-03-28T11:33:11.4352561Z Stopping container: f55783a29a3e_vxt-web-app_vxt-web-app.
+2026-03-28T11:33:16.4431106Z Deleting container: f55783a29a3e_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T11:33:16.6732004Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:33:16.6745563Z Container is terminated. Total time elapsed: 5298 ms.
+2026-03-28T11:33:16.6746785Z Site: vxt-web-app stopped.
+2026-03-28T11:33:16.6746697Z Site: vxt-web-app stopped.
+2026-03-28T11:33:16.6792896Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.4710546Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6596001Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6671608Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6672042Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:57.8721516Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:16.6792967Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.4710658Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:32:34 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6596108Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6671688Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:17.6672072Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:57.8721648Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:58.5465658Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:33:58.5465802Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:01.3321793Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:01.3325412Z Container start method called.
+2026-03-28T11:34:01.3326608Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.3327929Z Establishing network.
+2026-03-28T11:34:01.3329224Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T11:34:01.3322483Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:33:17 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:01.3326649Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.3367527Z Container start method called.
+2026-03-28T11:34:01.3369046Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.3370556Z Establishing network.
+2026-03-28T11:34:01.3372014Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T11:34:01.3368961Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.4659626Z Container is starting.
+2026-03-28T11:34:01.4660499Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.4660545Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:01.4661835Z Establishing user namespace if not established already.
+2026-03-28T11:34:01.4663046Z Establishing network if not established already.
+2026-03-28T11:34:01.4664350Z Mounting volumes.
+2026-03-28T11:34:01.4665898Z Nested mountpoint 
+2026-03-28T11:34:01.4701798Z Nested mountpoint volatile/logs
+2026-03-28T11:34:01.4856934Z Nested mountpoint 
+2026-03-28T11:34:01.4865615Z Nested mountpoint 
+2026-03-28T11:34:01.5007682Z Nested mountpoint 
+2026-03-28T11:34:01.5065470Z Nested mountpoint 
+2026-03-28T11:34:01.7318036Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:34:01.7320262Z Creating container.
+2026-03-28T11:34:01.7322920Z Creating pipes for streaming container io.
+2026-03-28T11:34:01.7324272Z Creating stdout named pipe at /podr/container/pipe/624436daa779_vxt-web-app/stdout_15e4d59d5b87450ba7206ac30157d744.
+2026-03-28T11:34:01.7318163Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:34:01.7335800Z Successfully created stdout named pipe at: /podr/container/pipe/624436daa779_vxt-web-app/stdout_15e4d59d5b87450ba7206ac30157d744.
+2026-03-28T11:34:01.7337445Z Opening named pipe /podr/container/pipe/624436daa779_vxt-web-app/stdout_15e4d59d5b87450ba7206ac30157d744 for reading in non-blocking mode.
+2026-03-28T11:34:01.7350630Z Successfully opened named pipe: /podr/container/pipe/624436daa779_vxt-web-app/stdout_15e4d59d5b87450ba7206ac30157d744.
+2026-03-28T11:34:01.7352623Z Successfully removed non-blocking flag from /podr/container/pipe/624436daa779_vxt-web-app/stdout_15e4d59d5b87450ba7206ac30157d744.
+2026-03-28T11:34:01.7355635Z Creating stderr named pipe at /podr/container/pipe/624436daa779_vxt-web-app/stderr_e765d04573f14975b1cc175c7dbd4ec7.
+2026-03-28T11:34:01.7357445Z Successfully created stderr named pipe at: /podr/container/pipe/624436daa779_vxt-web-app/stderr_e765d04573f14975b1cc175c7dbd4ec7.
+2026-03-28T11:34:01.7365793Z Opening named pipe /podr/container/pipe/624436daa779_vxt-web-app/stderr_e765d04573f14975b1cc175c7dbd4ec7 for reading in non-blocking mode.
+2026-03-28T11:34:01.7367331Z Successfully opened named pipe: /podr/container/pipe/624436daa779_vxt-web-app/stderr_e765d04573f14975b1cc175c7dbd4ec7.
+2026-03-28T11:34:01.7368450Z Successfully removed non-blocking flag from /podr/container/pipe/624436daa779_vxt-web-app/stderr_e765d04573f14975b1cc175c7dbd4ec7.
+2026-03-28T11:34:01.7378214Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T11:34:01.9978431Z Starting container: 624436daa779_vxt-web-app.
+2026-03-28T11:34:02.0243860Z Starting watchers and probes.
+2026-03-28T11:34:02.0260201Z Starting metrics collection.
+2026-03-28T11:34:02.0264149Z Container is running.
+2026-03-28T11:34:02.0264811Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:02.0264853Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:02.0947720Z Container start method finished after 762 ms.
+2026-03-28T11:34:02.5201450Z Container is starting.
+2026-03-28T11:34:02.5214348Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:02.5220962Z Establishing user namespace if not established already.
+2026-03-28T11:34:02.5213089Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:34:02.5245165Z Establishing network if not established already.
+2026-03-28T11:34:02.5251878Z Mounting volumes.
+2026-03-28T11:34:02.5260890Z Nested mountpoint 
+2026-03-28T11:34:02.5420823Z Nested mountpoint volatile/logs
+2026-03-28T11:34:02.5460707Z Nested mountpoint 
+2026-03-28T11:34:02.5658805Z Nested mountpoint 
+2026-03-28T11:34:02.5666850Z Nested mountpoint 
+2026-03-28T11:34:02.5674398Z Nested mountpoint 
+2026-03-28T11:34:02.5683577Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:34:02.5684694Z Creating container.
+2026-03-28T11:34:02.5686729Z Creating pipes for streaming container io.
+2026-03-28T11:34:02.5688447Z Creating stdout named pipe at /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stdout_990b57875f6a4eb0ac5a0414eed39900.
+2026-03-28T11:34:02.5692608Z Successfully created stdout named pipe at: /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stdout_990b57875f6a4eb0ac5a0414eed39900.
+2026-03-28T11:34:02.5683502Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:34:02.5964580Z Opening named pipe /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stdout_990b57875f6a4eb0ac5a0414eed39900 for reading in non-blocking mode.
+2026-03-28T11:34:02.5967357Z Successfully opened named pipe: /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stdout_990b57875f6a4eb0ac5a0414eed39900.
+2026-03-28T11:34:02.5969504Z Successfully removed non-blocking flag from /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stdout_990b57875f6a4eb0ac5a0414eed39900.
+2026-03-28T11:34:02.5971913Z Creating stderr named pipe at /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stderr_7cfc437e0c3f465fb7c07219bb1dea6f.
+2026-03-28T11:34:02.6019844Z Successfully created stderr named pipe at: /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stderr_7cfc437e0c3f465fb7c07219bb1dea6f.
+2026-03-28T11:34:02.6023717Z Opening named pipe /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stderr_7cfc437e0c3f465fb7c07219bb1dea6f for reading in non-blocking mode.
+2026-03-28T11:34:02.6025151Z Successfully opened named pipe: /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stderr_7cfc437e0c3f465fb7c07219bb1dea6f.
+2026-03-28T11:34:02.6026328Z Successfully removed non-blocking flag from /podr/container/pipe/bf780da79774_vxt-web-app_vxt-web-app/stderr_7cfc437e0c3f465fb7c07219bb1dea6f.
+2026-03-28T11:34:02.6027946Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T11:34:02.9586170Z Starting container: bf780da79774_vxt-web-app_vxt-web-app.
+2026-03-28T11:34:02.9819358Z Starting watchers and probes.
+2026-03-28T11:34:02.9833621Z Starting metrics collection.
+2026-03-28T11:34:02.9842532Z Container is running.
+2026-03-28T11:34:02.9843380Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:02.9843318Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:03.0001637Z Container start method finished after 1663 ms.
+2026-03-28T11:34:03.0003745Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:03.0004167Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:34:03.0003669Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:34:03.0004130Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:34:07.0236695Z Site startup probe succeeded after 4.0210016 seconds.
+2026-03-28T11:34:07.0236806Z Site startup probe succeeded after 4.0210016 seconds.
+2026-03-28T11:34:07.1357748Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0210016 seconds., DetailsLevel: INFO
+2026-03-28T11:34:07.1357899Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0210016 seconds., DetailsLevel: INFO
+2026-03-28T11:34:07.2594771Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:34:07.2593955Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:34:07.2621269Z Site started.
+2026-03-28T11:34:07.2622217Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:07.2621366Z Site started.
+2026-03-28T11:34:07.2622262Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:41.6228729Z Container has finished running with exit code: 1.
+2026-03-28T11:34:41.6231332Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:34:41.6242881Z Stop and delete container. Retry count = 0
+2026-03-28T11:34:41.6245902Z Stopping container: 624436daa779_vxt-web-app.
+2026-03-28T11:34:41.6447686Z Deleting container: 624436daa779_vxt-web-app. Retry count = 0
+2026-03-28T11:34:42.3709557Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:34:42.3715629Z Container is terminated. Total time elapsed: 747 ms.
+2026-03-28T11:34:42.5700089Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:34:42.5700992Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:34:42.6016213Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:42.6026126Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:42.6016370Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:42.6026181Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:42.6060515Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:34:42.6096647Z Stop and delete container. Retry count = 0
+2026-03-28T11:34:42.6099502Z Stopping container: bf780da79774_vxt-web-app_vxt-web-app.
+2026-03-28T11:34:42.9323447Z Deleting container: bf780da79774_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T11:34:43.1303008Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:34:43.1307158Z Container is terminated. Total time elapsed: 524 ms.
+2026-03-28T11:34:43.1308998Z Site: vxt-web-app stopped.
+2026-03-28T11:34:43.1308946Z Site: vxt-web-app stopped.
+2026-03-28T11:34:43.1390456Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:43.6208705Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:43.7303822Z Site: vxt-web-app will be blocked for 1 minutes till 03/28/2026 11:35:43
+2026-03-28T11:34:43.7305801Z State: Blocked, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site: vxt-web-app will be blocked for 1 minutes till 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:34:43.7320371Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:34:43.7341959Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:34:43.7345284Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:35:34.9964168Z State: Blocked, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:35:34.9964567Z Start site prohibitted because the site is being blocked.
+2026-03-28T11:35:43.7317116Z Site: vxt-web-app is unblocked.
+2026-03-28T11:37:52.5761464Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:34:43.1390592Z State: Stopping, Action: UnmountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:43.6208823Z State: Stopping, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:34:07 (UTC), DetailsLevel: INFO
+2026-03-28T11:34:43.7303929Z Site: vxt-web-app will be blocked for 1 minutes till 03/28/2026 11:35:43
+2026-03-28T11:34:43.7305854Z State: Blocked, Action: StoppingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site: vxt-web-app will be blocked for 1 minutes till 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:34:43.7320434Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:34:43.7342022Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:34:43.7345344Z State: Stopped, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:34:43 (UTC), DetailsLevel: WARN
+2026-03-28T11:35:34.9964274Z State: Blocked, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:35:34.9964596Z Start site prohibitted because the site is being blocked.
+2026-03-28T11:35:43.7317273Z Site: vxt-web-app is unblocked.
+2026-03-28T11:37:52.5761554Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:37:53.2385741Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:37:53.2385883Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:37:55.9962595Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:37:55.9964054Z Container start method called.
+2026-03-28T11:37:55.9964544Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:55.9965974Z Establishing network.
+2026-03-28T11:37:55.9967370Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T11:37:55.9972796Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:55.9962716Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/28/2026 11:35:43, DetailsLevel: WARN
+2026-03-28T11:37:55.9964599Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:55.9972251Z Container start method called.
+2026-03-28T11:37:55.9972837Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:56.0047277Z Establishing network.
+2026-03-28T11:37:56.0048980Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T11:37:56.0960440Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:56.0957827Z Container is starting.
+2026-03-28T11:37:56.0960373Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:56.0961751Z Establishing user namespace if not established already.
+2026-03-28T11:37:56.0962964Z Establishing network if not established already.
+2026-03-28T11:37:56.0966792Z Mounting volumes.
+2026-03-28T11:37:56.0968557Z Nested mountpoint 
+2026-03-28T11:37:56.1033904Z Nested mountpoint volatile/logs
+2026-03-28T11:37:56.1110262Z Nested mountpoint 
+2026-03-28T11:37:56.1125538Z Nested mountpoint 
+2026-03-28T11:37:56.1161271Z Nested mountpoint 
+2026-03-28T11:37:56.1174826Z Nested mountpoint 
+2026-03-28T11:37:56.2463682Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:37:56.2467476Z Creating container.
+2026-03-28T11:37:56.2474206Z Creating pipes for streaming container io.
+2026-03-28T11:37:56.2480360Z Creating stdout named pipe at /podr/container/pipe/66fca9737f69_vxt-web-app/stdout_a479315190774a2bb99f716ef011ea8c.
+2026-03-28T11:37:56.2491522Z Successfully created stdout named pipe at: /podr/container/pipe/66fca9737f69_vxt-web-app/stdout_a479315190774a2bb99f716ef011ea8c.
+2026-03-28T11:37:56.2494845Z Opening named pipe /podr/container/pipe/66fca9737f69_vxt-web-app/stdout_a479315190774a2bb99f716ef011ea8c for reading in non-blocking mode.
+2026-03-28T11:37:56.2497145Z Successfully opened named pipe: /podr/container/pipe/66fca9737f69_vxt-web-app/stdout_a479315190774a2bb99f716ef011ea8c.
+2026-03-28T11:37:56.2505037Z Successfully removed non-blocking flag from /podr/container/pipe/66fca9737f69_vxt-web-app/stdout_a479315190774a2bb99f716ef011ea8c.
+2026-03-28T11:37:56.2514529Z Creating stderr named pipe at /podr/container/pipe/66fca9737f69_vxt-web-app/stderr_a147b0e162534158baa1b83bd8eebc54.
+2026-03-28T11:37:56.2518224Z Successfully created stderr named pipe at: /podr/container/pipe/66fca9737f69_vxt-web-app/stderr_a147b0e162534158baa1b83bd8eebc54.
+2026-03-28T11:37:56.2463808Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:37:56.2527412Z Opening named pipe /podr/container/pipe/66fca9737f69_vxt-web-app/stderr_a147b0e162534158baa1b83bd8eebc54 for reading in non-blocking mode.
+2026-03-28T11:37:56.2528929Z Successfully opened named pipe: /podr/container/pipe/66fca9737f69_vxt-web-app/stderr_a147b0e162534158baa1b83bd8eebc54.
+2026-03-28T11:37:56.2543225Z Successfully removed non-blocking flag from /podr/container/pipe/66fca9737f69_vxt-web-app/stderr_a147b0e162534158baa1b83bd8eebc54.
+2026-03-28T11:37:56.2548991Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T11:37:56.5490853Z Starting container: 66fca9737f69_vxt-web-app.
+2026-03-28T11:37:56.5796689Z Starting watchers and probes.
+2026-03-28T11:37:56.5799361Z Starting metrics collection.
+2026-03-28T11:37:56.5800991Z Container is running.
+2026-03-28T11:37:56.5801604Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:56.5801640Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:56.6093060Z Container start method finished after 612 ms.
+2026-03-28T11:37:56.8842140Z Container is starting.
+2026-03-28T11:37:56.8842705Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:56.8843371Z Establishing user namespace if not established already.
+2026-03-28T11:37:56.8843985Z Establishing network if not established already.
+2026-03-28T11:37:56.8844793Z Mounting volumes.
+2026-03-28T11:37:56.8845724Z Nested mountpoint 
+2026-03-28T11:37:56.8842668Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:37:56.8895989Z Nested mountpoint volatile/logs
+2026-03-28T11:37:56.8921976Z Nested mountpoint 
+2026-03-28T11:37:56.8938672Z Nested mountpoint 
+2026-03-28T11:37:56.8967978Z Nested mountpoint 
+2026-03-28T11:37:56.9000411Z Nested mountpoint 
+2026-03-28T11:37:56.9027337Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:37:56.9027413Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:37:56.9028761Z Creating container.
+2026-03-28T11:37:56.9030049Z Creating pipes for streaming container io.
+2026-03-28T11:37:56.9031282Z Creating stdout named pipe at /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stdout_ad09e955457f4a7f86dd45b466e7a089.
+2026-03-28T11:37:56.9060119Z Successfully created stdout named pipe at: /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stdout_ad09e955457f4a7f86dd45b466e7a089.
+2026-03-28T11:37:56.9061340Z Opening named pipe /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stdout_ad09e955457f4a7f86dd45b466e7a089 for reading in non-blocking mode.
+2026-03-28T11:37:56.9064966Z Successfully opened named pipe: /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stdout_ad09e955457f4a7f86dd45b466e7a089.
+2026-03-28T11:37:56.9072101Z Successfully removed non-blocking flag from /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stdout_ad09e955457f4a7f86dd45b466e7a089.
+2026-03-28T11:37:56.9074072Z Creating stderr named pipe at /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stderr_e5410eafe5c14986a4fbf320859ed83e.
+2026-03-28T11:37:56.9078684Z Successfully created stderr named pipe at: /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stderr_e5410eafe5c14986a4fbf320859ed83e.
+2026-03-28T11:37:56.9080115Z Opening named pipe /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stderr_e5410eafe5c14986a4fbf320859ed83e for reading in non-blocking mode.
+2026-03-28T11:37:56.9081651Z Successfully opened named pipe: /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stderr_e5410eafe5c14986a4fbf320859ed83e.
+2026-03-28T11:37:56.9082827Z Successfully removed non-blocking flag from /podr/container/pipe/f806d5d77004_vxt-web-app_vxt-web-app/stderr_e5410eafe5c14986a4fbf320859ed83e.
+2026-03-28T11:37:56.9085926Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T11:37:57.1506158Z Starting container: f806d5d77004_vxt-web-app_vxt-web-app.
+2026-03-28T11:37:57.1745096Z Starting watchers and probes.
+2026-03-28T11:37:57.1747840Z Starting metrics collection.
+2026-03-28T11:37:57.1749371Z Container is running.
+2026-03-28T11:37:57.1750427Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:57.1750365Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:57.2259356Z Container start method finished after 1228 ms.
+2026-03-28T11:37:57.2261336Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:57.2261633Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:37:57.2261261Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:37:57.2261602Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:38:01.2466078Z Site startup probe succeeded after 4.0198603 seconds.
+2026-03-28T11:38:01.2466155Z Site startup probe succeeded after 4.0198603 seconds.
+2026-03-28T11:38:01.3729220Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0198603 seconds., DetailsLevel: INFO
+2026-03-28T11:38:01.3729368Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 4.0198603 seconds., DetailsLevel: INFO
+2026-03-28T11:38:01.5148645Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:38:01.5151024Z Site started.
+2026-03-28T11:38:01.5152044Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:38:01 (UTC), DetailsLevel: INFO
+2026-03-28T11:38:01.5148777Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:38:01.5151087Z Site started.
+2026-03-28T11:38:01.5152080Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:38:01 (UTC), DetailsLevel: INFO
+2026-03-28T11:38:34.2956388Z Container has finished running with exit code: 1.
+2026-03-28T11:38:34.2957618Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:38:34.3118668Z Stop and delete container. Retry count = 0
+2026-03-28T11:38:34.3128678Z Stopping container: 66fca9737f69_vxt-web-app.
+2026-03-28T11:38:34.3536054Z Deleting container: 66fca9737f69_vxt-web-app. Retry count = 0
+2026-03-28T11:38:34.8096162Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:38:34.8098054Z Container is terminated. Total time elapsed: 513 ms.
+2026-03-28T11:38:35.1313123Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:38:35.1315143Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:38:01 (UTC), DetailsLevel: INFO
+2026-03-28T11:38:35.1336105Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:38:01 (UTC), DetailsLevel: INFO
+2026-03-28T11:38:35.1344483Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:38:35.1471135Z Stop and delete container. Retry count = 0
+2026-03-28T11:38:35.1472365Z Stopping container: f806d5d77004_vxt-web-app_vxt-web-app.
+2026-03-28T11:38:35.4976695Z Deleting container: f806d5d77004_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T11:38:35.7196394Z Site: vxt-web-app stopped.
+essagePolicy  path 
+2026-03-28T11:38:35.7194981Z Container is terminated. Total time elapsed: 584 ms.
+2026-03-28T11:38:35.7196464Z Site: vxt-web-app stopped.
+2026-03-28T11:52:38.3148103Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:38.3148492Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:39.0486495Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:39.0486630Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:41.7697513Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:41.7708412Z Container start method called.
+2026-03-28T11:52:41.7709871Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.7711321Z Establishing network.
+2026-03-28T11:52:41.7712620Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T11:52:41.7716924Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.7697633Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:38:36 (UTC), DetailsLevel: WARN
+2026-03-28T11:52:41.7709925Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.7716504Z Container start method called.
+2026-03-28T11:52:41.7716974Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.7718266Z Establishing network.
+2026-03-28T11:52:41.7719612Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T11:52:41.8782021Z Container is starting.
+2026-03-28T11:52:41.8782669Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.8783926Z Establishing user namespace if not established already.
+2026-03-28T11:52:41.8785223Z Establishing network if not established already.
+2026-03-28T11:52:41.8786779Z Mounting volumes.
+2026-03-28T11:52:41.8788461Z Nested mountpoint 
+2026-03-28T11:52:41.8782707Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:41.8861620Z Nested mountpoint volatile/logs
+2026-03-28T11:52:41.9018290Z Nested mountpoint 
+2026-03-28T11:52:41.9058149Z Nested mountpoint 
+2026-03-28T11:52:41.9172790Z Nested mountpoint 
+2026-03-28T11:52:41.9240664Z Nested mountpoint 
+2026-03-28T11:52:42.0606314Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:52:42.0607885Z Creating container.
+2026-03-28T11:52:42.0609255Z Creating pipes for streaming container io.
+2026-03-28T11:52:42.0610658Z Creating stdout named pipe at /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stdout_6c5534817de046c3af511fa452017609.
+2026-03-28T11:52:42.0606449Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:52:42.0695157Z Successfully created stdout named pipe at: /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stdout_6c5534817de046c3af511fa452017609.
+2026-03-28T11:52:42.0697506Z Opening named pipe /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stdout_6c5534817de046c3af511fa452017609 for reading in non-blocking mode.
+2026-03-28T11:52:42.0712169Z Successfully opened named pipe: /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stdout_6c5534817de046c3af511fa452017609.
+2026-03-28T11:52:42.0731061Z Successfully removed non-blocking flag from /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stdout_6c5534817de046c3af511fa452017609.
+2026-03-28T11:52:42.0737571Z Creating stderr named pipe at /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stderr_526b1a735d0a4376810eba2ea2b80670.
+2026-03-28T11:52:42.0746008Z Successfully created stderr named pipe at: /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stderr_526b1a735d0a4376810eba2ea2b80670.
+2026-03-28T11:52:42.0748295Z Opening named pipe /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stderr_526b1a735d0a4376810eba2ea2b80670 for reading in non-blocking mode.
+2026-03-28T11:52:42.0750771Z Successfully opened named pipe: /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stderr_526b1a735d0a4376810eba2ea2b80670.
+2026-03-28T11:52:42.0766011Z Successfully removed non-blocking flag from /podr/container/pipe/ea63fb7c94d0_vxt-web-app/stderr_526b1a735d0a4376810eba2ea2b80670.
+2026-03-28T11:52:42.0771210Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T11:52:42.3446434Z Starting container: ea63fb7c94d0_vxt-web-app.
+2026-03-28T11:52:42.3772235Z Starting watchers and probes.
+2026-03-28T11:52:42.3785764Z Starting metrics collection.
+2026-03-28T11:52:42.3787663Z Container is running.
+2026-03-28T11:52:42.3788286Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:42.3788338Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:42.3916968Z Container start method finished after 620 ms.
+2026-03-28T11:52:42.6855750Z Container is starting.
+2026-03-28T11:52:42.6856849Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:42.6856789Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:52:42.6858057Z Establishing user namespace if not established already.
+2026-03-28T11:52:42.6859416Z Establishing network if not established already.
+2026-03-28T11:52:42.6861068Z Mounting volumes.
+2026-03-28T11:52:42.6863410Z Nested mountpoint 
+2026-03-28T11:52:42.6873236Z Nested mountpoint volatile/logs
+2026-03-28T11:52:42.6930771Z Nested mountpoint 
+2026-03-28T11:52:42.6950889Z Nested mountpoint 
+2026-03-28T11:52:42.6960705Z Nested mountpoint 
+2026-03-28T11:52:42.6969115Z Nested mountpoint 
+2026-03-28T11:52:42.6994747Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:52:42.6995096Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:52:42.6996582Z Creating container.
+2026-03-28T11:52:42.6999157Z Creating pipes for streaming container io.
+2026-03-28T11:52:42.7000874Z Creating stdout named pipe at /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stdout_3487b5dec00d46ab964fe3f04e3d133b.
+2026-03-28T11:52:42.7003728Z Successfully created stdout named pipe at: /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stdout_3487b5dec00d46ab964fe3f04e3d133b.
+2026-03-28T11:52:42.7005823Z Opening named pipe /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stdout_3487b5dec00d46ab964fe3f04e3d133b for reading in non-blocking mode.
+2026-03-28T11:52:42.7007266Z Successfully opened named pipe: /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stdout_3487b5dec00d46ab964fe3f04e3d133b.
+2026-03-28T11:52:42.7008337Z Successfully removed non-blocking flag from /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stdout_3487b5dec00d46ab964fe3f04e3d133b.
+2026-03-28T11:52:42.7035983Z Creating stderr named pipe at /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stderr_0a94ff466b7d4784b3b219b60b9cfa72.
+2026-03-28T11:52:42.7044105Z Successfully created stderr named pipe at: /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stderr_0a94ff466b7d4784b3b219b60b9cfa72.
+2026-03-28T11:52:42.7045897Z Opening named pipe /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stderr_0a94ff466b7d4784b3b219b60b9cfa72 for reading in non-blocking mode.
+2026-03-28T11:52:42.7050938Z Successfully opened named pipe: /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stderr_0a94ff466b7d4784b3b219b60b9cfa72.
+2026-03-28T11:52:42.7052392Z Successfully removed non-blocking flag from /podr/container/pipe/21e61ecae04e_vxt-web-app_vxt-web-app/stderr_0a94ff466b7d4784b3b219b60b9cfa72.
+2026-03-28T11:52:42.7061787Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T11:52:42.9767150Z Starting container: 21e61ecae04e_vxt-web-app_vxt-web-app.
+2026-03-28T11:52:43.0102450Z Starting watchers and probes.
+2026-03-28T11:52:43.0118144Z Starting metrics collection.
+2026-03-28T11:52:43.0143830Z Container is running.
+2026-03-28T11:52:43.0144611Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:43.0144568Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:43.0470386Z Container start method finished after 1275 ms.
+2026-03-28T11:52:43.0474207Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:43.0474477Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:52:43.0474110Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:52:43.0474451Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:52:49.0966135Z Site startup probe succeeded after 6.0487417 seconds.
+2026-03-28T11:52:49.0966286Z Site startup probe succeeded after 6.0487417 seconds.
+2026-03-28T11:52:49.3191408Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 6.0487417 seconds., DetailsLevel: INFO
+2026-03-28T11:52:49.3191553Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 6.0487417 seconds., DetailsLevel: INFO
+2026-03-28T11:52:50.2364831Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:52:50.2364957Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:52:50.3324816Z Site started.
+2026-03-28T11:52:50.3326180Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:52:50.3324981Z Site started.
+2026-03-28T11:52:50.3326231Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:53:21.9435728Z Container has finished running with exit code: 1.
+2026-03-28T11:53:21.9438258Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:53:21.9449913Z Stop and delete container. Retry count = 0
+2026-03-28T11:53:21.9456511Z Stopping container: ea63fb7c94d0_vxt-web-app.
+2026-03-28T11:53:22.0052326Z Deleting container: ea63fb7c94d0_vxt-web-app. Retry count = 0
+2026-03-28T11:53:22.7377005Z Container spec TerminationMessagePolicy  path 
+2026-03-28T11:53:22.7378789Z Container is terminated. Total time elapsed: 793 ms.
+2026-03-28T11:53:22.7965462Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:53:22.7965877Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T11:53:22.8440715Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:53:22.8441092Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:53:22.8489051Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:53:22.8489190Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:52:50 (UTC), DetailsLevel: INFO
+2026-03-28T11:53:22.8490892Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T11:53:22.8855439Z Stop and delete container. Retry count = 0
+2026-03-28T11:53:22.8857408Z Stopping container: 21e61ecae04e_vxt-web-app_vxt-web-app.
+2026-03-28T11:53:23.2940469Z Deleting container: 21e61ecae04e_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T11:53:23.4472693Z Site: vxt-web-app stopped.
+essagePolicy  path 
+2026-03-28T11:53:23.4471679Z Container is terminated. Total time elapsed: 597 ms.
+2026-03-28T11:53:23.4472736Z Site: vxt-web-app stopped.
+2026-03-28T11:59:41.9471484Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:41.9471708Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:42.5640466Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:42.5640604Z State: Starting, Action: StartingMsiContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:45.2924456Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:45.2924577Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site stopped at 03/28/2026 11:53:24 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:45.2926526Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.2968608Z Container start method called.
+2026-03-28T11:59:45.2969159Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.2970459Z Establishing network.
+2026-03-28T11:59:45.2971879Z Pulling image: index.docker.io/barakdoc/vxt-web-app:latest.
+2026-03-28T11:59:45.2926078Z Container start method called.
+2026-03-28T11:59:45.2926496Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.2927787Z Establishing network.
+2026-03-28T11:59:45.2929234Z Pulling image: appsvc/python:3.11_20260203.2.tuxprod.
+2026-03-28T11:59:45.2969104Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image index.docker.io/barakdoc/vxt-web-app:latest for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.3970822Z Container is starting.
+2026-03-28T11:59:45.3971490Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.3972651Z Establishing user namespace if not established already.
+2026-03-28T11:59:45.3971527Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:45.3977464Z Establishing network if not established already.
+2026-03-28T11:59:45.3980062Z Mounting volumes.
+2026-03-28T11:59:45.3981550Z Nested mountpoint 
+2026-03-28T11:59:45.4019193Z Nested mountpoint volatile/logs
+2026-03-28T11:59:45.4111046Z Nested mountpoint 
+2026-03-28T11:59:45.4145108Z Nested mountpoint 
+2026-03-28T11:59:45.4389415Z Nested mountpoint 
+2026-03-28T11:59:45.4397612Z Nested mountpoint 
+2026-03-28T11:59:45.6408060Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:59:45.6409467Z Creating container.
+2026-03-28T11:59:45.6410840Z Creating pipes for streaming container io.
+2026-03-28T11:59:45.6417923Z Creating stdout named pipe at /podr/container/pipe/b5112ab6bd93_vxt-web-app/stdout_d122ca1a36fb4fce91575385864a1139.
+2026-03-28T11:59:45.6420216Z Successfully created stdout named pipe at: /podr/container/pipe/b5112ab6bd93_vxt-web-app/stdout_d122ca1a36fb4fce91575385864a1139.
+2026-03-28T11:59:45.6421330Z Opening named pipe /podr/container/pipe/b5112ab6bd93_vxt-web-app/stdout_d122ca1a36fb4fce91575385864a1139 for reading in non-blocking mode.
+2026-03-28T11:59:45.6423085Z Successfully opened named pipe: /podr/container/pipe/b5112ab6bd93_vxt-web-app/stdout_d122ca1a36fb4fce91575385864a1139.
+2026-03-28T11:59:45.6424350Z Successfully removed non-blocking flag from /podr/container/pipe/b5112ab6bd93_vxt-web-app/stdout_d122ca1a36fb4fce91575385864a1139.
+2026-03-28T11:59:45.6445772Z Creating stderr named pipe at /podr/container/pipe/b5112ab6bd93_vxt-web-app/stderr_b51db253874447fdbdc3a7ff3c5f9efa.
+2026-03-28T11:59:45.6447711Z Successfully created stderr named pipe at: /podr/container/pipe/b5112ab6bd93_vxt-web-app/stderr_b51db253874447fdbdc3a7ff3c5f9efa.
+2026-03-28T11:59:45.6448854Z Opening named pipe /podr/container/pipe/b5112ab6bd93_vxt-web-app/stderr_b51db253874447fdbdc3a7ff3c5f9efa for reading in non-blocking mode.
+2026-03-28T11:59:45.6450470Z Successfully opened named pipe: /podr/container/pipe/b5112ab6bd93_vxt-web-app/stderr_b51db253874447fdbdc3a7ff3c5f9efa.
+2026-03-28T11:59:45.6451947Z Successfully removed non-blocking flag from /podr/container/pipe/b5112ab6bd93_vxt-web-app/stderr_b51db253874447fdbdc3a7ff3c5f9efa.
+2026-03-28T11:59:45.6408176Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:59:45.6466687Z Creating container with image: appsvc/python:3.11_20260203.2.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20260203.2.tuxprod
+2026-03-28T11:59:45.8944565Z Starting container: b5112ab6bd93_vxt-web-app.
+2026-03-28T11:59:45.9183801Z Starting watchers and probes.
+2026-03-28T11:59:45.9186206Z Starting metrics collection.
+2026-03-28T11:59:45.9187855Z Container is running.
+2026-03-28T11:59:45.9188519Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:45.9188563Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:45.9348506Z Container start method finished after 642 ms.
+2026-03-28T11:59:46.2507058Z Container is starting.
+2026-03-28T11:59:46.2507765Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:46.2508954Z Establishing user namespace if not established already.
+2026-03-28T11:59:46.2511627Z Establishing network if not established already.
+2026-03-28T11:59:46.2513045Z Mounting volumes.
+2026-03-28T11:59:46.2523546Z Nested mountpoint 
+2026-03-28T11:59:46.2532438Z Nested mountpoint volatile/logs
+2026-03-28T11:59:46.2540577Z Nested mountpoint 
+2026-03-28T11:59:46.2507709Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for vxt-web-app_vxt-web-app., DetailsLevel: INFO
+2026-03-28T11:59:46.2547367Z Nested mountpoint 
+2026-03-28T11:59:46.2554497Z Nested mountpoint 
+2026-03-28T11:59:46.2567258Z Nested mountpoint 
+2026-03-28T11:59:46.2572856Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:59:46.2574909Z Creating container.
+2026-03-28T11:59:46.2576095Z Creating pipes for streaming container io.
+2026-03-28T11:59:46.2577287Z Creating stdout named pipe at /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stdout_2ac26ca0910a46b5a2f7965d9d354913.
+2026-03-28T11:59:46.2580356Z Successfully created stdout named pipe at: /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stdout_2ac26ca0910a46b5a2f7965d9d354913.
+2026-03-28T11:59:46.2581458Z Opening named pipe /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stdout_2ac26ca0910a46b5a2f7965d9d354913 for reading in non-blocking mode.
+2026-03-28T11:59:46.2582778Z Successfully opened named pipe: /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stdout_2ac26ca0910a46b5a2f7965d9d354913.
+2026-03-28T11:59:46.2583891Z Successfully removed non-blocking flag from /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stdout_2ac26ca0910a46b5a2f7965d9d354913.
+2026-03-28T11:59:46.2585834Z Creating stderr named pipe at /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stderr_309f04cf0290426a881e6480b865e492.
+2026-03-28T11:59:46.2595165Z Successfully created stderr named pipe at: /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stderr_309f04cf0290426a881e6480b865e492.
+2026-03-28T11:59:46.2596287Z Opening named pipe /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stderr_309f04cf0290426a881e6480b865e492 for reading in non-blocking mode.
+2026-03-28T11:59:46.2597829Z Successfully opened named pipe: /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stderr_309f04cf0290426a881e6480b865e492.
+2026-03-28T11:59:46.2600029Z Successfully removed non-blocking flag from /podr/container/pipe/4f372c143f88_vxt-web-app_vxt-web-app/stderr_309f04cf0290426a881e6480b865e492.
+2026-03-28T11:59:46.2601539Z Creating container with image: index.docker.io/barakdoc/vxt-web-app:latest from registry: index.docker.io and fully qualified image name: index.docker.io/barakdoc/vxt-web-app:latest
+2026-03-28T11:59:46.2572792Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for vxt-web-app_vxt-web-app. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-28T11:59:47.1509989Z Starting container: 4f372c143f88_vxt-web-app_vxt-web-app.
+2026-03-28T11:59:47.1876157Z Starting watchers and probes.
+2026-03-28T11:59:47.1879801Z Starting metrics collection.
+2026-03-28T11:59:47.1881663Z Container is running.
+2026-03-28T11:59:47.1883415Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:47.1883315Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:47.2297317Z Container start method finished after 1932 ms.
+2026-03-28T11:59:47.2299473Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:47.2299738Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:59:47.2299396Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container vxt-web-app_vxt-web-app successfully created and is running., DetailsLevel: INFO
+2026-03-28T11:59:47.2299711Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-28T11:59:52.2532612Z Site startup probe succeeded after 5.0227087 seconds.
+2026-03-28T11:59:52.2532697Z Site startup probe succeeded after 5.0227087 seconds.
+2026-03-28T11:59:52.3755302Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 5.0227087 seconds., DetailsLevel: INFO
+2026-03-28T11:59:52.3755452Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 5.0227087 seconds., DetailsLevel: INFO
+2026-03-28T11:59:52.5229897Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:59:52.5232190Z Site started.
+2026-03-28T11:59:52.5233492Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T11:59:52.5230031Z Site is running with deployment version: 61a26f65-1154-4552-82c7-646e9dec30c4
+2026-03-28T11:59:52.5232246Z Site started.
+2026-03-28T11:59:52.5233546Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T12:00:25.3981643Z Container has finished running with exit code: 1.
+2026-03-28T12:00:25.3983014Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T12:00:25.3986250Z Stop and delete container. Retry count = 0
+2026-03-28T12:00:25.3987289Z Stopping container: b5112ab6bd93_vxt-web-app.
+2026-03-28T12:00:25.5070077Z Deleting container: b5112ab6bd93_vxt-web-app. Retry count = 0
+2026-03-28T12:00:25.8816356Z Container get mounts received unexpected exception.
+2026-03-28T12:00:25.8865759Z Container get processes received unexpected exception.
+2026-03-28T12:00:26.1406340Z Container spec TerminationMessagePolicy  path 
+2026-03-28T12:00:26.1408365Z Container is terminated. Total time elapsed: 742 ms.
+2026-03-28T12:00:26.2256278Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T12:00:26.2256555Z Site container: vxt-web-app terminated. Stopping the entire site.
+2026-03-28T12:00:26.2397261Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T12:00:26.2397032Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T12:00:26.2411919Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T12:00:26.2411986Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/28/2026 11:59:52 (UTC), DetailsLevel: INFO
+2026-03-28T12:00:26.2418890Z Container is terminating. Grace period: 5 seconds.
+2026-03-28T12:00:26.2688906Z Stop and delete container. Retry count = 0
+2026-03-28T12:00:26.2774307Z Stopping container: 4f372c143f88_vxt-web-app_vxt-web-app.
+2026-03-28T12:00:26.5570855Z Deleting container: 4f372c143f88_vxt-web-app_vxt-web-app. Retry count = 0
+2026-03-28T12:00:26.7100551Z Container spec TerminationMessagePolicy  path 
+2026-03-28T12:00:26.7102207Z Container is terminated. Total time elapsed: 468 ms.
+2026-03-28T12:00:26.7104353Z Site: vxt-web-app stopped.
+2026-03-28T12:00:26.7104291Z Site: vxt-web-app stopped.

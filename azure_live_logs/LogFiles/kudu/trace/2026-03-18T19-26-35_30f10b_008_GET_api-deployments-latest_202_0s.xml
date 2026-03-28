@@ -1,0 +1,8 @@
+<step title="Incoming Request" date="2026-03-18T19:26:35.668" instance="30f10b" url="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-03-18_19-26-35Z" method="GET" type="request" pid="768,1,7" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4cd4d8a04f24add4fe50f51bdf495c1e1a89b0eee5975e0439f6f3c52e45ded9_2.2.18" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Cookie="ARRAffinity=30f10b29316cb36376268076d710a7eee2f9aca9d1d71f6dd20cf9e307ad7628; ARRAffinitySameSite=30f10b29316cb36376268076d710a7eee2f9aca9d1d71f6dd20cf9e307ad7628" Content-Length="0" X-ARR-LOG-ID="5200e6f4-6be1-47e0-8268-9fdd573dd73a" CLIENT-IP="172.214.47.52:20520" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-03-18_19-26-35Z" X-Client-IP="172.214.47.52" X-Client-Port="20520" >
+  <step title="DeploymentService.GetResult" date="2026-03-18T19:26:35.693" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-03-18T19:26:35.697" >
+      <step title="DeploymentManager.GetResults" date="2026-03-18T19:26:35.701" /><!-- duration: 129ms -->
+    </step><!-- duration: 138ms -->
+  </step><!-- duration: 146ms -->
+  <step title="Outgoing response" date="2026-03-18T19:26:35.854" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 3ms -->
+</step><!-- duration: 192ms -->

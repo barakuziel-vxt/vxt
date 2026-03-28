@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>ac5895fb-6047-4125-a28a-1aac3bf17dbb</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"87b43587945cb72ad0a1c5243e16e05eccc2d95e","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"Add parametrized simulation script - secrets passed as input parameter, not hardcoded"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T22:15:28.5712655Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T22:15:03.7118957Z</receivedTime>
+  <startTime>2026-03-27T22:15:05.0591976Z</startTime>
+  <endTime>2026-03-27T22:15:28.5712655Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>237ecc53a7df</containerId>
+  <buildSummary />
+</deployment>

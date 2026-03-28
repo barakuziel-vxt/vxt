@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>14c89337-48b6-4e47-91d2-3f42b63b9991</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"4e3fae53f9f2467fdcffc3ea03bff9773b17f61f","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"Switch from mssql-python to pyodbc for Azure Functions compatibility\n\n- Replace mssql-python with pyodbc (&gt;=4.0.0) in all requirements.txt\n- Update telemetry_processor.py to use pyodbc driver\n- Add ODBC Driver 17 to connection string (required by pyodbc)\n- Fixes: No module named 'mssql_python' errors in Azure Functions Consumption\n- Reason: pyodbc is more reliably installed in Azure Functions remote builds"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T21:53:16.4105981Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T21:52:44.4282224Z</receivedTime>
+  <startTime>2026-03-27T21:52:45.8066982Z</startTime>
+  <endTime>2026-03-27T21:53:16.4105981Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>237ecc53a7df</containerId>
+  <buildSummary />
+</deployment>

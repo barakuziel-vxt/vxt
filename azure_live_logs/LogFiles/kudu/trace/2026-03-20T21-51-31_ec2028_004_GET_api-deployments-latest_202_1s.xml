@@ -1,0 +1,11 @@
+<step title="Incoming Request" date="2026-03-20T21:51:31.010" instance="ec2028" url="/api/deployments/latest" method="GET" type="request" pid="768,1,3" Accept="*/*" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="gzip, deflate" Authorization="Bas..." x-ms-client-request-id="ec9c8070-24a6-11f1-82f1-841b7766bc9a" X-ARR-LOG-ID="ec9c8070-24a6-11f1-82f1-841b7766bc9a" CLIENT-IP="213.57.251.213:51304" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest" X-Client-IP="213.57.251.213" X-Client-Port="51304" >
+  <step title="Cleanup Xml Logs" date="2026-03-20T21:51:31.014" >
+    <step title="Cleanup Infos" date="2026-03-20T21:51:31.051" totalFiles="455" totalCleanup="295" /><!-- duration: 8ms -->
+  </step><!-- duration: 52ms -->
+  <step title="DeploymentService.GetResult" date="2026-03-20T21:51:31.112" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-03-20T21:51:31.130" >
+      <step title="DeploymentManager.GetResults" date="2026-03-20T21:51:31.142" /><!-- duration: 812ms -->
+    </step><!-- duration: 833ms -->
+  </step><!-- duration: 860ms -->
+  <step title="Outgoing response" date="2026-03-20T21:51:32.002" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 10ms -->
+</step><!-- duration: 1011ms -->

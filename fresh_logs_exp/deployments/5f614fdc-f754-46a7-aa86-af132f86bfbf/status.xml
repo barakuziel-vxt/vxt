@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>5f614fdc-f754-46a7-aa86-af132f86bfbf</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"441ca89539b606b5ca92215d62727ab9d70ceccf","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: Use explicit paths in Deploy Python Code workflow to prevent triggering on azure-functions changes\n\n- Changed from paths-ignore (unreliable) to explicit paths (reliable)\n- Workflow now only triggers on changes to: api_*.py, app.py, requirements.txt, startup files, and templates\n- Prevents Deploy Python to Web App from running when azure-functions/** changes\n- Ensures Deploy Azure Function workflow runs independently"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T15:44:04.5165182Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T15:43:38.7876124Z</receivedTime>
+  <startTime>2026-03-27T15:43:40.0906897Z</startTime>
+  <endTime>2026-03-27T15:44:04.5165182Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>b75a8a1c7b7e</containerId>
+  <buildSummary />
+</deployment>

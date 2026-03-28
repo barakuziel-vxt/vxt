@@ -1,0 +1,6 @@
+<step title="Incoming Request" date="2026-03-27T21:09:38.325" instance="6d9d4a" url="/api/vfs/site/wwwroot/startup.sh" method="GET" type="request" pid="767,1,29" Accept="*/*" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="curl/8.18.0" Authorization="Bea..." X-ARR-LOG-ID="9d4852b2-2da9-41f3-b32e-2fa2c11a5e28" CLIENT-IP="213.57.251.213:61022" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/vfs/site/wwwroot/startup.sh" X-Client-IP="213.57.251.213" X-Client-Port="61022" >
+  <step title="Cleanup Xml Logs" date="2026-03-27T21:09:38.328" >
+    <step title="Cleanup Infos" date="2026-03-27T21:09:38.355" totalFiles="835" totalCleanup="675" /><!-- duration: 13ms -->
+  </step><!-- duration: 44ms -->
+  <step title="Outgoing response" date="2026-03-27T21:09:38.402" type="response" statusCode="200" statusText="OK" /><!-- duration: 3ms -->
+</step><!-- duration: 82ms -->
