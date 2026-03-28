@@ -139,17 +139,15 @@ class SimpleEventProcessor:
                 for evt in normalized_events:
                     try:
                         # Filter: EntityTypeAttribute must exist for this entity + code
-                        lookup_cursor.execute(
-                            """
+                        # Note: mssql-python uses @param named format (not ? positional)
+                        lookup_cursor.execute("""
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
                             JOIN Entity e ON e.entityTypeId = eta.entityTypeId
-                            WHERE e.entityId = ?
-                              AND eta.entityTypeAttributeCode = ?
+                            WHERE e.entityId = @entityId
+                              AND eta.entityTypeAttributeCode = @code
                               AND eta.active = 'Y'
-                            """,
-                            (evt.entity_id, evt.attr_code)
-                        )
+                        """, (('@entityId', evt.entity_id), ('@code', evt.attr_code)))
 
                         row = lookup_cursor.fetchone()
                         if not row:
@@ -162,31 +160,43 @@ class SimpleEventProcessor:
 
                         attr_id = int(row[0])
 
-                        # evt.timestamp is already a Python datetime (from _parse_dt)
+                        # mssql-python named params only reliably handle str/None.
+                        # Pass datetime as ISO string and numeric as str, let SQL cast.
                         ts: datetime = evt.timestamp
+                        ts_str  = ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                        ing_str = ingestion_ts.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                        num_str = str(evt.numeric_value) if evt.numeric_value is not None else None
+                        lat_str = str(evt.latitude)      if evt.latitude      is not None else None
+                        lon_str = str(evt.longitude)     if evt.longitude     is not None else None
 
-                        write_cursor.execute(
-                            """
+                        write_cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry
                             (entityId, entityTypeAttributeId,
                              startTimestampUTC, endTimestampUTC,
                              ingestionTimestampUTC, providerDevice,
                              numericValue, stringValue, latitude, longitude)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                evt.entity_id,
-                                attr_id,
-                                ts,
-                                ts,
-                                ingestion_ts,
-                                evt.provider_device,
-                                evt.numeric_value,
-                                evt.string_value,
-                                evt.latitude,
-                                evt.longitude,
-                            )
-                        )
+                            VALUES
+                            (@entityId, @attrId,
+                             CONVERT(DATETIME2, @startTs, 126),
+                             CONVERT(DATETIME2, @endTs,   126),
+                             CONVERT(DATETIME2, @ingTs,   126),
+                             @device,
+                             TRY_CAST(@numVal AS FLOAT),
+                             @strVal,
+                             TRY_CAST(@lat AS FLOAT),
+                             TRY_CAST(@lon AS FLOAT))
+                        """, (
+                            ('@entityId', evt.entity_id),
+                            ('@attrId',   str(attr_id)),
+                            ('@startTs',  ts_str),
+                            ('@endTs',    ts_str),
+                            ('@ingTs',    ing_str),
+                            ('@device',   evt.provider_device),
+                            ('@numVal',   num_str),
+                            ('@strVal',   evt.string_value),
+                            ('@lat',      lat_str),
+                            ('@lon',      lon_str),
+                        ))
 
                         inserted_count += 1
                         self.stats['records_inserted'] += 1
