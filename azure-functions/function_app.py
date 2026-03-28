@@ -63,8 +63,8 @@ class SimpleEventProcessor:
         """Lazy load mssql-python only when needed (avoids cold start penalty)"""
         if self._mssql_module is None:
             try:
-                from mssql_python import connect, errors as mssql_errors
-                self._mssql_module = {'connect': connect, 'errors': mssql_errors}
+                from mssql_python import connect
+                self._mssql_module = {'connect': connect}
             except ImportError as e:
                 logger.error(f"Failed to import mssql-python: {e}")
                 raise
