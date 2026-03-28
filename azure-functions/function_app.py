@@ -116,6 +116,7 @@ class SimpleEventProcessor:
             
             # Extract core fields
             entity_id = event.get('entityId') or event.get('mmsi')
+            device_id = event.get('deviceId', entity_id)
             timestamp = event.get('timestamp', datetime.utcnow().isoformat())
             
             if not entity_id:
@@ -134,7 +135,6 @@ class SimpleEventProcessor:
                 
                 if not telemetry_data:
                     logger.info(f"No telemetry data in event for entity {entity_id}")
-                    cursor.close()
                     return 0
 
                 ingestion_ts = datetime.utcnow().isoformat()
@@ -155,7 +155,7 @@ class SimpleEventProcessor:
                         """, (('@entityId', entity_id), ('@code', attr_code)))
                         row = lookup_cursor.fetchone()
                         if not row:
-                            logger.debug(f"No attribute mapping: {entity_id}/{attr_code}")
+                            logger.warning(f"No attribute mapping: {entity_id}/{attr_code}")
                             self.stats['records_skipped'] += 1
                             continue
 
