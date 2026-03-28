@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """
 Azure Function: Generic Telemetry Consumer Trigger
-Listens to IoT Hub events and processes them into Azure SQL Database
+Listens to IoT Hub events and inserts telemetry into EntityTelemetry (Azure SQL).
 
-Trigger: IoT Hub Messages
-Provider: N2KToSignalK (SignalK maritime protocol)
-Target: EntityTelemetry table in Azure SQL
-
-Configuration: Uses IoTHubConnectionString from app settings (Event Hub-compatible endpoint)
-Deployment: Workflow moved to .github/workflows - now properly recognized by GitHub Actions
-
-Setup:
-1. IoT Hub Routing: Forward messages with specific conditions to this function
-2. Function bindings: IoT Hub trigger
-3. Device Twin (optional): Deploy setup config to device twin for filtering rules
-4. Database (fallback): Use EntityTypeAttribute configuration as fallback
+Trigger:  IoT Hub (Event Hub-compatible endpoint)
+Protocols: SignalK (maritime), Junction (health), extensible via protocol_adapters.py
+Filtering: EntityTypeAttribute table — only attributes with matching codes are stored
+Auth:      Managed Identity (no passwords)
 
 Processing flow:
-Event from Raspberry Pi → IoT Hub → Function Trigger → TelemetryProcessor → SQL Insert
+  IoT Hub message → protocol_adapters (normalise) → EntityTypeAttribute lookup → INSERT
+
+Adding a new protocol (e.g. MQTT, Junction):
+  1. Add an adapter class to azure-functions/protocol_adapters.py
+  2. Register it in the ADAPTERS dict at the bottom of that file
+  3. Set PROVIDER_NAME app-setting to the new protocol name
 """
 
 import azure.functions as func
@@ -27,6 +24,8 @@ import os
 import logging
 from datetime import datetime
 from typing import Optional, Dict, List
+
+from protocol_adapters import get_adapter, _parse_dt
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -96,55 +95,50 @@ class SimpleEventProcessor:
     
     def process_event(self, event: Dict) -> int:
         """
-        Process a telemetry event and insert to database
-        
+        Process a single IoT Hub message.
+
+        Uses the protocol adapter (SignalK, Junction, …) to normalise the raw
+        payload into NormalizedEvent objects, then looks up each attribute in
+        EntityTypeAttribute and inserts matching rows into EntityTelemetry.
+
         Args:
-            event: Event dictionary from IoT Hub
-        
+            event: Parsed JSON body from IoT Hub message.
+
         Returns:
-            Number of records inserted
+            Number of rows inserted.
         """
         self.stats['events_processed'] += 1
         inserted_count = 0
-        
+
         try:
-            # Validate event structure
             if not isinstance(event, dict):
                 logger.warning(f"Invalid event type: {type(event)}")
                 self.stats['records_skipped'] += 1
                 return 0
-            
-            # Extract core fields
-            entity_id = event.get('entityId') or event.get('mmsi')
-            device_id = event.get('deviceId', entity_id)
-            timestamp = event.get('timestamp', datetime.utcnow().isoformat())
-            
-            if not entity_id:
-                logger.warning("Event missing entityId/mmsi")
+
+            # Normalise the raw payload using the registered protocol adapter.
+            # get_adapter() selects the right class based on PROVIDER_NAME and
+            # falls back to SignalKAdapter for unknown protocols.
+            adapter = get_adapter(self.provider_name)
+            normalized_events = adapter.parse(event)
+
+            if not normalized_events:
+                logger.info("[PROC] No events extracted from message")
                 self.stats['records_skipped'] += 1
                 return 0
-            
-            # Connect to database
+
             conn = self.get_db_connection()
             write_cursor = conn.cursor()
             lookup_cursor = conn.cursor()
-            
+
             try:
-                # Extract telemetry values from SignalK format
-                telemetry_data = event.get('values', {}) or event.get('data', {})
-                
-                if not telemetry_data:
-                    logger.info(f"No telemetry data in event for entity {entity_id}")
-                    return 0
+                # ingestionTimestampUTC is a Python datetime — mssql-python
+                # requires datetime objects for DATETIME2 columns, not ISO strings.
+                ingestion_ts: datetime = datetime.utcnow()
 
-                ingestion_ts = datetime.utcnow().isoformat()
-
-                # Insert each telemetry value using correct EntityTelemetry schema
-                for attr_code, value in telemetry_data.items():
-                    if value is None:
-                        continue
+                for evt in normalized_events:
                     try:
-                        # Look up entityTypeAttributeId via entity -> entityType -> attribute
+                        # Filter: EntityTypeAttribute must exist for this entity + code
                         lookup_cursor.execute("""
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
@@ -152,68 +146,74 @@ class SimpleEventProcessor:
                             WHERE e.entityId = @entityId
                               AND eta.entityTypeAttributeCode = @code
                               AND eta.active = 'Y'
-                        """, (('@entityId', entity_id), ('@code', attr_code)))
+                        """, (('@entityId', evt.entity_id), ('@code', evt.attr_code)))
+
                         row = lookup_cursor.fetchone()
                         if not row:
-                            logger.warning(f"No attribute mapping: {entity_id}/{attr_code}")
+                            logger.warning(
+                                f"[SKIP] No EntityTypeAttribute for "
+                                f"entity={evt.entity_id} code={evt.attr_code}"
+                            )
                             self.stats['records_skipped'] += 1
                             continue
 
                         attr_id = row[0]
 
-                        # Handle position dict vs scalar values
-                        lat = None
-                        lon = None
-                        numeric_val = None
-                        string_val = None
-                        if isinstance(value, dict):
-                            lat = value.get('lat') or value.get('latitude')
-                            lon = value.get('lon') or value.get('longitude')
-                        else:
-                            try:
-                                numeric_val = float(value)
-                            except (ValueError, TypeError):
-                                string_val = str(value)
+                        # evt.timestamp is already a Python datetime (from _parse_dt)
+                        ts: datetime = evt.timestamp
 
                         write_cursor.execute("""
                             INSERT INTO dbo.EntityTelemetry
-                            (entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC,
-                             ingestionTimestampUTC, providerDevice, numericValue, stringValue,
-                             latitude, longitude)
-                            VALUES (@entityId, @attrId, @startTs, @endTs, @ingTs, @device,
-                                    @numVal, @strVal, @lat, @lon)
+                            (entityId, entityTypeAttributeId,
+                             startTimestampUTC, endTimestampUTC,
+                             ingestionTimestampUTC, providerDevice,
+                             numericValue, stringValue, latitude, longitude)
+                            VALUES
+                            (@entityId, @attrId,
+                             @startTs, @endTs,
+                             @ingTs, @device,
+                             @numVal, @strVal, @lat, @lon)
                         """, (
-                            ('@entityId', entity_id),
-                            ('@attrId', attr_id),
-                            ('@startTs', timestamp),
-                            ('@endTs', timestamp),
-                            ('@ingTs', ingestion_ts),
-                            ('@device', device_id),
-                            ('@numVal', numeric_val),
-                            ('@strVal', string_val),
-                            ('@lat', lat),
-                            ('@lon', lon)
+                            ('@entityId', evt.entity_id),
+                            ('@attrId',   attr_id),
+                            ('@startTs',  ts),
+                            ('@endTs',    ts),
+                            ('@ingTs',    ingestion_ts),
+                            ('@device',   evt.provider_device),
+                            ('@numVal',   evt.numeric_value),
+                            ('@strVal',   evt.string_value),
+                            ('@lat',      evt.latitude),
+                            ('@lon',      evt.longitude),
                         ))
 
                         inserted_count += 1
                         self.stats['records_inserted'] += 1
+
                     except Exception as e:
-                        logger.warning(f"Failed to insert {attr_code}: {str(e)[:80]}")
+                        logger.warning(
+                            f"[FAIL] Insert [{evt.attr_code}] entity={evt.entity_id}: "
+                            f"{str(e)[:120]}"
+                        )
                         self.stats['records_skipped'] += 1
 
                 conn.commit()
-                
+
             finally:
                 lookup_cursor.close()
                 write_cursor.close()
                 conn.close()
-            
-            logger.info(f"Entity {entity_id}: Inserted {inserted_count} records")
-                
+
+            entity_ids = {e.entity_id for e in normalized_events}
+            logger.info(
+                f"[PROC] Entities={entity_ids} | "
+                f"parsed={len(normalized_events)} events={self.stats['events_processed']} "
+                f"inserted={inserted_count}"
+            )
+
         except Exception as e:
             logger.error(f"Error processing event: {str(e)}")
             self.stats['errors'] += 1
-        
+
         return inserted_count
     
     def get_stats(self):

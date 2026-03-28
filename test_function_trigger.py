@@ -65,22 +65,28 @@ async def send_telemetry_event(client, event_num: int, device_id: str = 'test-de
     water_temp_k = round(291.15 + random.uniform(-2, 2), 2)
     wind_speed = round(random.uniform(3, 8), 2)
     fuel_level = round(random.uniform(0.3, 0.9), 3)
+    ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
+    # Standard SignalK envelope — matches what a real N2K/NMEA device sends.
+    # The function's SignalKAdapter parses "context" to extract the MMSI,
+    # and maps "updates[].values[].path" to entityTypeAttributeCode in the DB.
     telemetry = {
-        'entityId': device_id,
-        'mmsi': device_id,
-        'timestamp': datetime.utcnow().isoformat(),
-        'provider': 'test-simulator',
-        'values': {
-            'navigation.speedOverGround': sog,
-            'navigation.courseOverGround': cog,
-            'navigation.position': {'lat': lat, 'lon': lon},
-            'propulsion.main.revolutions': rpm,
-            'propulsion.main.oilPressure': oil_press_pa,
-            'environment.water.temperature': water_temp_k,
-            'environment.wind.speedApparent': wind_speed,
-            'tanks.fuelTank.level': fuel_level
-        }
+        'context': f'vessels.urn:mrn:imo:mmsi:{device_id}',
+        'updates': [{
+            'source': {'label': 'N2KToSignalK', 'src': device_id},
+            'timestamp': ts,
+            'values': [
+                {'path': 'navigation.speedOverGround',  'value': sog},
+                {'path': 'navigation.courseOverGround', 'value': cog},
+                {'path': 'navigation.position',
+                 'value': {'latitude': lat, 'longitude': lon}},
+                {'path': 'propulsion.main.revolutions', 'value': rpm},
+                {'path': 'propulsion.main.oilPressure', 'value': oil_press_pa},
+                {'path': 'environment.water.temperature', 'value': water_temp_k},
+                {'path': 'environment.wind.speedApparent', 'value': wind_speed},
+                {'path': 'tanks.fuelTank.level',         'value': fuel_level},
+            ]
+        }]
     }
 
     payload = json.dumps(telemetry)
