@@ -260,13 +260,12 @@ class SignalKAdapter:
 
 class JunctionAdapter:
     """
-    Parses Junction Health Provider events (LOINC-based vitals).
+    Parses Junction Health Provider events.
 
     Expected format:
     {
       "user":       {"user_id": "033114869"},
-      "event_type": "vitals.heart_rate.update",
-      "loinc_code": "8867-4",
+      "event_type": "8867-4",              ← LOINC code used directly as attribute code
       "timestamp":  "2026-03-28T12:34:56.000Z",
       "data": {
         "heart_rate_data": {
@@ -276,7 +275,9 @@ class JunctionAdapter:
       }
     }
 
-    Uses LOINC code as entityTypeAttributeCode (must exist in DB EntityTypeAttribute).
+    event_type is passed through as entityTypeAttributeCode — EntityTypeAttribute
+    is the only filter. Events whose event_type is not registered in the DB are
+    silently skipped by the consumer.
     """
 
     def parse(self, message: Dict) -> List[NormalizedEvent]:
@@ -291,30 +292,28 @@ class JunctionAdapter:
             # Strip 'user_' prefix if present
             entity_id = user_id.removeprefix('user_')
 
-            # Use LOINC code as the attribute code (must exist in DB)
-            loinc_code = str(message.get('loinc_code', '')).strip()
-            if not loinc_code:
-                logger.warning(f"[Junction] Missing loinc_code for entity {entity_id}")
+            # event_type IS the attribute code (LOINC code in Junction protocol)
+            attr_code = str(message.get('event_type', '')).strip()
+            if not attr_code:
+                logger.warning(f"[Junction] Missing event_type for entity {entity_id}")
                 return events
 
             ts = _parse_dt(message.get('timestamp'))
 
-            # Flatten data dict into values — use a single summary value per LOINC code
+            # Extract the first numeric scalar from any summary section
             data = message.get('data', {})
             for _section_key, section in data.items():
                 if not isinstance(section, dict):
                     continue
-                # Try summary scalars (one scalar per event)
                 summary = section.get('summary', {})
-                for metric_key, metric_val in summary.items():
+                for _metric_key, metric_val in summary.items():
                     if isinstance(metric_val, (int, float)):
-                        # Use LOINC code directly (not event_type.metric_key)
                         events.append(NormalizedEvent(
-                            entity_id=entity_id, timestamp=ts, attr_code=loinc_code,
+                            entity_id=entity_id, timestamp=ts, attr_code=attr_code,
                             numeric_value=float(metric_val),
                             provider_device='Junction',
                         ))
-                        break  # Only take first metric from summary
+                        return events  # One NormalizedEvent per Junction message
         except Exception as e:
             logger.error(f"[Junction] Parse error: {e}")
         return events
