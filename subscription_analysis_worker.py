@@ -39,31 +39,51 @@ class SubscriptionAnalysisWorker:
     
     def __init__(self):
         """Initialize the worker with database connection parameters"""
-        self.server = os.getenv('DB_SERVER', 'localhost')
-        self.database = os.getenv('DB_NAME', 'VXT')
-        self.username = os.getenv('DB_USER', 'sa')
-        self.password = os.getenv('DB_PASSWORD', '')
+        # Try to use full connection string first (production via Azure App Settings)
+        self.connection_string = os.getenv('SQL_CONNECTION_STRING', '')
+        
+        # Fall back to individual DB_* environment variables (local development)
+        if not self.connection_string:
+            self.server = os.getenv('DB_SERVER', 'localhost')
+            self.database = os.getenv('DB_NAME', 'VXT')
+            self.username = os.getenv('DB_USER', 'sa')
+            self.password = os.getenv('DB_PASSWORD', '')
+        
         self.connection = None
         self.processing_window_minutes = 5
         
-    def connect_to_database(self):
-        """Establish database connection using mssql-python"""
-        try:
-            # Build connection string for mssql-python (official Microsoft driver)
-            conn_str = (
-                f"Server={self.server},1433;"
-                f"Database={self.database};"
-                f"UID={self.username};"
-                f"PWD={self.password};"
-                "Encrypt=no;"
-                "TrustServerCertificate=yes;"
-            )
-            self.connection = connect(conn_str)
-            logger.info(f"Connected to database: {self.database} on {self.server}")
-            return True
-        except Exception as e:
-            logger.error(f"Database connection failed: {e}")
-            return False
+    def _build_connection_string(self):
+        """Build connection string (either from env var or from individual parameters)"""
+        # If SQL_CONNECTION_STRING is set (production), use it directly
+        if self.connection_string:
+            return self.connection_string
+        
+        # Otherwise, build from individual DB_* variables (local development)
+        return (
+            f"Server={self.server},1433;"
+            f"Database={self.database};"
+            f"UID={self.username};"
+            f"PWD={self.password};"
+            "Encrypt=no;"
+            "TrustServerCertificate=yes;"
+        )
+        
+    def connect_to_database(self, max_retries=5, retry_delay=5):
+        """Establish database connection using mssql-python (with retry)"""
+        conn_str = self._build_connection_string()
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.connection = connect(conn_str)
+                logger.info("[OK] Database connection successful")
+                return True
+            except Exception as e:
+                logger.warning(f"[{attempt}/{max_retries}] Connection attempt failed: {e}")
+                if attempt < max_retries:
+                    logger.info(f"    Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+        logger.error("Database connection failed after all retries")
+        return False
     
     def disconnect_from_database(self):
         """Close database connection"""

@@ -266,15 +266,17 @@ class JunctionAdapter:
     {
       "user":       {"user_id": "033114869"},
       "event_type": "vitals.heart_rate.update",
+      "loinc_code": "8867-4",
       "timestamp":  "2026-03-28T12:34:56.000Z",
       "data": {
         "heart_rate_data": {
+          "summary": {"avg_hr_bpm": 72},
           "detailed": {"hr_samples": [{"timestamp": "...", "bpm": 72}]}
         }
       }
     }
 
-    entityTypeAttributeCode in DB must match the event_type string.
+    Uses LOINC code as entityTypeAttributeCode (must exist in DB EntityTypeAttribute).
     """
 
     def parse(self, message: Dict) -> List[NormalizedEvent]:
@@ -289,24 +291,30 @@ class JunctionAdapter:
             # Strip 'user_' prefix if present
             entity_id = user_id.removeprefix('user_')
 
-            event_type = message.get('event_type', '')
+            # Use LOINC code as the attribute code (must exist in DB)
+            loinc_code = str(message.get('loinc_code', '')).strip()
+            if not loinc_code:
+                logger.warning(f"[Junction] Missing loinc_code for entity {entity_id}")
+                return events
+
             ts = _parse_dt(message.get('timestamp'))
 
-            # Flatten data dict into values
+            # Flatten data dict into values — use a single summary value per LOINC code
             data = message.get('data', {})
             for _section_key, section in data.items():
                 if not isinstance(section, dict):
                     continue
-                # Try summary scalars
+                # Try summary scalars (one scalar per event)
                 summary = section.get('summary', {})
                 for metric_key, metric_val in summary.items():
                     if isinstance(metric_val, (int, float)):
-                        attr_code = f"{event_type}.{metric_key}" if event_type else metric_key
+                        # Use LOINC code directly (not event_type.metric_key)
                         events.append(NormalizedEvent(
-                            entity_id=entity_id, timestamp=ts, attr_code=attr_code,
+                            entity_id=entity_id, timestamp=ts, attr_code=loinc_code,
                             numeric_value=float(metric_val),
                             provider_device='Junction',
                         ))
+                        break  # Only take first metric from summary
         except Exception as e:
             logger.error(f"[Junction] Parse error: {e}")
         return events
