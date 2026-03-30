@@ -108,6 +108,7 @@ def run(provider_name: str):
                 bootstrap_servers=bootstrap,
                 value_deserializer=lambda m: json.loads(m.decode('utf-8')),
                 group_id=f"local-consumer-{provider_name.lower()}",
+                group_instance_id=f"local-{provider_name.lower()}-{os.getpid()}",  # Static member
                 auto_offset_reset='earliest',
                 enable_auto_commit=False,
                 consumer_timeout_ms=-1,
