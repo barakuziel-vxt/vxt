@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>f73995e5-d13c-4183-bedd-ba07c446ad27</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"a0179f93caab4e67ea5f9598547570b9077d3fdb","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: change async def to def for telemetry/events endpoints - mssql-python not async-safe"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-04-01T21:10:46.1111171Z</lastSuccessEndTime>
+  <receivedTime>2026-04-01T21:10:13.5381378Z</receivedTime>
+  <startTime>2026-04-01T21:10:14.8601151Z</startTime>
+  <endTime>2026-04-01T21:10:46.1111171Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>af62a0e08cfe</containerId>
+  <buildSummary />
+</deployment>

@@ -1,0 +1,7 @@
+<step title="Incoming Request" date="2026-03-27T20:50:07.137" instance="6d9d4a" url="/api/logs/docker" method="GET" type="request" pid="767,1,37" Accept="*/*" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="curl/8.18.0" Authorization="Bea..." X-ARR-LOG-ID="605edcfb-c889-4409-b0e5-8b03fa238cb5" CLIENT-IP="213.57.251.213:64252" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/logs/docker" X-Client-IP="213.57.251.213" X-Client-Port="64252" >
+  <step title="Cleanup Xml Logs" date="2026-03-27T20:50:07.143" >
+    <step title="Cleanup Infos" date="2026-03-27T20:50:07.163" totalFiles="814" totalCleanup="654" /><!-- duration: 12ms -->
+  </step><!-- duration: 36ms -->
+  <step title="DiagnosticsController.GetDockerLogs" date="2026-03-27T20:50:07.350" /><!-- duration: 31ms -->
+  <step title="Outgoing response" date="2026-03-27T20:50:07.401" type="response" statusCode="200" statusText="OK" /><!-- duration: 3ms -->
+</step><!-- duration: 269ms -->

@@ -1,0 +1,7 @@
+<step title="Incoming Request" date="2026-03-19T22:08:00.879" instance="70a632" url="/diagnostics/runtime" method="GET" type="request" pid="767,1,25" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4cd4d8a04f24add4fe50f51bdf495c1e1a89b0eee5975e0439f6f3c52e45ded9_2.2.18" Authorization="Bas..." Content-Type="application/json; charset=utf-8" Content-Length="0" X-ARR-LOG-ID="dcaa7259-e560-4475-93e8-76c2c697968b" CLIENT-IP="20.55.127.231:36864" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/diagnostics/runtime" X-Client-IP="20.55.127.231" X-Client-Port="36864" >
+  <step title="Cleanup Xml Logs" date="2026-03-19T22:08:00.882" >
+    <step title="Cleanup Infos" date="2026-03-19T22:08:00.892" totalFiles="236" totalCleanup="76" /><!-- duration: 8ms -->
+  </step><!-- duration: 21ms -->
+  <step title="RuntimeController.GetRuntimeVersions" date="2026-03-19T22:08:00.912" /><!-- duration: 6ms -->
+  <step title="Outgoing response" date="2026-03-19T22:08:00.935" type="response" statusCode="200" statusText="OK" /><!-- duration: 7ms -->
+</step><!-- duration: 66ms -->

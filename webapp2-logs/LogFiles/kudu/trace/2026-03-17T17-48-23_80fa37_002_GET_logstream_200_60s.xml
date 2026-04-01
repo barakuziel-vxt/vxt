@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2026-03-17T17:48:23.333" instance="80fa37" url="/logstream" method="GET" type="request" pid="770,1,7" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="6b672242-2229-11f1-899f-841b7766bc9a" X-ARR-LOG-ID="6b672242-2229-11f1-899f-841b7766bc9a" CLIENT-IP="213.57.251.213:57870" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="213.57.251.213" X-Client-Port="57870" >
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2026-03-17T17:48:23.435" /><!-- duration: 140ms -->
+  <step title="Error occurred" date="2026-03-17T17:49:23.569" type="error" text="LogStreamManager: ProcessRequest end" /><!-- duration: 3ms -->
+  <step title="Outgoing response" date="2026-03-17T17:49:23.579" type="response" statusCode="200" statusText="OK" /><!-- duration: 3ms -->
+</step><!-- duration: 60251ms -->

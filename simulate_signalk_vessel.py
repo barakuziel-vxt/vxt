@@ -8,7 +8,7 @@ Produces events in Signal K format with navigation, environmental, and engine da
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from kafka import KafkaProducer
 from typing import Dict
 import random
@@ -39,7 +39,7 @@ class SignalKSimulator:
         'east': 35.0036234
     }
     
-    def __init__(self, bootstrap_servers='localhost:9092', topic='signalk-events'):
+    def __init__(self, bootstrap_servers='localhost:9092', topic='iot-telemetry'):
         """Initialize Kafka producer for SignalK events"""
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
@@ -159,7 +159,7 @@ class SignalKSimulator:
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'gps1',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
                         'path': 'navigation.position',
@@ -206,7 +206,7 @@ class SignalKSimulator:
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'weather1',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
                         'path': 'environment.wind.speedApparent',
@@ -238,7 +238,7 @@ class SignalKSimulator:
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'engine1',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
                         'path': 'propulsion.main.revolutions',
@@ -262,7 +262,7 @@ class SignalKSimulator:
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'electrical1',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
                         'path': 'electrical.dc.houseBattery.voltage',
@@ -282,7 +282,7 @@ class SignalKSimulator:
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
                 'source': 'tanks1',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
                         'path': 'tanks.fuelTank.level',
@@ -360,6 +360,6 @@ class SignalKSimulator:
 if __name__ == '__main__':
     simulator = SignalKSimulator(
         bootstrap_servers='localhost:9092',
-        topic='signalk-events'
+        topic='iot-telemetry'
     )
     simulator.run(interval=5)  # Send new rounds of events every 5 seconds

@@ -156,7 +156,11 @@ class SignalKAdapter:
         for update in message.get('updates', []):
             ts = _parse_dt(update.get('timestamp'))
             source = update.get('source', {})
-            device = source.get('label', source.get('src', 'SignalK'))
+            # source can be a string (e.g. 'gps1') or a dict (e.g. {"label": "ActisenseSerial"})
+            if isinstance(source, dict):
+                device = source.get('label', source.get('src', 'SignalK'))
+            else:
+                device = str(source) if source else 'SignalK'
 
             values_list = update.get('values', [])
 

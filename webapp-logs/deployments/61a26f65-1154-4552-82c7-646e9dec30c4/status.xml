@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>61a26f65-1154-4552-82c7-646e9dec30c4</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"7d0873efe05bda2bfe1872dc50691e35617c8af0","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"Fix startup.sh: use dynamic Python path instead of hardcoded /usr/bin/python3\n\n/usr/bin/python3 does not exist in appsvc/python:3.11 container.\nOryx activates antenv before calling startup.sh, so python3 is in PATH.\nUsing 'command -v python3.11 || python3 || python' for robust detection.\n\nRoot cause: old Docker Hub image (barakdoc/vxt-web-app:latest with pymssql 2.3.0)\nwas serving requests because startup.sh always failed, preventing the new\nappsvc/python:3.11 container from starting successfully."}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-28T11:30:35.2375606Z</lastSuccessEndTime>
+  <receivedTime>2026-03-28T11:29:49.2172045Z</receivedTime>
+  <startTime>2026-03-28T11:29:50.7975857Z</startTime>
+  <endTime>2026-03-28T11:30:35.2375606Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>85aee9737d9a</containerId>
+  <buildSummary />
+</deployment>

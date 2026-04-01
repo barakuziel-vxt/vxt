@@ -1,0 +1,6 @@
+<step title="Incoming Request" date="2026-03-21T14:54:27.641" instance="00f4b9" url="/api/settings/branch" method="GET" type="request" pid="768,1,38" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="Azure-WebSites-Controller/107.0.7.33" Authorization="Bas..." x-ms-request-id="ac733ae9-ad75-425a-abb5-e6dbce8a9590" X-ARR-LOG-ID="ac733ae9-ad75-425a-abb5-e6dbce8a9590" CLIENT-IP="40.112.69.156:3329" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-MS-PLATFORM-INTERNAL="True" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/settings/branch" X-Client-IP="40.112.69.156" X-Client-Port="3329" >
+  <step title="Cleanup Xml Logs" date="2026-03-21T14:54:27.650" >
+    <step title="Cleanup Infos" date="2026-03-21T14:54:27.667" totalFiles="551" totalCleanup="391" /><!-- duration: 9ms -->
+  </step><!-- duration: 29ms -->
+  <step title="Outgoing response" date="2026-03-21T14:54:27.703" type="response" statusCode="200" statusText="OK" /><!-- duration: 4ms -->
+</step><!-- duration: 68ms -->

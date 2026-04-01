@@ -40,6 +40,25 @@ IOT_HUB_CONNECTION_STRING = os.environ.get('IoTHubConnectionString', os.environ.
 
 logger.info("[STARTUP] Azure Function initialized (lazy loading mode for fast cold start)")
 
+
+# ============================================================================
+# PROTOCOL AUTO-DETECTION
+# ============================================================================
+def auto_detect_provider(event: Dict) -> str:
+    """
+    Detect protocol from event payload structure so a single function handles
+    both SignalK (maritime) and Junction (health) events — no PROVIDER_NAME env needed.
+
+    Junction events:  { "user": {...}, "event_type": "8867-4", ... }
+    SignalK events:   { "context": "vessels.urn:...", "updates": [...] }
+    """
+    if 'user' in event and 'event_type' in event:
+        return 'Junction'
+    if 'context' in event and 'updates' in event:
+        return 'N2KToSignalK'
+    return 'N2KToSignalK'  # default fallback
+
+
 # ============================================================================
 # TELEMETRY PROCESSOR (Lazy initialization for fast cold start)
 # ============================================================================
@@ -141,10 +160,12 @@ class SimpleEventProcessor:
                 return 0
 
             # Normalise the raw payload using the registered protocol adapter.
-            # get_adapter() selects the right class based on PROVIDER_NAME and
-            # falls back to SignalKAdapter for unknown protocols.
-            adapter = get_adapter(self.provider_name)
+            # Auto-detect protocol from event structure so a single function handles
+            # both SignalK (maritime) and Junction (health) events.
+            detected_provider = auto_detect_provider(event)
+            adapter = get_adapter(detected_provider)
             normalized_events = adapter.parse(event)
+            logger.debug(f"[PROC] Auto-detected protocol: {detected_provider}")
 
             if not normalized_events:
                 logger.info("[PROC] No events extracted from message")

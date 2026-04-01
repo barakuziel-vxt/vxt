@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>d6072b46-9b5f-4fdb-a0e2-454725a15cbf</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"88e86629bf5ecef859d9af877341fd2ca21a88f7","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":""}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-03-27T21:25:57.6535398Z</lastSuccessEndTime>
+  <receivedTime>2026-03-27T21:25:26.3109429Z</receivedTime>
+  <startTime>2026-03-27T21:25:27.6796012Z</startTime>
+  <endTime>2026-03-27T21:25:57.6535398Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>b16aba46a456</containerId>
+  <buildSummary />
+</deployment>

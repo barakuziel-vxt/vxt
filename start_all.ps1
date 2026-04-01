@@ -12,10 +12,10 @@ Write-Host "[1/4] Configuring Kafka Topics..." -ForegroundColor Yellow
 Write-Host "[2/4] Launching Subscription Analysis Worker..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe subscription_analysis_worker.py" -WindowStyle Normal
 
-Write-Host "[2.5/4] Launching Consumers (uses same logic as Azure Function) and Simulators..." -ForegroundColor Yellow
+Write-Host "[2.5/4] Launching Consumer (uses same logic as Azure Function) and Simulators..." -ForegroundColor Yellow
 # Single source of truth: run_consumer_local.py imports SimpleEventProcessor from azure-functions/function_app.py
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_consumer_local.py N2KToSignalK" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_consumer_local.py Junction" -WindowStyle Normal
+# One consumer on iot-telemetry topic — mirrors single Azure Function in production (auto-detects SignalK + Junction)
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_consumer_local.py" -WindowStyle Normal
 # Launch Simulators
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
@@ -40,8 +40,7 @@ Write-Host "All systems are booting up. Check individual windows for logs." -For
 Write-Host "" -ForegroundColor Green
 Write-Host "Running Services:" -ForegroundColor Cyan
 Write-Host "  - Subscription Analysis Worker: Running (processes subscriptions every 5 min)" -ForegroundColor Yellow
-Write-Host "  - SignalK Consumer   : run_consumer_local.py N2KToSignalK  -> azure-functions/function_app.py" -ForegroundColor Yellow
-Write-Host "  - Junction Consumer  : run_consumer_local.py Junction       -> azure-functions/function_app.py" -ForegroundColor Yellow
+Write-Host "  - IoT Consumer       : run_consumer_local.py (iot-telemetry) -> auto-detects SignalK + Junction" -ForegroundColor Yellow
 Write-Host "  - Simulators         : Generating SignalK maritime + Junction health data" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>aa32c155-f58f-4671-9251-70c6b399eec4</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"99b00dc04f48534a38e3eec3ef316413dbb383c5","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"ui: mobile responsiveness, button colors, filter bar, layout fixes\n\n- Restored VITE_API_BASE_URL=/api in .env.development (CORS fix)\n- index.html: fixed touch-action for horizontal table swipe on mobile\n- App.css: compact filter bar, btn-danger/secondary colors, flex table actions\n- ManagementPage.css: add-button gray, filter-section mobile responsive, action-button colors\n- ProviderPage: Actions column shrink-wrap (width 1%)\n- CustomerEntitiesPage/SubscriptionPage: Delete -&gt; btn-danger\n- CustomerGeofencePage: replaced all inline styles with CSS classes, Edit+Delete flex row\n- EntityTypePage: merged action-bar into filter-bar, Add New button gray\n- EntityPage: Actions th shrink-wrap\n- EventPage: Edit+Delete flex wrapper\n- EntityTelemetryAnalyticsPage: subtitle shortened, VITE_API_BASE_URL, location map null guard"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-04-01T15:56:12.9863218Z</lastSuccessEndTime>
+  <receivedTime>2026-04-01T15:55:09.6252914Z</receivedTime>
+  <startTime>2026-04-01T15:55:11.002041Z</startTime>
+  <endTime>2026-04-01T15:56:12.9863218Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>88da84217ffc</containerId>
+  <buildSummary />
+</deployment>

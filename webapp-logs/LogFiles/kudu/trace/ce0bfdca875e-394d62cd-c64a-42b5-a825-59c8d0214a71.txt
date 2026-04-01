@@ -1,0 +1,1 @@
+2026-03-28T18:30:54  Startup Request, url: /api/deployments/?$orderby=ReceivedTime%20desc&$top=20&api-version=2022-03-01, method: GET, type: request, pid: 767,1,14, SCM_STARTUP_COMMAND: bash startup.sh, ScmType: None, SCM_DO_BUILD_DURING_DEPLOYMENT: 1

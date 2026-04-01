@@ -1,0 +1,4 @@
+<step title="Incoming Request" date="2026-04-01T21:15:22.757" instance="cffa27" url="/dump" method="GET" type="request" pid="767,1,27" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="e0e25459-2e0f-11f1-b7df-841b7766bc9a" X-ARR-LOG-ID="e0e25459-2e0f-11f1-b7df-841b7766bc9a" CLIENT-IP="213.57.251.213:58328" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/dump" X-Client-IP="213.57.251.213" X-Client-Port="58328" >
+  <step title="Cleanup Xml Logs" date="2026-04-01T21:15:22.761" >
+    <step title="Cleanup Infos" date="2026-04-01T21:15:22.784" totalFiles="961" totalCleanup="801" /><!-- duration: 11ms -->
+  </step><!-- duration: 38ms -->

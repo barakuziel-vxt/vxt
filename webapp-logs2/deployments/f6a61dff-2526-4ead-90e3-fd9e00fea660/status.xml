@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>f6a61dff-2526-4ead-90e3-fd9e00fea660</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"1c976d13d3e52c9a05beca56b1b952a2b3348fc3","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"ci: add main.py to deploy trigger; redeploy web app with latest telemetry query fix"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-04-01T19:53:14.8640502Z</lastSuccessEndTime>
+  <receivedTime>2026-04-01T19:52:18.3711765Z</receivedTime>
+  <startTime>2026-04-01T19:52:20.5688892Z</startTime>
+  <endTime>2026-04-01T19:53:14.8640502Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>af62a0e08cfe</containerId>
+  <buildSummary />
+</deployment>

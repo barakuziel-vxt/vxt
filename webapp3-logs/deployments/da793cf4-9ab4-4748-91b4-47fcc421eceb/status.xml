@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>da793cf4-9ab4-4748-91b4-47fcc421eceb</id>
+  <author>N/A</author>
+  <deployer>GITHUB_ZIP_DEPLOY</deployer>
+  <authorEmail>N/A</authorEmail>
+  <message>{"type":"deployment","sha":"fe9b527ab0d8aa68445da6b18246970e5bde0958","repoName":"barakuziel-vxt/vxt","actor":"barakuziel-vxt","slotName":"production","commitMessage":"fix: remove CONVERT/CAST wrappers - pass datetime objects directly to mssql-python"}</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2026-04-01T20:38:04.9358781Z</lastSuccessEndTime>
+  <receivedTime>2026-04-01T20:37:30.6642911Z</receivedTime>
+  <startTime>2026-04-01T20:37:32.138507Z</startTime>
+  <endTime>2026-04-01T20:38:04.9358781Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <containerId>af62a0e08cfe</containerId>
+  <buildSummary />
+</deployment>

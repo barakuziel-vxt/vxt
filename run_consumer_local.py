@@ -9,7 +9,7 @@ Logic:      Imports SimpleEventProcessor directly from azure-functions/function_
             → single source of truth for all DB INSERT logic
 
 Usage:
-    python run_consumer_local.py [signalk|junction|<provider_name>]
+    python run_consumer_local.py
 
 Environment (from .env or shell):
     ENVIRONMENT=local        — enables SQL auth instead of Managed Identity
@@ -17,8 +17,8 @@ Environment (from .env or shell):
     DB_NAME=BoatTelemetryDB
     DB_USER=sa
     DB_PASSWORD=YourStrongPassword123!
-    PROVIDER_NAME=N2KToSignalK
     KAFKA_BOOTSTRAP=localhost:9092
+    KAFKA_TOPIC=iot-telemetry   (optional override; default: iot-telemetry)
 """
 
 import json
@@ -50,13 +50,10 @@ if _FUNC_DIR not in sys.path:
 from function_app import SimpleEventProcessor  # noqa: E402
 
 
-# ── Topic → Provider mapping ─────────────────────────────────────────────────
-PROVIDER_TOPICS = {
-    'N2KToSignalK':  'signalk-telemetry',
-    'signalk':       'signalk-telemetry',
-    'Junction':      'junction-events',
-    'junction':      'junction-events',
-}
+# ── Topic ───────────────────────────────────────────────────────────────────────────
+# Single unified topic mirrors the IoT Hub single Event Hub endpoint in production.
+# All simulators publish here; protocol is auto-detected per message by the consumer.
+DEFAULT_TOPIC = 'iot-telemetry'
 
 
 def ensure_topic(bootstrap: str, topic: str):
@@ -72,15 +69,14 @@ def ensure_topic(bootstrap: str, topic: str):
         logger.warning(f"[Kafka] Could not create topic '{topic}': {e}")
 
 
-def run(provider_name: str):
+def run():
     bootstrap   = os.environ.get('KAFKA_BOOTSTRAP', 'localhost:9092')
     db_server   = os.environ.get('DB_SERVER', 'localhost')
     db_name     = os.environ.get('DB_NAME', 'BoatTelemetryDB')
 
-    topic = PROVIDER_TOPICS.get(provider_name, f"{provider_name.lower()}-telemetry")
+    topic = os.environ.get('KAFKA_TOPIC', DEFAULT_TOPIC)
 
-    logger.info(f"[LocalConsumer] Provider : {provider_name}")
-    logger.info(f"[LocalConsumer] Topic    : {topic}")
+    logger.info(f"[LocalConsumer] Topic    : {topic} (all protocols — auto-detected per message)")
     logger.info(f"[LocalConsumer] DB       : {db_server}/{db_name}")
     logger.info(f"[LocalConsumer] Broker   : {bootstrap}")
 
@@ -91,12 +87,12 @@ def run(provider_name: str):
     os.environ.setdefault('ENVIRONMENT', 'local')
     os.environ.setdefault('DB_SERVER', db_server)
     os.environ.setdefault('DB_NAME', db_name)
-    os.environ.setdefault('PROVIDER_NAME', provider_name)
+    os.environ['PROVIDER_NAME'] = 'auto'  # auto-detection handles dispatch
 
     processor = SimpleEventProcessor(
         db_server=db_server,
         db_name=db_name,
-        provider_name=provider_name,
+        provider_name='auto',
     )
 
     # Connect to Kafka with retry
@@ -107,8 +103,8 @@ def run(provider_name: str):
                 topic,
                 bootstrap_servers=bootstrap,
                 value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-                group_id=f"local-consumer-{provider_name.lower()}",
-                group_instance_id=f"local-{provider_name.lower()}-{os.getpid()}",  # Static member
+                group_id="local-consumer-iot",
+                group_instance_id=f"local-iot-{os.getpid()}",  # Static member
                 auto_offset_reset='earliest',
                 enable_auto_commit=False,
                 consumer_timeout_ms=-1,
@@ -166,5 +162,4 @@ def run(provider_name: str):
 
 
 if __name__ == '__main__':
-    provider = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('PROVIDER_NAME', 'N2KToSignalK')
-    run(provider)
+    run()

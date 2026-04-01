@@ -1,0 +1,5 @@
+<step title="Startup Request" date="2026-04-01T19:46:24.083" instance="cffa27" url="/logstream" method="GET" type="request" pid="767,1,5" SCM_STARTUP_COMMAND="bash startup.sh" SCM_DO_BUILD_DURING_DEPLOYMENT="1" ScmType="None" >
+  <step title="Cleanup Xml Logs" date="2026-04-01T19:46:24.111" >
+    <step title="Cleanup Infos" date="2026-04-01T19:46:24.185" totalFiles="918" totalCleanup="758" /><!-- duration: 10ms -->
+  </step><!-- duration: 90ms -->
+</step><!-- duration: 124ms -->

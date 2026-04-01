@@ -1,0 +1,11 @@
+<step title="Incoming Request" date="2026-03-20T15:51:09.012" instance="30f10b" url="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-03-20_15-51-02Z" method="GET" type="request" pid="769,1,36" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4cd4d8a04f24add4fe50f51bdf495c1e1a89b0eee5975e0439f6f3c52e45ded9_2.2.18" Authorization="Bas..." Content-Type="application/json; charset=utf-8" Cookie="ARRAffinity=30f10b29316cb36376268076d710a7eee2f9aca9d1d71f6dd20cf9e307ad7628;Path=/;HttpOnly;Secure;Domain=vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net; ARRAffinitySameSite=30f10b29316cb36376268076d710a7eee2f9aca9d1d71f6dd20cf9e307ad7628;Path=/;HttpOnly;SameSite=None;Secure;Domain=vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" Content-Length="0" X-ARR-LOG-ID="ae694a0b-e9b4-450e-a2ad-905787893a57" CLIENT-IP="132.196.80.129:22537" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-03-20_15-51-02Z" X-Client-IP="132.196.80.129" X-Client-Port="22537" >
+  <step title="Cleanup Xml Logs" date="2026-03-20T15:51:09.019" >
+    <step title="Cleanup Infos" date="2026-03-20T15:51:09.040" totalFiles="315" totalCleanup="155" /><!-- duration: 11ms -->
+  </step><!-- duration: 40ms -->
+  <step title="DeploymentService.GetResult" date="2026-03-20T15:51:09.079" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-03-20T15:51:09.087" >
+      <step title="DeploymentManager.GetResults" date="2026-03-20T15:51:09.093" /><!-- duration: 706ms -->
+    </step><!-- duration: 717ms -->
+  </step><!-- duration: 731ms -->
+  <step title="Outgoing response" date="2026-03-20T15:51:09.820" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 7ms -->
+</step><!-- duration: 822ms -->

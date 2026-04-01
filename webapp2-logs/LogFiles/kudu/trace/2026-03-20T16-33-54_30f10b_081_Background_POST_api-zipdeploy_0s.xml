@@ -1,0 +1,7 @@
+<step title="BackgroundTrace" date="2026-03-20T16:33:54.519" instance="30f10b" url="/api/zipdeploy" method="POST" >
+  <step title="Cleanup Xml Logs" date="2026-03-20T16:33:54.523" >
+    <step title="Cleanup Infos" date="2026-03-20T16:33:54.534" totalFiles="363" totalCleanup="203" /><!-- duration: 5ms -->
+  </step><!-- duration: 20ms -->
+  <step title="Error occurred" date="2026-03-20T16:33:54.567" type="error" text="The &apos;Performing continuous deployment&apos; operation conflicts with the pending &apos;Deployment&apos; operation started at 03/20/2026 16:33:53.  Please retry operation later." stackTrace="   at Kudu.Contracts.Infrastructure.LockExtensions.LockOperation(IOperationLock lockObj, Action operation, String operationName, TimeSpan timeout) in /tmp/KuduLite/Kudu.Contracts/Infrastructure/LockExtensions.cs:line 51
+   at Kudu.Core.Deployment.FetchDeploymentManager.&lt;&gt;c__DisplayClass22_0.&lt;PerformBackgroundDeployment&gt;b__1() in /tmp/KuduLite/Kudu.Core/Deployment/FetchDeploymentManager.cs:line 393" /><!-- duration: 17ms -->
+</step><!-- duration: 69ms -->

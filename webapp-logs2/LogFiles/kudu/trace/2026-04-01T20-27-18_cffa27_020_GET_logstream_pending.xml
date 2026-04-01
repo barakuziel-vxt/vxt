@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2026-04-01T20:27:18.150" instance="cffa27" url="/logstream" method="GET" type="request" pid="767,1,24" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="29726a25-2e09-11f1-98ca-841b7766bc9a" X-ARR-LOG-ID="29726a25-2e09-11f1-98ca-841b7766bc9a" CLIENT-IP="213.57.251.213:62000" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="213.57.251.213" X-Client-Port="62000" >
+  <step title="Cleanup Xml Logs" date="2026-04-01T20:27:18.154" >
+    <step title="Cleanup Infos" date="2026-04-01T20:27:18.188" totalFiles="935" totalCleanup="775" /><!-- duration: 18ms -->
+  </step><!-- duration: 56ms -->
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2026-04-01T20:27:18.224" /><!-- duration: 593ms -->

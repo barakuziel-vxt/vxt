@@ -1,0 +1,8 @@
+<step title="Incoming Request" date="2026-03-22T20:33:36.280" instance="cffa27" url="/logstream" method="GET" type="request" pid="768,1,3" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="5c79372c-262e-11f1-8bf2-841b7766bc9a" X-ARR-LOG-ID="5c79372c-262e-11f1-8bf2-841b7766bc9a" CLIENT-IP="213.57.251.213:54369" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="213.57.251.213" X-Client-Port="54369" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T20:33:36.282" >
+    <step title="Cleanup Infos" date="2026-03-22T20:33:36.303" totalFiles="633" totalCleanup="473" /><!-- duration: 7ms -->
+  </step><!-- duration: 37ms -->
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2026-03-22T20:33:36.346" /><!-- duration: 2688ms -->
+  <step title="Error occurred" date="2026-03-22T20:39:39.052" type="error" text="LogStreamManager: ProcessRequest end" /><!-- duration: 4ms -->
+  <step title="Outgoing response" date="2026-03-22T20:39:39.077" type="response" statusCode="200" statusText="OK" /><!-- duration: 2ms -->
+</step><!-- duration: 362802ms -->

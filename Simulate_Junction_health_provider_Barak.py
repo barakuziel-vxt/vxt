@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class JunctionEventProducer:
-    def __init__(self, bootstrap_servers='localhost:9092', topic='junction-events'):
+    def __init__(self, bootstrap_servers='localhost:9092', topic='iot-telemetry'):
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
         self.producer = KafkaProducer(
@@ -726,6 +726,6 @@ class JunctionEventProducer:
 if __name__ == '__main__':
     producer = JunctionEventProducer(
         bootstrap_servers='localhost:9092',
-        topic='junction-events'
+        topic='iot-telemetry'
     )
     producer.simulate_continuous_events(duration_seconds=600, interval_seconds=2)

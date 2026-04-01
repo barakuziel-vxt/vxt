@@ -1,0 +1,11 @@
+<step title="Incoming Request" date="2026-04-01T19:52:11.254" instance="cffa27" url="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-04-01_19-52-04Z" method="GET" type="request" pid="767,1,5" Host="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4cd4d8a04f24add4fe50f51bdf495c1e1a89b0eee5975e0439f6f3c52e45ded9_2.2.18" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Cookie="ARRAffinity=cffa275333a302a4e96ca9dbb7bc4f4c4b650a3bd97ff27fc3abdafdda74e222; ARRAffinitySameSite=cffa275333a302a4e96ca9dbb7bc4f4c4b650a3bd97ff27fc3abdafdda74e222" Content-Length="0" X-ARR-LOG-ID="a0079580-b72c-41b5-817c-69f79566a657" CLIENT-IP="20.81.159.116:53289" X-SITE-DEPLOYMENT-ID="vxt-web-app" WAS-DEFAULT-HOSTNAME="vxt-web-app-g5gbaee2f4bmgphb.scm.northeurope-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest?deployer=GITHUB_ZIP_DEPLOY&amp;time=2026-04-01_19-52-04Z" X-Client-IP="20.81.159.116" X-Client-Port="53289" >
+  <step title="Cleanup Xml Logs" date="2026-04-01T19:52:11.345" >
+    <step title="Cleanup Infos" date="2026-04-01T19:52:11.534" totalFiles="923" totalCleanup="763" /><!-- duration: 41ms -->
+  </step><!-- duration: 251ms -->
+  <step title="DeploymentService.GetResult" date="2026-04-01T19:52:12.203" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-04-01T19:52:12.218" >
+      <step title="DeploymentManager.GetResults" date="2026-04-01T19:52:12.241" /><!-- duration: 1518ms -->
+    </step><!-- duration: 1571ms -->
+  </step><!-- duration: 1699ms -->
+  <step title="Outgoing response" date="2026-04-01T19:52:14.107" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 19ms -->
+</step><!-- duration: 2897ms -->
