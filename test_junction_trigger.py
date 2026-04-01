@@ -484,7 +484,6 @@ async def send_junction_event(client, event_num: int, event_type: str, user_id: 
     event_map = {
         'heart_rate': generate_heart_rate_event,
         'blood_pressure': generate_blood_pressure_event,
-        'body_weight': generate_body_weight_event,
         'oxygen_saturation': generate_oxygen_saturation_event,
         'respiration_rate': generate_respiration_rate_event,
         'body_temperature': generate_body_temperature_event,
@@ -543,17 +542,16 @@ async def main():
         event_types = [
             'heart_rate',               # V1: 8867-4
             'blood_pressure',           # V2: 8480-6
-            'body_weight',              # V3: 29463-7
-            'oxygen_saturation',        # V4: 59408-5
-            'respiration_rate',         # V5: 9279-1
-            'body_temperature',         # V6: 8310-5
-            'glucose',                  # V7: 2339-0
-            'heart_rate_variability',   # V8: 80404-7
-            'diastolic_blood_pressure', # V9: 8462-4
-            'resting_heart_rate',       # V10: 8418-4
-            'min_heart_rate',           # V11: 8638-5
-            'max_heart_rate',           # V12: 8639-3
-            'afib_detection',           # V13: 80358-0
+            'oxygen_saturation',        # V3: 59408-5
+            'respiration_rate',         # V4: 9279-1
+            'body_temperature',         # V5: 8310-5
+            'glucose',                  # V6: 2339-0
+            'heart_rate_variability',   # V7: 80404-7
+            'diastolic_blood_pressure', # V8: 8462-4
+            'resting_heart_rate',       # V9: 8418-4
+            'min_heart_rate',           # V10: 8638-5
+            'max_heart_rate',           # V11: 8639-3
+            'afib_detection',           # V12: 80358-0
         ]
         total_events = 0
         results = []
@@ -570,12 +568,12 @@ async def main():
         
         logger.info('-' * 70)
         
-        # Summary: 18 event types × 2 users = 36 events
+        # Summary: 12 event types × 2 users = 24 events
         successful = sum(results)
         logger.info(f'Results: {successful}/{total_events} events sent successfully')
         
         if successful == total_events:
-            logger.info(f'✅ All 13 Junction LOINC Vitals attributes sent')
+            logger.info(f'✅ All 12 Junction LOINC Vitals attributes sent')
         else:
             logger.warning(f'⚠️  Only {successful}/{total_events} events sent')
         
