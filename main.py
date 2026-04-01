@@ -2218,9 +2218,9 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             start_dt = dt_class.fromisoformat(start_str)
             end_dt = dt_class.fromisoformat(end_str)
             
-            # Convert back to SQL Server format that can be parsed
-            start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]  # Remove extra microseconds, keep 3-digit milliseconds
-            end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]
+            # Keep as datetime objects - mssql-python handles datetime binding natively
+            start_sql = start_dt
+            end_sql = end_dt
             
             print(f"   Parsed dates - Start: {start_sql}, End: {end_sql}")
         except Exception as parse_err:
@@ -2239,8 +2239,8 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
         WHERE et.entityId = ?
-          AND et.endTimestampUTC >= CONVERT(DATETIME2, ?)
-          AND et.endTimestampUTC <= CONVERT(DATETIME2, ?)
+          AND et.endTimestampUTC >= ?
+          AND et.endTimestampUTC <= ?
         ORDER BY et.endTimestampUTC ASC
         """
         
@@ -2298,9 +2298,9 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
         start_dt = datetime.fromisoformat(startDate.replace('Z', '+00:00'))
         end_dt = datetime.fromisoformat(endDate.replace('Z', '+00:00'))
         
-        # Convert to SQL Server datetime format (YYYY-MM-DD HH:MM:SS)
-        start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S')
-        end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+        # Pass datetime objects directly - mssql-python handles datetime binding natively
+        start_sql = start_dt
+        end_sql = end_dt
         
         print(f"Events query range - Start: {start_sql}, End: {end_sql}")
         
@@ -2323,8 +2323,8 @@ async def get_events_range(entity_id: str, startDate: str, endDate: str):
         LEFT JOIN dbo.Event e ON el.eventId = e.eventId
         LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
         WHERE el.entityId = ?
-          AND el.triggeredAt >= CAST(? AS DATETIME)
-          AND el.triggeredAt <= CAST(? AS DATETIME)
+          AND el.triggeredAt >= ?
+          AND el.triggeredAt <= ?
         GROUP BY el.eventLogId, el.eventId, e.eventCode, e.eventDescription, 
                  e.risk, el.cumulativeScore, el.probability, el.triggeredAt
         ORDER BY CASE e.risk
