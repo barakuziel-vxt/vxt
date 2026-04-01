@@ -1,6 +1,12 @@
 name: Deploy to Static Web Apps
 
 on:
+  push:
+    branches:
+      - prod
+    paths:
+      - 'admin-dashboard/**'
+      - '.github/workflows/deploy-swa.yml'
   workflow_dispatch:
 
 jobs:
