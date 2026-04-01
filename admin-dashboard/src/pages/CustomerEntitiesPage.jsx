@@ -135,7 +135,7 @@ export default function CustomerEntitiesPage() {
     setSyncMessage(null);
     
     try {
-      const baseUrl = localStorage.getItem('apiBaseUrl') || 'http://localhost:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
       const response = await fetch(`${baseUrl}/customerentities/${editingId}/sync-setup`, {
         method: 'POST',
         headers: {
@@ -331,7 +331,7 @@ export default function CustomerEntitiesPage() {
                     </td>
                     <td>
                       <span>
-                        {entity.active === 'Y' ? 'Active' : 'Inactive'}}
+                        {entity.active === 'Y' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td>
@@ -342,7 +342,7 @@ export default function CustomerEntitiesPage() {
                         Edit
                       </button>
                       <button
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-danger"
                         onClick={() => handleDelete(entity.customerEntityId)}
                       >
                         Delete

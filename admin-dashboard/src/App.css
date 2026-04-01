@@ -163,13 +163,50 @@
   background-color: #4a4a4a;
 }
 
+/* Delete button — red tint to distinguish from Edit */
 .btn-danger {
-  background-color: #667eea;
+  background-color: #8b2020;
   color: white;
+  border: none;
 }
 
 .btn-danger:hover {
-  background-color: #5568d3;
+  background-color: #a83030;
+}
+
+/* Table action cells: always flex row so buttons sit side by side */
+.table-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* Any td that contains multiple buttons: lay them out in a row */
+td:has(.btn-sm + .btn-sm),
+td:has(.btn + .btn) {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* Second button in a table action cell = Delete → always red */
+td .btn-sm + .btn-sm,
+td .btn + .btn,
+div .btn-sm + .btn-sm,
+div .btn + .btn {
+  background-color: #8b2020 !important;
+  color: white !important;
+  border: none !important;
+}
+
+td .btn-sm + .btn-sm:hover,
+td .btn + .btn:hover,
+div .btn-sm + .btn-sm:hover,
+div .btn + .btn:hover {
+  background-color: #a83030 !important;
 }
 
 .btn-success {
@@ -189,6 +226,29 @@
 .table-container {
   overflow-x: auto;
   margin-bottom: 20px;
+  /* Scroll shadow hint: right-side gradient fades when content is scrollable */
+  background:
+    linear-gradient(to right, #2d2d2d 10px, transparent) left center,
+    linear-gradient(to left,  #2d2d2d 10px, transparent) right center,
+    linear-gradient(to right, rgba(102,126,234,0.3), transparent) left center,
+    linear-gradient(to left,  rgba(102,126,234,0.3), transparent) right center;
+  background-size: 30px 100%, 30px 100%, 15px 100%, 15px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+  border-radius: 4px;
+}
+
+/* Sticky first column so row identity stays visible while scrolling */
+.table tbody td:first-child,
+.table thead th:first-child {
+  position: sticky;
+  left: 0;
+  background-color: #2d2d2d;
+  z-index: 1;
+}
+
+.table thead th:first-child {
+  background-color: #3a3a3a;
 }
 
 .table {
@@ -410,14 +470,14 @@
 }
 
 .filter-bar {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   display: flex;
-  gap: 15px;
+  gap: 10px;
   justify-content: flex-start;
   align-items: flex-end;
   flex-wrap: wrap;
-  padding: 15px;
-  background-color: var(--card-bg);
+  padding: 10px 12px;
+  background-color: #252525;
   border: 1px solid var(--border-color);
   border-radius: 4px;
 }
@@ -425,14 +485,36 @@
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 200px;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 150px;
 }
 
 .filter-group label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-color);
+}
+
+/* Compact filter inputs — same height as btn-sm */
+.filter-bar input,
+.filter-bar select,
+.filter-group input,
+.filter-group select {
+  padding: 5px 8px !important;
+  font-size: 13px !important;
+  height: 30px;
+}
+
+/* + Add New button sits alongside filters — same height */
+.filter-bar .btn-sm,
+.filter-bar .btn {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  align-self: flex-end;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-group input,
@@ -649,10 +731,52 @@
     max-width: 100%;
   }
 
-  /* Hide unnecessary columns on mobile */
-  th:nth-child(n+5),
-  td:nth-child(n+5) {
-    display: none;
+  /* Filter groups take full width on mobile */
+  .filter-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Action bar wraps on mobile */
+  .action-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Form grid collapses to single column on mobile */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Reduce page padding on mobile */
+  .page {
+    padding: 15px;
+  }
+
+  /* Prevent wide text from breaking table layout */
+  .table td {
+    word-break: break-word;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Keep all columns visible — table scrolls horizontally within its container.
+     The scroll shadow hint (on .table-container) guides users to scroll right. */
+
+  /* Always show the Actions column (last child) even if other rules apply */
+  th:last-child,
+  td:last-child {
+    display: table-cell !important;
+    position: sticky;
+    right: 0;
+    background-color: #2d2d2d;
+    z-index: 1;
+  }
+
+  .table thead th:last-child {
+    background-color: #3a3a3a;
   }
 
   .chart-container {

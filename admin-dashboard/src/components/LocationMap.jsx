@@ -81,13 +81,9 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
       .filter(p => p.lat != null && p.lon != null);
   }, [telemetryData]);
 
-  // If no location data, return message
+  // If no location data, return null (hide section entirely)
   if (locationPoints.length === 0) {
-    return (
-      <div className="analytics-section" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-        <p>📍 No location data available for selected time range</p>
-      </div>
-    );
+    return null;
   }
 
   // Create polyline coordinates with interpolation for smooth curves

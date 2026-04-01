@@ -378,22 +378,24 @@ export default function EventPage() {
                     {(eventAttributesByEvent[event.eventId] || []).length} mapped
                   </td>
                   <td>
-                    <button
-                      className="action-button edit"
-                      onClick={() => {
-                        setSelectedEvent(event);
-                        loadEventAttributes(event.eventId);
-                        handleOpenEventModal(event);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="action-button delete"
-                      onClick={() => handleDeleteEvent(event.eventId)}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className="action-button edit"
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          loadEventAttributes(event.eventId);
+                          handleOpenEventModal(event);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="action-button delete"
+                        onClick={() => handleDeleteEvent(event.eventId)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

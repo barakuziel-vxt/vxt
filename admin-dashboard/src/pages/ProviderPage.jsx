@@ -251,7 +251,7 @@ export default function ProviderPage() {
                 <th>Category</th>
                 <th style={{ maxWidth: '200px' }}>Doc URL</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -297,18 +297,20 @@ export default function ProviderPage() {
                     </span>
                   </td>
                   <td>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => handleOpenModal(provider)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => handleDelete(provider.providerId)}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleOpenModal(provider)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(provider.providerId)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

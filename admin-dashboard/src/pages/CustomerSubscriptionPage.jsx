@@ -366,7 +366,7 @@ export default function CustomerSubscriptionPage() {
                         Edit
                       </button>
                       <button
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-danger"
                         onClick={() => handleDelete(subscription.customerSubscriptionId)}
                       >
                         Delete

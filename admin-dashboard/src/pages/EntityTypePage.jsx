@@ -145,12 +145,6 @@ export default function EntityTypePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="action-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Entity Type
-        </button>
-      </div>
-
       <div className="filter-bar">
         <div className="filter-group">
           <label htmlFor="filterName">Entity Type Name</label>
@@ -192,6 +186,9 @@ export default function EntityTypePage() {
             <option value="N">Inactive</option>
           </select>
         </div>
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New
+        </button>
       </div>
 
       {loading ? (

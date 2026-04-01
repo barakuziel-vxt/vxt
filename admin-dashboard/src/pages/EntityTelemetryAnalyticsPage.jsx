@@ -582,7 +582,8 @@ export default function EntityTelemetryAnalyticsPage() {
       }
       
       // For TSQL/NEWS functions: fetch predefined scoring rules
-      const response = await fetch(`http://localhost:8000/api/entity-attributes/${attributeCode}/scores`);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+      const response = await fetch(`${baseUrl}/entity-attributes/${attributeCode}/scores`);
       if (!response.ok) {
         throw new Error(`Failed to load score details: HTTP ${response.status}`);
       }
@@ -777,7 +778,7 @@ export default function EntityTelemetryAnalyticsPage() {
       <div className="page-header">
         <div className="page-header-title">
           <h2>📊 Telemetry & Events</h2>
-          <p>Monitor real-time data and detected events for selected entities</p>
+          <p>Real-time data & detected events</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 

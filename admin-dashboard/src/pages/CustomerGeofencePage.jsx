@@ -453,17 +453,8 @@ export default function CustomerGeofencePage() {
         </div>
 
         <button
+          className="btn btn-sm btn-secondary"
           onClick={() => handleOpenModal()}
-          style={{
-            padding: '8px 20px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-          }}
         >
           + New Geofence
         </button>
@@ -561,36 +552,21 @@ export default function CustomerGeofencePage() {
                         {geofence.active === 'Y' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleOpenModal(geofence)}
-                        style={{
-                          padding: '4px 12px',
-                          backgroundColor: '#2196F3',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '3px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          marginRight: '5px',
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(geofence.customerGeofenceCriteriaId)}
-                        style={{
-                          padding: '4px 12px',
-                          backgroundColor: '#f44336',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '3px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        Delete
-                      </button>
+                    <td style={{ padding: '12px', width: '1%', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => handleOpenModal(geofence)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDelete(geofence.customerGeofenceCriteriaId)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

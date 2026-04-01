@@ -222,7 +222,7 @@ export default function EntityPage() {
                 <th>Entity Type</th>
                 <th>Gender</th>
                 <th>Birth Date</th>
-                <th>Actions</th>
+                <th style={{ width: '1%', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
