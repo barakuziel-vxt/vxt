@@ -53,45 +53,86 @@ def validate_config():
 async def send_telemetry_event(client, event_num: int, device_id: str = 'test-device'):
     """Send a single telemetry event through IoT Hub"""
     
-    # Generate telemetry data matching the boat simulation structure
+    # Generate telemetry data matching the local SignalK simulator structure
     lat_base = 32.8315366 if device_id == "234567890" else 32.8415366
     lon_base = 35.0036234 if device_id == "234567890" else 35.0136234
-    lat = round(lat_base + random.uniform(-0.1115, 0.1115), 6)
-    lon = round(lon_base + random.uniform(-0.1115, 0.1115), 6)
-    rpm = random.randint(1000, 1400)
-    oil_press_pa = round(350000 + random.uniform(-5000, 5000), 2)
-    sog = round(random.uniform(5, 10), 3)
-    cog = round(random.uniform(0, 6.28), 4)
-    water_temp_k = round(291.15 + random.uniform(-2, 2), 2)
-    wind_speed = round(random.uniform(3, 8), 2)
-    fuel_level = round(random.uniform(0.3, 0.9), 3)
+    lat = round(lat_base + random.uniform(-0.001, 0.001), 6)
+    lon = round(lon_base + random.uniform(-0.001, 0.001), 6)
+    
+    # Navigation values (8)
+    heading_magnetic = random.uniform(0, 6.283185307179586)  # 0-2π radians
+    heading_true = random.uniform(0, 6.283185307179586)
+    cog = random.uniform(0, 6.283185307179586)
+    sog = random.uniform(0, 15)  # m/s
+    stw = random.uniform(0, 12)  # m/s
+    
+    # Environmental values (5)
+    wind_speed_apparent = random.uniform(0, 25)  # m/s
+    wind_dir_apparent = random.uniform(0, 6.283185307179586)
+    water_temp_k = 273.15 + random.uniform(5, 20)  # Kelvin
+    air_temp_k = 273.15 + random.uniform(0, 25)   # Kelvin
+    pressure_pa = 98000 + random.uniform(-2000, 2000)  # Pa
+    
+    # Engine values (3)
+    rpm = random.uniform(0, 50)  # revolutions per second
+    engine_temp_k = 273.15 + random.uniform(80, 95)  # Kelvin
+    oil_pressure_pa = 300000 + random.uniform(-50000, 50000)  # Pa
+    
+    # Electrical values (2)
+    battery_voltage = random.uniform(11.5, 14.5)  # Volts
+    battery_current = random.uniform(-200, 200)  # Amps
+    
+    # Tank values (3)
+    fuel_level = random.uniform(0.3, 0.9)  # 0-1 ratio
+    fresh_water_level = random.uniform(0.4, 0.95)
+    waste_water_level = random.uniform(0.1, 0.7)
+    
     ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
-    # Standard SignalK envelope — matches what a real N2K/NMEA device sends.
-    # The function's SignalKAdapter parses "context" to extract the MMSI,
-    # and maps "updates[].values[].path" to entityTypeAttributeCode in the DB.
+    # SignalK envelope with all 21 attributes
     telemetry = {
         'context': f'vessels.urn:mrn:imo:mmsi:{device_id}',
         'updates': [{
             'source': {'label': 'N2KToSignalK', 'src': device_id},
             'timestamp': ts,
             'values': [
-                {'path': 'navigation.speedOverGround',  'value': sog},
+                # Navigation (8)
+                {'path': 'navigation.position', 'value': {'latitude': lat, 'longitude': lon}},
+                {'path': 'navigation.latitude', 'value': lat},
+                {'path': 'navigation.longitude', 'value': lon},
+                {'path': 'navigation.headingMagnetic', 'value': heading_magnetic},
+                {'path': 'navigation.headingTrue', 'value': heading_true},
                 {'path': 'navigation.courseOverGround', 'value': cog},
-                {'path': 'navigation.position',
-                 'value': {'latitude': lat, 'longitude': lon}},
-                {'path': 'propulsion.main.revolutions', 'value': rpm},
-                {'path': 'propulsion.main.oilPressure', 'value': oil_press_pa},
+                {'path': 'navigation.speedOverGround', 'value': sog},
+                {'path': 'navigation.speedThroughWater', 'value': stw},
+                
+                # Environmental (5)
+                {'path': 'environment.wind.speedApparent', 'value': wind_speed_apparent},
+                {'path': 'environment.wind.directionApparent', 'value': wind_dir_apparent},
                 {'path': 'environment.water.temperature', 'value': water_temp_k},
-                {'path': 'environment.wind.speedApparent', 'value': wind_speed},
-                {'path': 'tanks.fuelTank.level',         'value': fuel_level},
+                {'path': 'environment.outside.temperature', 'value': air_temp_k},
+                {'path': 'environment.outside.pressure', 'value': pressure_pa},
+                
+                # Engine (3)
+                {'path': 'propulsion.main.revolutions', 'value': rpm},
+                {'path': 'propulsion.main.temperature', 'value': engine_temp_k},
+                {'path': 'propulsion.main.oilPressure', 'value': oil_pressure_pa},
+                
+                # Electrical (2)
+                {'path': 'electrical.dc.houseBattery.voltage', 'value': battery_voltage},
+                {'path': 'electrical.dc.houseBattery.current', 'value': battery_current},
+                
+                # Tanks (3)
+                {'path': 'tanks.fuelTank.level', 'value': fuel_level},
+                {'path': 'tanks.freshWaterTank.level', 'value': fresh_water_level},
+                {'path': 'tanks.wasteWaterTank.level', 'value': waste_water_level},
             ]
         }]
     }
 
     payload = json.dumps(telemetry)
 
-    logger.info(f'[ENTITY {device_id} EVENT {event_num}] Sending telemetry...')
+    logger.info(f'[ENTITY {device_id} EVENT {event_num}] Sending 21-attribute SignalK telemetry...')
     logger.debug(f'  Payload: {payload}')
 
     try:

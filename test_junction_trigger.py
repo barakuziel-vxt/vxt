@@ -307,6 +307,377 @@ def generate_heart_rate_variability_event(user_id: str = '033114869') -> dict:
     }
 
 
+def generate_diastolic_blood_pressure_event(user_id: str = '033114869') -> dict:
+    """Generate diastolic blood pressure Junction health event - LOINC 8462-4"""
+    base_time = datetime.now(timezone.utc)
+    avg_diastolic = random.randint(70, 90)
+    
+    # Generate 6 samples (4-hour intervals)
+    diasystolic_samples = []
+    for i in range(6):
+        sample_time = base_time - timedelta(hours=(6-i)*4)
+        variation = random.randint(-3, 3)
+        diasystolic_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "diastolic_mmhg": avg_diastolic + variation
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "diastolic_bp_data": {
+                "summary": {"avg_diastolic_mmhg": avg_diastolic},
+                "detailed": {
+                    "diastolic_samples": diasystolic_samples
+                }
+            }
+        },
+        "type": "vitals",
+        "event_type": "8462-4",
+        "loinc_code": "8462-4",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_resting_heart_rate_event(user_id: str = '033114869') -> dict:
+    """Generate resting heart rate Junction health event - LOINC 8418-4"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate 7 daily samples (morning readings)
+    rhr_samples = []
+    baseline_rhr = random.randint(60, 65)
+    
+    # Days 7-2: Baseline period
+    for i in range(6):
+        sample_time = base_time - timedelta(days=(7-i))
+        variation = random.randint(-2, 2)
+        rhr_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "bpm": baseline_rhr + variation
+        })
+    
+    # Day 1: Most recent
+    elevated_rhr = random.randint(85, 95)
+    rhr_samples.append({
+        "timestamp": base_time.isoformat(),
+        "bpm": elevated_rhr
+    })
+    
+    avg_rhr = sum(s['bpm'] for s in rhr_samples) / len(rhr_samples)
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "resting_hr_data": {
+                "summary": {"avg_resting_hr_bpm": int(avg_rhr)},
+                "detailed": {
+                    "resting_hr_samples": rhr_samples
+                }
+            }
+        },
+        "type": "vitals",
+        "event_type": "8418-4",
+        "loinc_code": "8418-4",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_min_heart_rate_event(user_id: str = '033114869') -> dict:
+    """Generate minimum heart rate Junction health event - LOINC 8638-5"""
+    base_time = datetime.now(timezone.utc)
+    avg_min_hr = random.randint(45, 60)
+    
+    # Generate 7 daily samples
+    min_hr_samples = []
+    for i in range(7):
+        sample_time = base_time - timedelta(days=(7-i))
+        variation = random.randint(-3, 3)
+        min_hr_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "bpm": avg_min_hr + variation
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "min_hr_data": {
+                "summary": {"avg_min_hr_bpm": avg_min_hr},
+                "detailed": {
+                    "min_hr_samples": min_hr_samples
+                }
+            }
+        },
+        "type": "vitals",
+        "event_type": "8638-5",
+        "loinc_code": "8638-5",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_max_heart_rate_event(user_id: str = '033114869') -> dict:
+    """Generate maximum heart rate Junction health event - LOINC 8639-3"""
+    base_time = datetime.now(timezone.utc)
+    avg_max_hr = random.randint(120, 160)
+    
+    # Generate 7 daily samples
+    max_hr_samples = []
+    for i in range(7):
+        sample_time = base_time - timedelta(days=(7-i))
+        variation = random.randint(-5, 5)
+        max_hr_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "bpm": avg_max_hr + variation
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "max_hr_data": {
+                "summary": {"avg_max_hr_bpm": avg_max_hr},
+                "detailed": {
+                    "max_hr_samples": max_hr_samples
+                }
+            }
+        },
+        "type": "vitals",
+        "event_type": "8639-3",
+        "loinc_code": "8639-3",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_afib_detection_event(user_id: str = '033114869') -> dict:
+    """Generate atrial fibrillation detection Junction health event - LOINC 80358-0"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate 5 samples throughout the day
+    afib_samples = []
+    for i in range(5):
+        sample_time = base_time - timedelta(hours=(5-i)*4)
+        afib_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "detected": random.choice([True, False]),
+            "confidence": random.randint(70, 100)
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "afib_data": {
+                "summary": {"detection_count": sum(1 for s in afib_samples if s['detected'])},
+                "detailed": {
+                    "afib_samples": afib_samples
+                }
+            }
+        },
+        "type": "vitals",
+        "event_type": "80358-0",
+        "loinc_code": "80358-0",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_steps_event(user_id: str = '033114869') -> dict:
+    """Generate steps activity Junction health event - LOINC 55411-3"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate 24 hourly samples
+    hourly_steps = []
+    total_steps = 0
+    for i in range(24):
+        hour_time = base_time - timedelta(hours=(24-i))
+        hour_steps = random.randint(500, 3000)
+        total_steps += hour_steps
+        hourly_steps.append({
+            "timestamp": hour_time.isoformat(),
+            "hourly_steps": hour_steps
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "steps_data": {
+                "summary": {
+                    "total_steps": total_steps,
+                    "daily_goal": 10000,
+                    "goal_achieved": total_steps >= 10000
+                },
+                "detailed": {
+                    "hourly_steps": hourly_steps
+                }
+            }
+        },
+        "type": "activity",
+        "event_type": "55411-3",
+        "loinc_code": "55411-3",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_calories_event(user_id: str = '033114869') -> dict:
+    """Generate calories activity Junction health event - LOINC 41981-2"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate activity samples
+    activities = ['walking', 'running', 'cycling', 'gym', 'rest']
+    activity_samples = []
+    total_calories = 0
+    
+    for i in range(8):
+        activity_time = base_time - timedelta(hours=(8-i)*3)
+        activity = random.choice(activities)
+        calories = random.randint(50, 300) if activity != 'rest' else random.randint(10, 30)
+        total_calories += calories
+        activity_samples.append({
+            "timestamp": activity_time.isoformat(),
+            "activity": activity,
+            "calories_burned": calories
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "calories_data": {
+                "summary": {
+                    "total_calories_burned": total_calories,
+                    "daily_goal": 2000
+                },
+                "detailed": {
+                    "activity_samples": activity_samples
+                }
+            }
+        },
+        "type": "activity",
+        "event_type": "41981-2",
+        "loinc_code": "41981-2",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_distance_event(user_id: str = '033114869') -> dict:
+    """Generate distance activity Junction health event - LOINC 8466-5"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate route waypoints
+    start_lat = random.uniform(-90, 90)
+    start_lon = random.uniform(-180, 180)
+    
+    route_samples = []
+    total_distance = 0
+    for i in range(15):
+        sample_time = base_time - timedelta(minutes=(15-i)*4)
+        distance_segment = round(random.uniform(0.1, 0.5), 2)
+        total_distance += distance_segment
+        
+        route_samples.append({
+            "timestamp": sample_time.isoformat(),
+            "latitude": round(start_lat + random.uniform(-0.01, 0.01), 4),
+            "longitude": round(start_lon + random.uniform(-0.01, 0.01), 4),
+            "segment_distance_km": distance_segment
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "distance_data": {
+                "summary": {"total_distance_km": round(total_distance, 2)},
+                "detailed": {
+                    "route_samples": route_samples
+                }
+            }
+        },
+        "type": "activity",
+        "event_type": "8466-5",
+        "loinc_code": "8466-5",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_sleep_event(user_id: str = '033114869') -> dict:
+    """Generate sleep Junction health event - LOINC 93831-0"""
+    base_time = datetime.now(timezone.utc)
+    sleep_start = base_time - timedelta(hours=8)
+    
+    # Generate sleep stage samples (30-minute intervals)
+    sleep_stages_enum = ['light', 'deep', 'rem', 'awake']
+    sleep_stages = []
+    
+    for i in range(16):
+        stage_time = sleep_start + timedelta(minutes=i*30)
+        stage = random.choice(sleep_stages_enum)
+        sleep_stages.append({
+            "timestamp": stage_time.isoformat(),
+            "stage": stage
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "sleep_data": {
+                "summary": {
+                    "total_sleep_minutes": 480,
+                    "deep_sleep_minutes": random.randint(60, 120),
+                    "rem_sleep_minutes": random.randint(60, 120),
+                    "light_sleep_minutes": random.randint(200, 250),
+                    "awake_minutes": random.randint(20, 50),
+                    "sleep_quality_score": round(random.uniform(60, 95), 1)
+                },
+                "detailed": {
+                    "sleep_stages": sleep_stages
+                }
+            }
+        },
+        "type": "sleep",
+        "event_type": "93831-0",
+        "loinc_code": "93831-0",
+        "timestamp": base_time.isoformat()
+    }
+
+
+def generate_location_event(user_id: str = '033114869') -> dict:
+    """Generate location Junction health event - LOINC 33018-7"""
+    base_time = datetime.now(timezone.utc)
+    
+    # Generate GPS track (1-minute intervals)
+    start_lat = random.uniform(-90, 90)
+    start_lon = random.uniform(-180, 180)
+    
+    gps_track = []
+    for i in range(30):
+        point_time = base_time - timedelta(minutes=(30-i))
+        gps_track.append({
+            "timestamp": point_time.isoformat(),
+            "latitude": round(start_lat + random.uniform(-0.005, 0.005), 6),
+            "longitude": round(start_lon + random.uniform(-0.005, 0.005), 6),
+            "accuracy_meters": round(random.uniform(5, 20), 1),
+            "altitude_meters": round(random.uniform(0, 500), 1)
+        })
+    
+    return {
+        "user": {"user_id": f"user_{user_id}"},
+        "data": {
+            "location_data": {
+                "summary": {
+                    "start_latitude": start_lat,
+                    "start_longitude": start_lon,
+                    "current_latitude": gps_track[-1]['latitude'],
+                    "current_longitude": gps_track[-1]['longitude']
+                },
+                "detailed": {
+                    "gps_track": gps_track
+                }
+            }
+        },
+        "type": "location",
+        "event_type": "33018-7",
+        "loinc_code": "33018-7",
+        "timestamp": base_time.isoformat()
+    }
+
+
+async def send_junction_event(client, event_num: int, event_type: str, user_id: str = '033114869') -> bool:
+    """Send a single Junction health event through IoT Hub"""
+    
 async def send_junction_event(client, event_num: int, event_type: str, user_id: str = '033114869') -> bool:
     """Send a single Junction health event through IoT Hub"""
     
@@ -320,6 +691,16 @@ async def send_junction_event(client, event_num: int, event_type: str, user_id: 
         'body_temperature': generate_body_temperature_event,
         'glucose': generate_glucose_event,
         'heart_rate_variability': generate_heart_rate_variability_event,
+        'diastolic_blood_pressure': generate_diastolic_blood_pressure_event,
+        'resting_heart_rate': generate_resting_heart_rate_event,
+        'min_heart_rate': generate_min_heart_rate_event,
+        'max_heart_rate': generate_max_heart_rate_event,
+        'afib_detection': generate_afib_detection_event,
+        'steps': generate_steps_event,
+        'calories': generate_calories_event,
+        'distance': generate_distance_event,
+        'sleep': generate_sleep_event,
+        'location': generate_location_event,
     }
     
     event_generator = event_map.get(event_type, generate_heart_rate_event)
@@ -366,14 +747,24 @@ async def main():
         ]
         
         event_types = [
-            'heart_rate',           # 8867-4
-            'blood_pressure',       # 8480-6
-            'body_weight',          # 29463-7
-            'oxygen_saturation',    # 59408-5
-            'respiration_rate',     # 9279-1
-            'body_temperature',     # 8310-5
-            'glucose',              # 2339-0
-            'heart_rate_variability' # 80404-7
+            'heart_rate',               # V1: 8867-4
+            'blood_pressure',           # V2: 8480-6
+            'body_weight',              # V3: 29463-7
+            'oxygen_saturation',        # V4: 59408-5
+            'respiration_rate',         # V5: 9279-1
+            'body_temperature',         # V6: 8310-5
+            'glucose',                  # V7: 2339-0
+            'heart_rate_variability',   # V8: 80404-7
+            'diastolic_blood_pressure', # V9: 8462-4
+            'resting_heart_rate',       # V10: 8418-4
+            'min_heart_rate',           # V11: 8638-5
+            'max_heart_rate',           # V12: 8639-3
+            'afib_detection',           # V13: 80358-0
+            'steps',                    # A1: 55411-3
+            'calories',                 # A2: 41981-2
+            'distance',                 # A3: 8466-5
+            'sleep',                    # S1: 93831-0
+            'location',                 # L1: 33018-7
         ]
         total_events = 0
         results = []
@@ -390,12 +781,12 @@ async def main():
         
         logger.info('-' * 70)
         
-        # Summary
+        # Summary: 18 event types × 2 users = 36 events
         successful = sum(results)
         logger.info(f'Results: {successful}/{total_events} events sent successfully')
         
         if successful == total_events:
-            logger.info('✅ All Junction telemetry events sent')
+            logger.info('✅ All 18 Junction LOINC attributes sent (13 Vitals + 3 Activity + 1 Sleep + 1 Location)')
         else:
             logger.warning(f'⚠️  Only {successful}/{total_events} events sent')
         
