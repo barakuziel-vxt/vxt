@@ -96,31 +96,22 @@ async def send_telemetry_event(client, event_num: int, device_id: str = 'test-de
             'source': {'label': 'N2KToSignalK', 'src': device_id},
             'timestamp': ts,
             'values': [
-                # Navigation (8)
+                # Navigation (6)
                 {'path': 'navigation.position', 'value': {'latitude': lat, 'longitude': lon}},
-                {'path': 'navigation.latitude', 'value': lat},
-                {'path': 'navigation.longitude', 'value': lon},
                 {'path': 'navigation.headingMagnetic', 'value': heading_magnetic},
                 {'path': 'navigation.headingTrue', 'value': heading_true},
                 {'path': 'navigation.courseOverGround', 'value': cog},
                 {'path': 'navigation.speedOverGround', 'value': sog},
                 {'path': 'navigation.speedThroughWater', 'value': stw},
                 
-                # Environmental (5)
+                # Environmental (3)
                 {'path': 'environment.wind.speedApparent', 'value': wind_speed_apparent},
                 {'path': 'environment.wind.directionApparent', 'value': wind_dir_apparent},
                 {'path': 'environment.water.temperature', 'value': water_temp_k},
-                {'path': 'environment.outside.temperature', 'value': air_temp_k},
-                {'path': 'environment.outside.pressure', 'value': pressure_pa},
                 
-                # Engine (3)
+                # Engine (2)
                 {'path': 'propulsion.main.revolutions', 'value': rpm},
-                {'path': 'propulsion.main.temperature', 'value': engine_temp_k},
                 {'path': 'propulsion.main.oilPressure', 'value': oil_pressure_pa},
-                
-                # Electrical (2)
-                {'path': 'electrical.dc.houseBattery.voltage', 'value': battery_voltage},
-                {'path': 'electrical.dc.houseBattery.current', 'value': battery_current},
                 
                 # Tanks (3)
                 {'path': 'tanks.fuelTank.level', 'value': fuel_level},
@@ -132,7 +123,7 @@ async def send_telemetry_event(client, event_num: int, device_id: str = 'test-de
 
     payload = json.dumps(telemetry)
 
-    logger.info(f'[ENTITY {device_id} EVENT {event_num}] Sending 21-attribute SignalK telemetry...')
+    logger.info(f'[ENTITY {device_id} EVENT {event_num}] Sending 15-attribute SignalK telemetry...')
     logger.debug(f'  Payload: {payload}')
 
     try:
