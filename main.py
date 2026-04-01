@@ -2106,7 +2106,7 @@ def delete_entity(id: str):
 # ============================================================================
 
 @app.get("/api/telemetry/latest/{entity_id}")
-async def get_latest_telemetry(entity_id: str):
+def get_latest_telemetry(entity_id: str):
     """Get the latest telemetry value for each attribute for an entity"""
     try:
         conn = get_db_connection()
@@ -2178,7 +2178,7 @@ async def get_latest_telemetry(entity_id: str):
 
 
 @app.get("/api/telemetry/range/{entity_id}")
-async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
+def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
     """Get telemetry data for an entity within a date range, formatted for charting"""
     try:
         print(f"\n{'='*60}")
@@ -2288,7 +2288,7 @@ async def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
 
 
 @app.get("/api/events/range/{entity_id}")
-async def get_events_range(entity_id: str, startDate: str, endDate: str):
+def get_events_range(entity_id: str, startDate: str, endDate: str):
     """Get events for an entity within a date range, ordered by risk and date"""
     try:
         from datetime import datetime
