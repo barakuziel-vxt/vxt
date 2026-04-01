@@ -2115,9 +2115,8 @@ def get_latest_telemetry(entity_id: str):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Get latest telemetry for each attribute using ROW_NUMBER
-        # Inline entity_id to avoid mssql-python 1.4.0 Linux parameter binding bug
-        query = f"""
+        # Use ? placeholder with varargs execute (matches working endpoint pattern)
+        query = """
         WITH LatestPerAttribute AS (
           SELECT
             eta.entityTypeAttributeId,
@@ -2135,7 +2134,7 @@ def get_latest_telemetry(entity_id: str):
           JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
           LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE et.entityId = '{entity_id}'
+          WHERE et.entityId = ?
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
         SELECT 
@@ -2154,7 +2153,8 @@ def get_latest_telemetry(entity_id: str):
         ORDER BY entityTypeAttributeCode
         """
         
-        cur.execute(query)
+        print(f"[LATESTTEL] entity_id={entity_id!r}")
+        cur.execute(query, entity_id)
         rows = cur.fetchall()
         cur.close()
         return_db_connection(conn)
@@ -2234,8 +2234,8 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         if not re.match(r'^[a-zA-Z0-9_-]+$', entity_id):
             raise HTTPException(status_code=400, detail="Invalid entity_id")
         
-        # Inline values to avoid mssql-python 1.4.0 Linux parameter binding bug
-        query = f"""
+        # Use ? placeholder with varargs execute (matches working endpoint pattern)
+        query = """
         SELECT
             et.entityTypeAttributeId,
             eta.entityTypeAttributeCode,
@@ -2245,13 +2245,13 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             et.longitude
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-        WHERE et.entityId = '{entity_id}'
-          AND et.endTimestampUTC >= '{start_sql}'
-          AND et.endTimestampUTC <= '{end_sql}'
+        WHERE et.entityId = ?
+          AND et.endTimestampUTC >= ?
+          AND et.endTimestampUTC <= ?
         ORDER BY et.endTimestampUTC ASC
         """
         
-        cur.execute(query)
+        cur.execute(query, entity_id, start_sql, end_sql)
         rows = cur.fetchall()
         print(f"OK: Query executed. Raw row count: {len(rows)}")
         cur.close()
@@ -2318,8 +2318,8 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Inline values to avoid mssql-python 1.4.0 Linux parameter binding bug
-        query = f"""
+        # Use ? placeholder with varargs execute (matches working endpoint pattern)
+        query = """
         SELECT
             el.eventLogId,
             el.eventId,
@@ -2333,9 +2333,9 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EventLog el
         LEFT JOIN dbo.Event e ON el.eventId = e.eventId
         LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
-        WHERE el.entityId = '{entity_id}'
-          AND el.triggeredAt >= '{start_sql}'
-          AND el.triggeredAt <= '{end_sql}'
+        WHERE el.entityId = ?
+          AND el.triggeredAt >= ?
+          AND el.triggeredAt <= ?
         GROUP BY el.eventLogId, el.eventId, e.eventCode, e.eventDescription, 
                  e.risk, el.cumulativeScore, el.probability, el.triggeredAt
         ORDER BY CASE e.risk
@@ -2347,7 +2347,7 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
                  el.triggeredAt DESC
         """
         
-        cur.execute(query)
+        cur.execute(query, entity_id, start_sql, end_sql)
         rows = cur.fetchall()
         cur.close()
         return_db_connection(conn)
