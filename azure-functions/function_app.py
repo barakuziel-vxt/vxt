@@ -171,7 +171,7 @@ class SimpleEventProcessor:
                             WHERE e.entityId = ?
                               AND eta.entityTypeAttributeCode = ?
                               AND eta.active = 'Y'
-                        """, (evt.entity_id, evt.attr_code))
+                        """, (int(evt.entity_id), evt.attr_code))
 
                         row = lookup_cursor.fetchone()
                         if not row:
@@ -195,7 +195,7 @@ class SimpleEventProcessor:
                                       'startTimestampUTC', 'endTimestampUTC',
                                       'ingestionTimestampUTC', 'providerDevice']
                         ins_vals   = ['?', '?', '?', '?', '?', '?']
-                        ins_params = [evt.entity_id,
+                        ins_params = [int(evt.entity_id),
                                       int(attr_id),
                                       ts,
                                       ts,
