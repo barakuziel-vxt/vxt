@@ -525,7 +525,8 @@ export default function EntityTelemetryAnalyticsPage() {
   const fetchEventDetails = async (eventLogId) => {
     try {
       setEventDetailsLoading(true);
-      const url = `/api/eventlog/${eventLogId}/details`;
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const url = `${baseUrl}/api/eventlog/${eventLogId}/details`;
       console.log(`Fetching event details from: ${url}`);
       const response = await fetch(url, {
         method: 'GET',
