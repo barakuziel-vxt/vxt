@@ -156,14 +156,17 @@ class SimpleEventProcessor:
             lookup_cursor = conn.cursor()
 
             try:
-                # ingestionTimestampUTC is a Python datetime — mssql-python
-                # requires datetime objects for DATETIME2 columns, not ISO strings.
-                ingestion_ts: datetime = datetime.utcnow()
+                # mssql-python 1.4 type binding notes:
+                # - Pass ALL params as str; use SQL CAST/CONVERT for type coercion.
+                # - Passing datetime/int/float natively can silently bind as NULL
+                #   when the driver's type-inference mismatches the target column.
+                # - Never pass None — omit the column entirely instead.
+                ingestion_ts_str: str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')
 
                 for evt in normalized_events:
                     try:
                         # Filter: EntityTypeAttribute must exist for this entity + code
-                        # mssql_python 1.4: use ? positional params with native Python types
+                        # Both columns are NVARCHAR — pass str params directly.
                         lookup_cursor.execute("""
                             SELECT eta.entityTypeAttributeId
                             FROM EntityTypeAttribute eta
@@ -171,7 +174,7 @@ class SimpleEventProcessor:
                             WHERE e.entityId = ?
                               AND eta.entityTypeAttributeCode = ?
                               AND eta.active = 'Y'
-                        """, (int(evt.entity_id), evt.attr_code))
+                        """, (str(evt.entity_id), str(evt.attr_code)))
 
                         row = lookup_cursor.fetchone()
                         if not row:
@@ -182,43 +185,46 @@ class SimpleEventProcessor:
                             self.stats['records_skipped'] += 1
                             continue
 
-                        attr_id = int(row[0])
+                        attr_id_str: str = str(int(row[0]))
 
-                        # mssql_python 1.4: use ? positional params with native Python types.
-                        # - Pass datetime directly for DATETIME2 (no strftime/CONVERT needed)
-                        # - Pass int for INT, float for FLOAT
-                        # - Never pass None — omit the column instead
-                        ts: datetime = evt.timestamp
+                        # Format timestamps as ISO-8601 strings; SQL CONVERT handles the rest.
+                        ts_str: str = evt.timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')
 
-                        # Required (non-nullable) columns — always present
+                        # Required (non-nullable) columns — always present.
+                        # Use SQL CAST/CONVERT so mssql-python only ever binds str → NVARCHAR.
                         ins_cols   = ['entityId', 'entityTypeAttributeId',
                                       'startTimestampUTC', 'endTimestampUTC',
                                       'ingestionTimestampUTC', 'providerDevice']
-                        ins_vals   = ['?', '?', '?', '?', '?', '?']
-                        ins_params = [int(evt.entity_id),
-                                      int(attr_id),
-                                      ts,
-                                      ts,
-                                      ingestion_ts,
-                                      evt.provider_device]
+                        ins_vals   = ['?',
+                                      'CAST(? AS INT)',
+                                      'CONVERT(DATETIME2,?,126)',
+                                      'CONVERT(DATETIME2,?,126)',
+                                      'CONVERT(DATETIME2,?,126)',
+                                      '?']
+                        ins_params = [str(evt.entity_id),
+                                      attr_id_str,
+                                      ts_str,
+                                      ts_str,
+                                      ingestion_ts_str,
+                                      str(evt.provider_device)]
 
                         # Optional (nullable) columns — only add when not None
                         if evt.numeric_value is not None:
                             ins_cols.append('numericValue')
-                            ins_vals.append('?')
-                            ins_params.append(float(evt.numeric_value))
+                            ins_vals.append('CAST(? AS FLOAT)')
+                            ins_params.append(str(evt.numeric_value))
                         if evt.string_value is not None:
                             ins_cols.append('stringValue')
                             ins_vals.append('?')
                             ins_params.append(str(evt.string_value))
                         if evt.latitude is not None:
                             ins_cols.append('latitude')
-                            ins_vals.append('?')
-                            ins_params.append(float(evt.latitude))
+                            ins_vals.append('CAST(? AS FLOAT)')
+                            ins_params.append(str(evt.latitude))
                         if evt.longitude is not None:
                             ins_cols.append('longitude')
-                            ins_vals.append('?')
-                            ins_params.append(float(evt.longitude))
+                            ins_vals.append('CAST(? AS FLOAT)')
+                            ins_params.append(str(evt.longitude))
 
                         ins_sql = (
                             f"INSERT INTO dbo.EntityTelemetry "
@@ -233,7 +239,7 @@ class SimpleEventProcessor:
                     except Exception as e:
                         logger.warning(
                             f"[FAIL] Insert [{evt.attr_code}] entity={evt.entity_id}: "
-                            f"{str(e)[:120]}"
+                            f"{str(e)[:500]}"
                         )
                         self.stats['records_failed'] += 1
 
