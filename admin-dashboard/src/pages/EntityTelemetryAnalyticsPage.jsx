@@ -64,8 +64,8 @@ export default function EntityTelemetryAnalyticsPage() {
   const loadEntities = async () => {
     try {
       setLoading(true);
-      console.log('Fetching entities from /entities...');
-      const response = await fetch('/entities', {
+      console.log('Fetching entities from /api/entities...');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/entities`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
