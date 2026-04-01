@@ -276,7 +276,7 @@ export default function EntityTelemetryAnalyticsPage() {
 
       // Load latest values
       const latestRes = await fetch(
-        `/api/telemetry/latest/${selectedEntity}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/telemetry/latest/${selectedEntity}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!latestRes.ok) {
@@ -288,7 +288,7 @@ export default function EntityTelemetryAnalyticsPage() {
       }
 
       // Load telemetry data for chart
-      const telemetryUrl = `/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
+      const telemetryUrl = `${import.meta.env.VITE_API_BASE_URL}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
       console.log(`Fetching telemetry from: ${telemetryUrl}`);
       const telemetryRes = await fetch(telemetryUrl, { headers: { 'Content-Type': 'application/json' } });
       if (!telemetryRes.ok) {
@@ -306,7 +306,7 @@ export default function EntityTelemetryAnalyticsPage() {
       }
 
       // Load events
-      const eventsUrl = `/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
+      const eventsUrl = `${import.meta.env.VITE_API_BASE_URL}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(startDateUTC)}&endDate=${encodeURIComponent(endDateUTC)}`;
       console.log(`Fetching events from: ${eventsUrl}`);
       const eventsRes = await fetch(eventsUrl, { headers: { 'Content-Type': 'application/json' } });
       if (!eventsRes.ok) {
@@ -582,8 +582,8 @@ export default function EntityTelemetryAnalyticsPage() {
       }
       
       // For TSQL/NEWS functions: fetch predefined scoring rules
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const response = await fetch(`${baseUrl}/entity-attributes/${attributeCode}/scores`);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${baseUrl}/api/entity-attributes/${attributeCode}/scores`);
       if (!response.ok) {
         throw new Error(`Failed to load score details: HTTP ${response.status}`);
       }
