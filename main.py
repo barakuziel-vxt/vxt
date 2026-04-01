@@ -2109,12 +2109,15 @@ def delete_entity(id: str):
 def get_latest_telemetry(entity_id: str):
     """Get the latest telemetry value for each attribute for an entity"""
     try:
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', entity_id):
+            raise HTTPException(status_code=400, detail="Invalid entity_id")
         conn = get_db_connection()
         cur = conn.cursor()
         
         # Get latest telemetry for each attribute using ROW_NUMBER
-        # This ensures we get the absolute latest timestamp for each attribute
-        query = """
+        # Inline entity_id to avoid mssql-python 1.4.0 Linux parameter binding bug
+        query = f"""
         WITH LatestPerAttribute AS (
           SELECT
             eta.entityTypeAttributeId,
@@ -2132,7 +2135,7 @@ def get_latest_telemetry(entity_id: str):
           JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
           LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE et.entityId = ?
+          WHERE et.entityId = '{entity_id}'
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
         SELECT 
@@ -2151,7 +2154,7 @@ def get_latest_telemetry(entity_id: str):
         ORDER BY entityTypeAttributeCode
         """
         
-        cur.execute(query, (entity_id,))
+        cur.execute(query)
         rows = cur.fetchall()
         cur.close()
         return_db_connection(conn)
@@ -2218,17 +2221,21 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             start_dt = dt_class.fromisoformat(start_str)
             end_dt = dt_class.fromisoformat(end_str)
             
-            # Keep as datetime objects - mssql-python handles datetime binding natively
-            start_sql = start_dt
-            end_sql = end_dt
+            # Format as SQL Server datetime string (safe - comes from fromisoformat)
+            start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+            end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S')
             
             print(f"   Parsed dates - Start: {start_sql}, End: {end_sql}")
         except Exception as parse_err:
             print(f"ERROR: Date parsing error: {parse_err}")
             raise HTTPException(status_code=400, detail=f"Invalid date format: {str(parse_err)}")
         
-        # Get telemetry data in date range including location data
-        query = """
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', entity_id):
+            raise HTTPException(status_code=400, detail="Invalid entity_id")
+        
+        # Inline values to avoid mssql-python 1.4.0 Linux parameter binding bug
+        query = f"""
         SELECT
             et.entityTypeAttributeId,
             eta.entityTypeAttributeCode,
@@ -2238,13 +2245,13 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             et.longitude
         FROM dbo.EntityTelemetry et
         JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-        WHERE et.entityId = ?
-          AND et.endTimestampUTC >= ?
-          AND et.endTimestampUTC <= ?
+        WHERE et.entityId = '{entity_id}'
+          AND et.endTimestampUTC >= '{start_sql}'
+          AND et.endTimestampUTC <= '{end_sql}'
         ORDER BY et.endTimestampUTC ASC
         """
         
-        cur.execute(query, (entity_id, start_sql, end_sql))
+        cur.execute(query)
         rows = cur.fetchall()
         print(f"OK: Query executed. Raw row count: {len(rows)}")
         cur.close()
@@ -2298,17 +2305,21 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
         start_dt = datetime.fromisoformat(startDate.replace('Z', '+00:00'))
         end_dt = datetime.fromisoformat(endDate.replace('Z', '+00:00'))
         
-        # Pass datetime objects directly - mssql-python handles datetime binding natively
-        start_sql = start_dt
-        end_sql = end_dt
+        # Format as SQL Server datetime string (safe - comes from fromisoformat)
+        start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+        end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S')
         
         print(f"Events query range - Start: {start_sql}, End: {end_sql}")
+        
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', entity_id):
+            raise HTTPException(status_code=400, detail="Invalid entity_id")
         
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Get events with details and event information
-        query = """
+        # Inline values to avoid mssql-python 1.4.0 Linux parameter binding bug
+        query = f"""
         SELECT
             el.eventLogId,
             el.eventId,
@@ -2322,9 +2333,9 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
         FROM dbo.EventLog el
         LEFT JOIN dbo.Event e ON el.eventId = e.eventId
         LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
-        WHERE el.entityId = ?
-          AND el.triggeredAt >= ?
-          AND el.triggeredAt <= ?
+        WHERE el.entityId = '{entity_id}'
+          AND el.triggeredAt >= '{start_sql}'
+          AND el.triggeredAt <= '{end_sql}'
         GROUP BY el.eventLogId, el.eventId, e.eventCode, e.eventDescription, 
                  e.risk, el.cumulativeScore, el.probability, el.triggeredAt
         ORDER BY CASE e.risk
@@ -2336,7 +2347,7 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
                  el.triggeredAt DESC
         """
         
-        cur.execute(query, (entity_id, start_sql, end_sql))
+        cur.execute(query)
         rows = cur.fetchall()
         cur.close()
         return_db_connection(conn)
