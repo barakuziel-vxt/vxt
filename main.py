@@ -276,6 +276,46 @@ def read_root(mmsi: str = None, limit: int = 50):
     return {"status": "Online", "message": "Boat Telemetry API is running"}
 
 
+@app.get("/api/debug/telemetry/{entity_id}")
+def debug_telemetry(entity_id: str):
+    """Diagnostic: isolate mssql-python query failures"""
+    results = {}
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT TOP 1 entityId FROM dbo.EntityTelemetry")
+        results["step1_no_params"] = "ok"
+    except Exception as e:
+        results["step1_no_params"] = f"FAIL: {e}"
+    try:
+        cur.execute("SELECT COUNT(*) FROM dbo.EntityTelemetry WHERE entityId = ?", entity_id)
+        row = cur.fetchone()
+        results["step2_one_param"] = f"ok count={row[0]}"
+    except Exception as e:
+        results["step2_one_param"] = f"FAIL: {e}"
+    try:
+        cur.execute("SELECT TOP 5 entityTypeAttributeId, numericValue, endTimestampUTC FROM dbo.EntityTelemetry WHERE entityId = ? ORDER BY endTimestampUTC DESC", entity_id)
+        rows = cur.fetchall()
+        results["step3_select_cols"] = f"ok rows={len(rows)}"
+    except Exception as e:
+        results["step3_select_cols"] = f"FAIL: {e}"
+    try:
+        cur.execute("SELECT TOP 5 et.entityTypeAttributeId, eta.entityTypeAttributeCode FROM dbo.EntityTelemetry et JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId WHERE et.entityId = ?", entity_id)
+        rows = cur.fetchall()
+        results["step4_join"] = f"ok rows={len(rows)}"
+    except Exception as e:
+        results["step4_join"] = f"FAIL: {e}"
+    try:
+        cur.execute("SELECT COUNT(*) FROM dbo.EntityTelemetry WHERE entityId = ? AND endTimestampUTC >= ? AND endTimestampUTC <= ?", entity_id, "2026-01-01 00:00:00", "2026-12-31 23:59:59")
+        row = cur.fetchone()
+        results["step5_three_params"] = f"ok count={row[0]}"
+    except Exception as e:
+        results["step5_three_params"] = f"FAIL: {e}"
+    cur.close()
+    return_db_connection(conn)
+    return results
+
+
 @app.get("/health/db")
 def health_check_db():
     """Database connectivity diagnostics endpoint with detailed logging"""
