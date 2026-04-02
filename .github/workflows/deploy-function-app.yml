@@ -88,7 +88,8 @@ jobs:
             EVENT_HUB_NAME="events" \
             AzureWebJobsStorage="${STORAGE_CONN}" \
             IoTHubConnectionString="${IOT_CONN}" \
-            ENABLE_INIT_SCRIPTS="1"
+            ENABLE_INIT_SCRIPTS="1" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="false"
         
         echo "✅ All app settings configured"
         echo "⚡ App will restart automatically to apply settings"
