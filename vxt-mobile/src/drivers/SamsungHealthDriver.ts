@@ -1,4 +1,4 @@
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Platform } from 'react-native';
 import { BaseDriver } from '../core/BaseDriver';
 import { DriverError } from '../core/types/TelemetryProvider';
 import type { TelemetryData, DriverCapabilities } from '../core/types';
@@ -9,7 +9,7 @@ const { SamsungHealthModule } = NativeModules as {
   SamsungHealthModule: {
     requestPermissions(): Promise<boolean>;
     isAvailable(): Promise<boolean>;
-    startDataCollection(): Promise<void>;
+    startDataCollection(intervalMs: number): Promise<void>;
     stopDataCollection(): Promise<void>;
     // Core vitals
     getLatestHeartRate(): Promise<RawSamsungSample>;
@@ -78,10 +78,12 @@ export class SamsungHealthDriver extends BaseDriver {
     requiresBackgroundExecution: true,
   };
 
-  private emitter: NativeEventEmitter | null = null;
+  private emitter: ReturnType<typeof DeviceEventEmitter.addListener> | null = null;
   private samplingTimer: ReturnType<typeof setInterval> | null = null;
   /** Last values sent — used for delta (changed-only) transmission */
   private lastSent: Record<string, number> = {};
+  /** Last Samsung Health recording timestamp per metric (epoch ms) — skip if not newer */
+  private lastTimestamp: Record<string, number> = {};
 
   // Sampling interval: default 5 s (overridable via GatewayConfig)
   constructor(
@@ -131,10 +133,11 @@ export class SamsungHealthDriver extends BaseDriver {
   }
 
   protected async doStart(): Promise<void> {
-    await SamsungHealthModule.startDataCollection();
+    // Pass the interval to Kotlin so the foreground service Handler fires at the
+    // correct rate — this runs reliably even when the screen is off, unlike JS setInterval.
+    await SamsungHealthModule.startDataCollection(this.sampleIntervalMs);
 
-    // Set up polling loop – Samsung Health SDK is pull-based, not push
-    this.samplingTimer = setInterval(async () => {
+    this.emitter = DeviceEventEmitter.addListener('GatewaySampleTick', async () => {
       try {
         const sample = await this.collectAllMetrics();
         console.log('[SamsungHealthDriver] sample:', sample ? JSON.stringify(Object.keys(sample.measurements)) : 'null');
@@ -144,10 +147,14 @@ export class SamsungHealthDriver extends BaseDriver {
           new DriverError(this.displayName, 'SENSOR_ERROR', String(err), err),
         );
       }
-    }, this.sampleIntervalMs);
+    });
   }
 
   protected async doStop(): Promise<void> {
+    if (this.emitter) {
+      this.emitter.remove();
+      this.emitter = null;
+    }
     if (this.samplingTimer) {
       clearInterval(this.samplingTimer);
       this.samplingTimer = null;
@@ -210,20 +217,21 @@ export class SamsungHealthDriver extends BaseDriver {
       ['80358-0', afib],
     ];
 
-    // Collect all available readings
-    const allReadings: Record<string, number> = {};
-    for (const [code, result] of candidates) {
-      if (result.status === 'fulfilled' && result.value?.value != null) {
-        allReadings[code] = result.value.value;
-      }
-    }
-
-    // Delta: only include values that changed since last transmission
+    // Delta: include only metrics where Samsung Health recorded a newer reading
+    // (sample.timestamp > lastTimestamp[code]).  When real SDK data is identical
+    // on two consecutive polls the timestamp does NOT advance, so we skip it.
+    // Fallback: if timestamp is unavailable (stub edge-case) fall back to value diff.
     const measurements: TelemetryData['measurements'] = {};
-    for (const [code, value] of Object.entries(allReadings)) {
-      if (this.lastSent[code] !== value) {
+    for (const [code, result] of candidates) {
+      if (result.status !== 'fulfilled' || result.value?.value == null) continue;
+      const { value, timestamp: sampleTs } = result.value;
+      const prevTs = this.lastTimestamp[code] ?? 0;
+      // If the sensor gave us a real timestamp, use it; otherwise fall back to value diff
+      const isNewer = sampleTs > 0 ? sampleTs > prevTs : this.lastSent[code] !== value;
+      if (isNewer) {
         measurements[code] = value;
         this.lastSent[code] = value;
+        if (sampleTs > 0) this.lastTimestamp[code] = sampleTs;
       }
     }
 

@@ -33,3 +33,6 @@ Thumbs.db
 # Azure SQL data exports
 azure_data_*.sql
 *.msi
+
+# Temp/scratch folders (e.g. Gradle distribution accidentally placed here)
+vxt-temp/

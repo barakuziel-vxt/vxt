@@ -33,10 +33,11 @@ class SamsungHealthModule(
     }
 
     @ReactMethod
-    fun startDataCollection(promise: Promise) {
+    fun startDataCollection(intervalMs: Double, promise: Promise) {
         if (collectingData) { promise.resolve(null); return }
         val intent = Intent(reactContext, GatewayForegroundService::class.java)
             .setAction(GatewayForegroundService.ACTION_START)
+            .putExtra(GatewayForegroundService.EXTRA_SAMPLE_INTERVAL_MS, intervalMs.toLong())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             reactContext.startForegroundService(intent)
         } else {
