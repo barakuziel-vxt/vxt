@@ -1,0 +1,18 @@
+{
+  "extends": "@tsconfig/react-native/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "baseUrl": ".",
+    "paths": {
+      "@core/*":    ["src/core/*"],
+      "@drivers/*": ["src/drivers/*"],
+      "@services/*":["src/services/*"],
+      "@store/*":   ["src/store/*"],
+      "@screens/*": ["src/screens/*"]
+    }
+  },
+  "include": ["src/**/*", "App.tsx", "index.js"],
+  "exclude": ["node_modules", "android", "ios"]
+}
