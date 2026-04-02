@@ -1,0 +1,25 @@
+# Secrets — never commit
+src/config/secrets.ts
+
+# React Native build outputs
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/raw/
+
+# Node
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Metro bundler cache
+.metro-health-check*
+
+# Temp
+bundle_stdout.txt
+bundle_stderr.txt
