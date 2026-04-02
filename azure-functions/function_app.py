@@ -47,15 +47,22 @@ logger.info("[STARTUP] Azure Function initialized (lazy loading mode for fast co
 def auto_detect_provider(event: Dict) -> str:
     """
     Detect protocol from event payload structure so a single function handles
-    both SignalK (maritime) and Junction (health) events — no PROVIDER_NAME env needed.
+    all event types — no PROVIDER_NAME env needed.
 
-    Junction events:  { "user": {...}, "event_type": "8867-4", ... }
-    SignalK events:   { "context": "vessels.urn:...", "updates": [...] }
+    Junction events:       { "user": {...}, "event_type": "8867-4", ... }
+    SignalK events:        { "context": "vessels.urn:...", "updates": [...] }
+    SamsungHealth events:  { "sourceDriver": "SamsungHealth", "measurements": {...}, "entityId": "..." }
     """
+    # SamsungHealth (VXT Mobile gateway, device SW5) — check FIRST, most specific
+    if 'sourceDriver' in event and 'measurements' in event:
+        return 'SamsungHealth'
+    # Junction health vitals
     if 'user' in event and 'event_type' in event:
         return 'Junction'
+    # SignalK maritime
     if 'context' in event and 'updates' in event:
         return 'N2KToSignalK'
+    logger.warning(f"[AutoDetect] Unrecognised payload keys: {list(event.keys())} — defaulting to SignalK")
     return 'N2KToSignalK'  # default fallback
 
 
@@ -165,7 +172,7 @@ class SimpleEventProcessor:
             detected_provider = auto_detect_provider(event)
             adapter = get_adapter(detected_provider)
             normalized_events = adapter.parse(event)
-            logger.debug(f"[PROC] Auto-detected protocol: {detected_provider}")
+            logger.info(f"[PROC] Detected: {detected_provider} | keys: {list(event.keys())[:6]}")
 
             if not normalized_events:
                 logger.info("[PROC] No events extracted from message")

@@ -324,13 +324,79 @@ class JunctionAdapter:
 
 
 # ---------------------------------------------------------------------------
+# SamsungHealth Adapter  (Samsung Health phone gateway — device SW5)
+# ---------------------------------------------------------------------------
+
+class SamsungHealthAdapter:
+    """
+    Parses the lightweight MQTT JSON emitted by the VXT Mobile React-Native
+    gateway (device ID: SW5).  This is the canonical format produced by
+    SamsungHealthDriver and forwarded through MqttTransport.
+
+    Wire format:
+    {
+      "timestamp":    "2026-04-02T10:30:00.000Z",
+      "sourceDriver": "SamsungHealth",
+      "entityId":     "<userId>",
+      "measurements": {
+        "8867-4":  72,    -- heart rate bpm      (LOINC)
+        "8480-6":  120,   -- blood pressure sys  (LOINC)
+        "55411-3": 3210,  -- step count          (LOINC)
+        "59408-5": 98.0,  -- SpO2 %              (LOINC)
+        "8310-5":  36.7,  -- body temperature C  (LOINC)
+        "2339-0":  95.0   -- blood glucose mg/dL (LOINC)
+      },
+      "metadata": { "platform": "android" }
+    }
+
+    Each key in `measurements` maps 1-to-1 to an entityTypeAttributeCode
+    in the database — exactly as Junction LOINC codes do, so no DB
+    changes are needed as long as the EntityTypeAttribute rows exist.
+    """
+
+    def parse(self, message: Dict) -> List[NormalizedEvent]:
+        events: List[NormalizedEvent] = []
+        try:
+            entity_id = str(message.get('entityId', '')).strip()
+            if not entity_id or entity_id == 'user_unknown':
+                logger.warning("[SamsungHealth] Missing or unset entityId — frame dropped")
+                return events
+
+            ts = _parse_dt(message.get('timestamp'))
+            device = str(message.get('sourceDriver', 'SamsungHealth'))
+            measurements = message.get('measurements', {})
+
+            if not isinstance(measurements, dict) or not measurements:
+                logger.warning(f"[SamsungHealth] Empty measurements for entity {entity_id}")
+                return events
+
+            for attr_code, raw_value in measurements.items():
+                numeric = _safe_float(raw_value)
+                if numeric is None:
+                    continue
+                events.append(NormalizedEvent(
+                    entity_id=entity_id,
+                    timestamp=ts,
+                    attr_code=str(attr_code),
+                    numeric_value=numeric,
+                    provider_device=device,
+                ))
+
+        except Exception as e:
+            logger.error(f"[SamsungHealth] Parse error: {e}")
+        return events
+
+
+# ---------------------------------------------------------------------------
 # Adapter registry — add new protocols here
 # ---------------------------------------------------------------------------
 
 ADAPTERS = {
-    'signalk':  SignalKAdapter(),
-    'n2ktosignalk': SignalKAdapter(),  # alias
-    'junction': JunctionAdapter(),
+    'signalk':       SignalKAdapter(),
+    'n2ktosignalk':  SignalKAdapter(),       # alias
+    'junction':      JunctionAdapter(),
+    'samsunghealth': SamsungHealthAdapter(), # Samsung Health phone gateway (device SW5)
+    'vxtmobile':     SamsungHealthAdapter(), # legacy alias
 }
 
 
