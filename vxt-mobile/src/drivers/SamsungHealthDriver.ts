@@ -11,12 +11,23 @@ const { SamsungHealthModule } = NativeModules as {
     isAvailable(): Promise<boolean>;
     startDataCollection(): Promise<void>;
     stopDataCollection(): Promise<void>;
+    // Core vitals
     getLatestHeartRate(): Promise<RawSamsungSample>;
-    getLatestBloodPressure(): Promise<RawSamsungSample>;
+    getLatestBloodPressure(): Promise<RawSamsungSample>;        // SBP
+    getLatestDiastolicBloodPressure(): Promise<RawSamsungSample>; // DBP
     getLatestStepCount(): Promise<RawSamsungSample>;
     getLatestSpo2(): Promise<RawSamsungSample>;
     getLatestBodyTemperature(): Promise<RawSamsungSample>;
     getLatestGlucose(): Promise<RawSamsungSample>;
+    getLatestAvgGlucose(): Promise<RawSamsungSample>;
+    // Derived heart metrics
+    getLatestRestingHeartRate(): Promise<RawSamsungSample>;
+    getLatestHrv(): Promise<RawSamsungSample>;
+    getLatestHrMin(): Promise<RawSamsungSample>;
+    getLatestHrMax(): Promise<RawSamsungSample>;
+    // Respiratory / cardiac
+    getLatestRespirationRate(): Promise<RawSamsungSample>;
+    getLatestAfib(): Promise<RawSamsungSample>;
   };
 };
 
@@ -41,12 +52,23 @@ let configuredUserId = 'user_unknown';
  * sensors) through the Native Module bridge (SamsungHealthModule.kt).
  *
  * LOINC codes map to these Samsung-specific data types:
- *   8867-4  → HeartRate
- *   8480-6  → BloodPressureSystolic
- *   55411-3 → StepCount (daily)
- *   59408-5 → SpO2 (oxygen saturation)
- *   8310-5  → BodyTemperature
- *   2339-0  → BloodGlucose
+ *   8867-4  → Heart Rate
+ *   8480-6  → BP Systolic
+ *   8462-4  → BP Diastolic
+ *   55411-3 → Step Count (daily)
+ *   59408-5 → SpO2
+ *   8310-5  → Body Temperature
+ *   2339-0  → Blood Glucose
+ *   2345-7  → Average Glucose
+ *   8418-4  → Resting Heart Rate
+ *   80404-7 → Heart Rate Variability
+ *   8638-5  → HR Min
+ *   8639-3  → HR Max
+ *   9279-1  → Respiration Rate
+ *   80358-0 → AFib detection
+ *
+ * Only measurements whose value changed since the last transmission
+ * are included in each telemetry frame (delta mode).
  */
 export class SamsungHealthDriver extends BaseDriver {
   readonly displayName = 'Samsung Health';
@@ -58,6 +80,8 @@ export class SamsungHealthDriver extends BaseDriver {
 
   private emitter: NativeEventEmitter | null = null;
   private samplingTimer: ReturnType<typeof setInterval> | null = null;
+  /** Last values sent — used for delta (changed-only) transmission */
+  private lastSent: Record<string, number> = {};
 
   // Sampling interval: default 5 s (overridable via GatewayConfig)
   constructor(
@@ -142,46 +166,73 @@ export class SamsungHealthDriver extends BaseDriver {
   // ─── Data collection ───────────────────────────────────────────────────────
 
   /**
-   * Pulls the latest available reading from every metric type and
-   * merges them into a single TelemetryData frame.
-   * Uses Promise.allSettled so a missing sensor doesn't abort the batch.
+   * Pulls the latest reading from every supported metric and returns a
+   * frame containing ONLY measurements whose value changed since the
+   * last transmission (delta mode — saves bandwidth and DB writes).
+   * Uses Promise.allSettled so a missing sensor never aborts the batch.
    */
   private async collectAllMetrics(): Promise<TelemetryData | null> {
-    const [hr, bp, steps, spo2, temp, glucose] = await Promise.allSettled([
+    const [
+      hr, sbp, dbp, steps, spo2, temp,
+      glucose, avgGlucose, rhr, hrv, hrMin, hrMax, rr, afib,
+    ] = await Promise.allSettled([
       SamsungHealthModule.getLatestHeartRate(),
       SamsungHealthModule.getLatestBloodPressure(),
+      SamsungHealthModule.getLatestDiastolicBloodPressure(),
       SamsungHealthModule.getLatestStepCount(),
       SamsungHealthModule.getLatestSpo2(),
       SamsungHealthModule.getLatestBodyTemperature(),
       SamsungHealthModule.getLatestGlucose(),
+      SamsungHealthModule.getLatestAvgGlucose(),
+      SamsungHealthModule.getLatestRestingHeartRate(),
+      SamsungHealthModule.getLatestHrv(),
+      SamsungHealthModule.getLatestHrMin(),
+      SamsungHealthModule.getLatestHrMax(),
+      SamsungHealthModule.getLatestRespirationRate(),
+      SamsungHealthModule.getLatestAfib(),
     ]);
 
-    const measurements: TelemetryData['measurements'] = {};
+    // Map each settled result to its LOINC code
+    const candidates: Array<[string, PromiseSettledResult<RawSamsungSample>]> = [
+      ['8867-4',  hr],
+      ['8480-6',  sbp],
+      ['8462-4',  dbp],
+      ['55411-3', steps],
+      ['59408-5', spo2],
+      ['8310-5',  temp],
+      ['2339-0',  glucose],
+      ['2345-7',  avgGlucose],
+      ['8418-4',  rhr],
+      ['80404-7', hrv],
+      ['8638-5',  hrMin],
+      ['8639-3',  hrMax],
+      ['9279-1',  rr],
+      ['80358-0', afib],
+    ];
 
-    if (hr.status === 'fulfilled' && hr.value?.value != null) {
-      measurements['8867-4'] = hr.value.value;   // heart rate bpm
+    // Collect all available readings
+    const allReadings: Record<string, number> = {};
+    for (const [code, result] of candidates) {
+      if (result.status === 'fulfilled' && result.value?.value != null) {
+        allReadings[code] = result.value.value;
+      }
     }
-    if (bp.status === 'fulfilled' && bp.value?.value != null) {
-      measurements['8480-6'] = bp.value.value;   // systolic mmHg
-    }
-    if (steps.status === 'fulfilled' && steps.value?.value != null) {
-      measurements['55411-3'] = steps.value.value; // step count
-    }
-    if (spo2.status === 'fulfilled' && spo2.value?.value != null) {
-      measurements['59408-5'] = spo2.value.value;  // SpO2 %
-    }
-    if (temp.status === 'fulfilled' && temp.value?.value != null) {
-      measurements['8310-5'] = temp.value.value;   // body temp °C
-    }
-    if (glucose.status === 'fulfilled' && glucose.value?.value != null) {
-      measurements['2339-0'] = glucose.value.value; // glucose mg/dL
+
+    // Delta: only include values that changed since last transmission
+    const measurements: TelemetryData['measurements'] = {};
+    for (const [code, value] of Object.entries(allReadings)) {
+      if (this.lastSent[code] !== value) {
+        measurements[code] = value;
+        this.lastSent[code] = value;
+      }
     }
 
     if (Object.keys(measurements).length === 0) return null;
 
     // Use most recent reading timestamp as frame timestamp
+    const allResults = candidates.map(([, r]) => r);
     const latestTs = Math.max(
-      ...[hr, bp, steps, spo2, temp, glucose]
+      ...allResults
         .filter(r => r.status === 'fulfilled')
         .map(r => (r as PromiseFulfilledResult<RawSamsungSample>).value?.timestamp ?? 0),
     );

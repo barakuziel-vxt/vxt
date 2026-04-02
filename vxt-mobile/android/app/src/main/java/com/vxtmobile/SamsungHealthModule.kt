@@ -72,6 +72,9 @@ class SamsungHealthModule(
     @ReactMethod fun getLatestBloodPressure(promise: Promise) =
         promise.resolve(mockSample(118.0 + (Math.random() * 6 - 3), "mmHg"))
 
+    @ReactMethod fun getLatestDiastolicBloodPressure(promise: Promise) =
+        promise.resolve(mockSample(76.0 + (Math.random() * 6 - 3), "mmHg"))
+
     @ReactMethod fun getLatestStepCount(promise: Promise) =
         promise.resolve(mockSample((3000 + Math.random() * 500).toLong().toDouble(), "steps"))
 
@@ -83,4 +86,25 @@ class SamsungHealthModule(
 
     @ReactMethod fun getLatestGlucose(promise: Promise) =
         promise.resolve(mockSample(92.0 + (Math.random() * 10 - 5), "mg/dL"))
+
+    @ReactMethod fun getLatestAvgGlucose(promise: Promise) =
+        promise.resolve(mockSample(88.0 + (Math.random() * 8 - 4), "mg/dL"))
+
+    @ReactMethod fun getLatestRestingHeartRate(promise: Promise) =
+        promise.resolve(mockSample(60.0 + (Math.random() * 6 - 3), "bpm"))
+
+    @ReactMethod fun getLatestHrv(promise: Promise) =
+        promise.resolve(mockSample(45.0 + (Math.random() * 10 - 5), "ms"))
+
+    @ReactMethod fun getLatestHrMin(promise: Promise) =
+        promise.resolve(mockSample(55.0 + (Math.random() * 6 - 3), "bpm"))
+
+    @ReactMethod fun getLatestHrMax(promise: Promise) =
+        promise.resolve(mockSample(95.0 + (Math.random() * 10 - 5), "bpm"))
+
+    @ReactMethod fun getLatestRespirationRate(promise: Promise) =
+        promise.resolve(mockSample(16.0 + (Math.random() * 4 - 2), "{breaths}/min"))
+
+    @ReactMethod fun getLatestAfib(promise: Promise) =
+        promise.resolve(mockSample(0.0, "1"))
 }
