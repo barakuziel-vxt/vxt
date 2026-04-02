@@ -193,6 +193,7 @@ export class MqttTransport {
   private client: MqttClient | null = null;
   private status: TransportStatus  = 'disconnected';
   private deviceId: string          = '';
+  private tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly onStatusChange?: (s: TransportStatus) => void;
 
@@ -211,7 +212,8 @@ export class MqttTransport {
     this.deviceId = deviceId;
 
     const resourceUri = `${hostName}/devices/${deviceId}`;
-    const sasToken    = buildSasToken(resourceUri, sharedAccessKey);
+    const TTL_SECONDS = 86400; // 24h — token is refreshed proactively before expiry
+    const sasToken    = buildSasToken(resourceUri, sharedAccessKey, TTL_SECONDS);
 
     // React Native has no native TLS socket module, so raw MQTTS (port 8883)
     // fails silently.  Azure IoT Hub supports MQTT-over-WebSocket on port 443,
@@ -247,6 +249,12 @@ export class MqttTransport {
           this.publishRaw(payload);
         }
         settle(resolve);
+        // Proactively reconnect 5 min before the SAS token expires
+        if (this.tokenRefreshTimer) clearTimeout(this.tokenRefreshTimer);
+        this.tokenRefreshTimer = setTimeout(
+          () => { void this.refreshToken(); },
+          (TTL_SECONDS - 300) * 1000,
+        );
       });
 
       this.client.on('error', err => {
@@ -263,6 +271,7 @@ export class MqttTransport {
   }
 
   async disconnect(): Promise<void> {
+    if (this.tokenRefreshTimer) { clearTimeout(this.tokenRefreshTimer); this.tokenRefreshTimer = null; }
     if (!this.client) return;
     return new Promise<void>(resolve => {
       this.client!.end(false, {}, () => {
@@ -270,6 +279,12 @@ export class MqttTransport {
         resolve();
       });
     });
+  }
+
+  private async refreshToken(): Promise<void> {
+    console.log('[MqttTransport] SAS token nearing expiry — reconnecting with fresh token');
+    await this.disconnect();
+    await this.connect();
   }
 
   // ─── Publish ───────────────────────────────────────────────────────────
