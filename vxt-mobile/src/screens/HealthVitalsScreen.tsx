@@ -286,11 +286,21 @@ export default function HealthVitalsScreen() {
     return displayDefs
       .filter(m => selectedMetrics[m.key] && (historyData[m.key]?.length ?? 0) > 0)
       .map(def => {
-        const raw  = historyData[def.key] ?? [];
-        const step = Math.max(1, Math.floor(raw.length / MAX_CHART_POINTS));
-        const pts  = raw
-          .filter((_, idx) => idx % step === 0)
-          .map(s => ({ value: s.v, label: fmtTime(s.ts), dataPointText: '' }));
+        const raw     = historyData[def.key] ?? [];
+        const step    = Math.max(1, Math.floor(raw.length / MAX_CHART_POINTS));
+        const sampled = raw.filter((_, idx) => idx % step === 0);
+        // If data spans more than one calendar day, show MM/DD instead of HH:MM
+        // (daily aggregates are pinned to noon so HH:MM would show "12:00" everywhere)
+        const multiDay = sampled.length > 1 &&
+          (sampled[sampled.length - 1].ts - sampled[0].ts) > 23 * 3_600_000;
+        const fmtLabel = (ts: number) => {
+          const d = new Date(ts);
+          if (multiDay) {
+            return `${(d.getMonth() + 1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+          }
+          return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        };
+        const pts = sampled.map(s => ({ value: s.v, label: fmtLabel(s.ts), dataPointText: '' }));
         return { key: def.key, def, pts };
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
