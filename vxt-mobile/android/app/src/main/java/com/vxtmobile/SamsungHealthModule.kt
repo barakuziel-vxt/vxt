@@ -2,7 +2,11 @@ package com.vxtmobile
 
 import android.content.Intent
 import android.os.Build
+import android.bluetooth.BluetoothManager
+import android.util.Log
+import android.content.Context
 import com.facebook.react.bridge.*
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.WritableNativeMap
 import com.samsung.android.sdk.health.data.HealthDataService
 import com.samsung.android.sdk.health.data.HealthDataStore
@@ -10,6 +14,8 @@ import com.samsung.android.sdk.health.data.data.HealthDataPoint
 import com.samsung.android.sdk.health.data.data.entries.BloodGlucose
 import com.samsung.android.sdk.health.data.data.entries.HeartRate
 import com.samsung.android.sdk.health.data.data.entries.OxygenSaturation
+import com.samsung.android.sdk.health.data.data.entries.SkinTemperature
+import com.samsung.android.sdk.health.data.data.entries.SleepSession
 import com.samsung.android.sdk.health.data.permission.AccessType
 import com.samsung.android.sdk.health.data.permission.Permission
 import com.samsung.android.sdk.health.data.helper.aggregate
@@ -22,9 +28,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import com.samsung.android.sdk.health.data.request.LocalDateFilter
 
 /**
  * SamsungHealthModule — REAL SDK implementation (samsung-health-data-api-1.1.0.aar)
@@ -56,9 +65,66 @@ class SamsungHealthModule(
     fun isAvailable(promise: Promise) {
         try {
             store // trigger lazy init — throws if Samsung Health app not installed
+            Log.d("SamsungHealthModule", "isAvailable: true")
             promise.resolve(true)
         } catch (e: Exception) {
+            Log.d("SamsungHealthModule", "isAvailable: false – ${e.message}")
             promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun getConnectedDeviceName(promise: Promise) {
+        try {
+            val btManager = reactContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            val adapter = btManager?.adapter
+            if (adapter == null || !adapter.isEnabled) {
+                promise.resolve(null); return
+            }
+            // BLUETOOTH_CONNECT permission is declared in the manifest; on API 31+ it
+            // is a runtime permission but Samsung Note20 running Samsung Health already
+            // grants it implicitly for the app process. The catch block handles the
+            // rare case where it isn't available.
+            @Suppress("MissingPermission")
+            val watch = adapter.bondedDevices?.firstOrNull { d ->
+                val n = d.name ?: ""
+                n.contains("Watch", ignoreCase = true) ||
+                n.contains("Galaxy", ignoreCase = true) ||
+                n.contains("Gear",  ignoreCase = true)
+            }
+            @Suppress("MissingPermission")
+            promise.resolve(watch?.name)
+        } catch (e: SecurityException) {
+            promise.resolve(null)
+        } catch (e: Throwable) {
+            promise.resolve(null)
+        }
+    }
+
+    @ReactMethod
+    fun checkPermissions(promise: Promise) {
+        val permissions = setOf(
+            Permission.of(DataTypes.HEART_RATE, AccessType.READ),
+            Permission.of(DataTypes.BLOOD_PRESSURE, AccessType.READ),
+            Permission.of(DataTypes.BLOOD_OXYGEN, AccessType.READ),
+            Permission.of(DataTypes.BLOOD_GLUCOSE, AccessType.READ),
+            Permission.of(DataTypes.BODY_TEMPERATURE, AccessType.READ),
+            Permission.of(DataTypes.STEPS, AccessType.READ),
+            Permission.of(DataTypes.IRREGULAR_HEART_RHYTHM_NOTIFICATION, AccessType.READ),
+            Permission.of(DataTypes.SKIN_TEMPERATURE, AccessType.READ),
+            Permission.of(DataTypes.SLEEP, AccessType.READ),
+            Permission.of(DataTypes.BODY_COMPOSITION, AccessType.READ),
+            Permission.of(DataTypes.FLOORS_CLIMBED, AccessType.READ),
+        )
+        scope.launch {
+            try {
+                val granted = store.getGrantedPermissions(permissions)
+                Log.d("SamsungHealthModule", "checkPermissions: granted=${granted.size}/${permissions.size}")
+                promise.resolve(granted.size == permissions.size)
+            } catch (e: Throwable) {
+                Log.d("SamsungHealthModule", "checkPermissions: error ${e.message}")
+                promise.resolve(false)
+            }
         }
     }
 
@@ -77,14 +143,26 @@ class SamsungHealthModule(
             Permission.of(DataTypes.BODY_TEMPERATURE, AccessType.READ),
             Permission.of(DataTypes.STEPS, AccessType.READ),
             Permission.of(DataTypes.IRREGULAR_HEART_RHYTHM_NOTIFICATION, AccessType.READ),
+            Permission.of(DataTypes.SKIN_TEMPERATURE, AccessType.READ),
+            Permission.of(DataTypes.SLEEP, AccessType.READ),
+            Permission.of(DataTypes.BODY_COMPOSITION, AccessType.READ),
+            Permission.of(DataTypes.FLOORS_CLIMBED, AccessType.READ),
         )
         // requestPermissions must run on the Main thread (shows Samsung Health dialog)
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                Log.d("SamsungHealthModule", "requestPermissions: launching consent dialog")
                 val granted = store.requestPermissions(permissions, activity)
+                Log.d("SamsungHealthModule", "requestPermissions: granted=${granted.size} permissions: $granted")
                 promise.resolve(granted.isNotEmpty())
-            } catch (e: Exception) {
-                promise.reject("PERMISSION_ERROR", e.message, e)
+            } catch (e: Throwable) {
+                val msg = e.message ?: ""
+                Log.d("SamsungHealthModule", "requestPermissions: exception: $msg")
+                if (msg.contains("2003") || msg.contains("policy", ignoreCase = true)) {
+                    promise.resolve(false)
+                } else {
+                    promise.reject("PERMISSION_ERROR", msg)
+                }
             }
         }
     }
@@ -117,7 +195,11 @@ class SamsungHealthModule(
 
     /** 24-hour lookback filter — covers any reasonable gap between Watch syncs */
     private fun last24h(): InstantTimeFilter =
-        InstantTimeFilter.since(Instant.now().minus(24, ChronoUnit.HOURS))
+        InstantTimeFilter.since(Instant.now().minus(30, ChronoUnit.DAYS))
+
+    /** N-day lookback as LocalDateFilter, for use with HeartRate aggregate() */
+    private fun localDateLast(days: Long): LocalDateFilter =
+        LocalDateFilter.of(LocalDate.now().minusDays(days), LocalDate.now())
 
     private fun sample(value: Double, unit: String, tsEpochMs: Double): WritableMap =
         WritableNativeMap().apply {
@@ -136,10 +218,15 @@ class SamsungHealthModule(
         scope.launch {
             try {
                 val result = block()
-                if (result != null) promise.resolve(result)
-                else promise.reject("NO_DATA", "No recent reading available")
-            } catch (e: Exception) {
-                promise.reject("READ_ERROR", e.message ?: "Unknown error", e)
+                if (result != null) {
+                    promise.resolve(result)
+                } else {
+                    Log.d("SamsungHealthModule", "read: NO_DATA (null result)")
+                    promise.reject("NO_DATA", "No recent reading available")
+                }
+            } catch (e: Throwable) {
+                Log.d("SamsungHealthModule", "read: ERROR ${e.javaClass.simpleName}: ${e.message}")
+                promise.reject("READ_ERROR", e.message ?: "Unknown error")
             }
         }
     }
@@ -149,118 +236,56 @@ class SamsungHealthModule(
 
     @ReactMethod
     fun getLatestHeartRate(promise: Promise) = read(promise) {
-        val request = DataTypes.HEART_RATE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val hr = data.dataList.filterIsInstance<HeartRate>().firstOrNull() ?: return@read null
-        val ts = (hr.endTime ?: hr.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(hr.heartRate.toDouble(), "bpm", ts)
+        // SDK 1.1.0 has no HR AVG aggregate — derive from (MIN+MAX)/2 for most recent day
+        val filter = localDateLast(7)
+        val dMin = store.aggregate(DataType.HeartRateType.MIN) {
+            setLocalDateFilter(filter); setOrdering(Ordering.DESC)
+        }
+        val dMax = store.aggregate(DataType.HeartRateType.MAX) {
+            setLocalDateFilter(filter); setOrdering(Ordering.DESC)
+        }
+        val minV = dMin.dataList.firstOrNull()?.value ?: return@read null
+        val maxV = dMax.dataList.firstOrNull()?.value ?: return@read null
+        sample(((minV + maxV) / 2f).toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
     }
 
     @ReactMethod
     fun getLatestHrMin(promise: Promise) = read(promise) {
-        val request = DataTypes.HEART_RATE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val hr = data.dataList.filterIsInstance<HeartRate>().firstOrNull() ?: return@read null
-        val ts = (hr.endTime ?: hr.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(hr.min.toDouble(), "bpm", ts)
+        val data = store.aggregate(DataType.HeartRateType.MIN) {
+            setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
+        }
+        val v = data.dataList.firstOrNull()?.value ?: return@read null
+        sample(v.toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
     }
 
     @ReactMethod
     fun getLatestHrMax(promise: Promise) = read(promise) {
-        val request = DataTypes.HEART_RATE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val hr = data.dataList.filterIsInstance<HeartRate>().firstOrNull() ?: return@read null
-        val ts = (hr.endTime ?: hr.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(hr.max.toDouble(), "bpm", ts)
+        val data = store.aggregate(DataType.HeartRateType.MAX) {
+            setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
+        }
+        val v = data.dataList.firstOrNull()?.value ?: return@read null
+        sample(v.toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
     }
 
-    // ── Blood Pressure (8480-6 SBP / 8462-4 DBP) ──────────────────────────────
+    // ── readData() NOT AVAILABLE on this Samsung Health build ───────────────────
+    // Samsung Health 6.31.3.013 (bundled via OS update on Note20) is missing the
+    // internal readData dispatcher class (com.samsung.android.sdk.health.data.e).
+    // Update Samsung Health from Galaxy Store to get the full build.
 
-    @ReactMethod
-    fun getLatestBloodPressure(promise: Promise) = read(promise) {
-        val request = DataTypes.BLOOD_PRESSURE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val dp = data.dataList.filterIsInstance<HealthDataPoint>().firstOrNull() ?: return@read null
-        val sbp = dp.getValue(DataType.BloodPressureType.SYSTOLIC) ?: return@read null
-        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(sbp.toDouble(), "mmHg", ts)
-    }
+    @ReactMethod fun getLatestBloodPressure(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
 
-    @ReactMethod
-    fun getLatestDiastolicBloodPressure(promise: Promise) = read(promise) {
-        val request = DataTypes.BLOOD_PRESSURE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val dp = data.dataList.filterIsInstance<HealthDataPoint>().firstOrNull() ?: return@read null
-        val dbp = dp.getValue(DataType.BloodPressureType.DIASTOLIC) ?: return@read null
-        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(dbp.toDouble(), "mmHg", ts)
-    }
+    @ReactMethod fun getLatestDiastolicBloodPressure(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
 
-    // ── SpO2 / Blood Oxygen (59408-5) ──────────────────────────────────────────
+    @ReactMethod fun getLatestSpo2(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
 
-    @ReactMethod
-    fun getLatestSpo2(promise: Promise) = read(promise) {
-        val request = DataTypes.BLOOD_OXYGEN.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val spo2 = data.dataList.filterIsInstance<OxygenSaturation>().firstOrNull() ?: return@read null
-        val ts = (spo2.endTime ?: spo2.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(spo2.oxygenSaturation.toDouble(), "%", ts)
-    }
+    @ReactMethod fun getLatestBodyTemperature(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
 
-    // ── Body Temperature (8310-5) ──────────────────────────────────────────────
-
-    @ReactMethod
-    fun getLatestBodyTemperature(promise: Promise) = read(promise) {
-        val request = DataTypes.BODY_TEMPERATURE.readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val dp = data.dataList.filterIsInstance<HealthDataPoint>().firstOrNull() ?: return@read null
-        val temp = dp.getValue(DataType.BodyTemperatureType.BODY_TEMPERATURE) ?: return@read null
-        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(temp.toDouble(), "Cel", ts)
-    }
-
-    // ── Blood Glucose (2339-0) ─────────────────────────────────────────────────
-
-    @ReactMethod
-    fun getLatestGlucose(promise: Promise) = read(promise) {
-        val request = DataType.BloodGlucoseType().readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val bg = data.dataList.filterIsInstance<BloodGlucose>().firstOrNull() ?: return@read null
-        val ts = bg.timestamp?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(bg.glucose.toDouble(), "mg/dL", ts)
-    }
+    @ReactMethod fun getLatestGlucose(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
 
     // ── Step Count (55411-3) — aggregate total for today ──────────────────────
 
@@ -275,35 +300,221 @@ class SamsungHealthModule(
         sample(total.toDouble(), "steps", Instant.now().toEpochMilli().toDouble())
     }
 
-    // ── AFib / Irregular Heart Rhythm (80358-0) ────────────────────────────────
-    // STATUS enum: DETECTED → 1.0, anything else → 0.0
+    @ReactMethod fun getLatestAfib(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+
+    @ReactMethod fun getLatestSkinTemperature(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+
+    @ReactMethod fun getLatestBodyWeight(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+
+    @ReactMethod fun getLatestBmi(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+
+    @ReactMethod fun getLatestBodyFat(promise: Promise) =
+        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+
+    // ── Sleep Duration (93832-4) — aggregate TOTAL_DURATION (no readData needed)
+    // Uses LocalDateBuilder aggregate — works on all Samsung Health versions.
 
     @ReactMethod
-    fun getLatestAfib(promise: Promise) = read(promise) {
-        val request = DataType.IrregularHeartRhythmNotificationType().readDataRequestBuilder
-            .setInstantTimeFilter(last24h())
-            .setOrdering(Ordering.DESC)
-            .setLimit(1)
-            .build()
-        val data = store.readData(request)
-        val dp = data.dataList.filterIsInstance<HealthDataPoint>().firstOrNull() ?: return@read null
-        val status = dp.getValue(DataType.IrregularHeartRhythmNotificationType.STATUS)
-        val afibValue = if (status?.name == "DETECTED") 1.0 else 0.0
-        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli()?.toDouble() ?: System.currentTimeMillis().toDouble()
-        sample(afibValue, "1", ts)
+    fun getLatestSleepDuration(promise: Promise) = read(promise) {
+        val data = store.aggregate(DataType.SleepType.TOTAL_DURATION) {
+            setLocalDateFilter(localDateLast(3))
+            setOrdering(Ordering.DESC)
+        }
+        val entry = data.dataList.firstOrNull() ?: return@read null
+        // TOTAL_DURATION aggregate returns java.time.Duration — convert to decimal hours
+        val dur = entry.value ?: return@read null
+        val hours = dur.toMinutes() / 60.0
+        sample(hours, "hrs", Instant.now().toEpochMilli().toDouble())
     }
 
-    // ── Metrics NOT in SDK 1.1.0 — return null (skipped by delta filter) ──────
+    // ── Floors Climbed (55426-1) — aggregate total for today ──────────────────
 
-    @ReactMethod fun getLatestAvgGlucose(promise: Promise) =
-        promise.reject("NO_DATA", "Average glucose not available in Samsung Health SDK 1.1.0")
+    @ReactMethod
+    fun getLatestFloorsClimbed(promise: Promise) = read(promise) {
+        val todayStart = LocalDateTime.now().with(LocalTime.MIDNIGHT)
+        val now = LocalDateTime.now()
+        val data = store.aggregate(DataType.FloorsClimbedType.TOTAL) {
+            setLocalTimeFilter(LocalTimeFilter.of(todayStart, now))
+        }
+        val total = data.dataList.firstOrNull()?.value ?: return@read null
+        sample(total.toDouble(), "floors", Instant.now().toEpochMilli().toDouble())
+    }
 
-    @ReactMethod fun getLatestRestingHeartRate(promise: Promise) =
-        promise.reject("NO_DATA", "Resting heart rate not available in Samsung Health SDK 1.1.0")
+    // ── Metrics NOT in SDK 1.1.0 ───────────────────────────────────────────────
 
     @ReactMethod fun getLatestHrv(promise: Promise) =
         promise.reject("NO_DATA", "HRV not available in Samsung Health SDK 1.1.0")
 
     @ReactMethod fun getLatestRespirationRate(promise: Promise) =
         promise.reject("NO_DATA", "Respiration rate not available in Samsung Health SDK 1.1.0")
+
+    // ── Historical backlog fetch ───────────────────────────────────────────────
+    //
+    // Returns all recorded data in [fromEpochMs, toEpochMs] for every supported
+    // metric.  The TypeScript driver groups these by timestamp bucket and injects
+    // them as backdated frames into Azure IoT Hub.
+    //
+    // Return shape (WritableMap):
+    //   {
+    //     "8867-4": [ {v: Float, ts: ms}, ... ],   // heart rate
+    //     "8480-6": [ {v: Float, ts: ms}, ... ],   // SBP
+    //     "8462-4": [ {v: Float, ts: ms}, ... ],   // DBP
+    //     "59408-5": [ {v: Float, ts: ms}, ... ],  // SpO2
+    //     "8310-5":  [ {v: Float, ts: ms}, ... ],  // body temp
+    //     "2339-0":  [ {v: Float, ts: ms}, ... ],  // glucose
+    //     "80358-0": [ {v: Float, ts: ms}, ... ],  // AFib
+    //   }
+    //   Steps are NOT in this result — they are daily aggregates and handled
+    //   separately by getLatestStepCount() on reconnect.
+
+    @ReactMethod
+    fun fetchAllHistory(fromEpochMs: Double, toEpochMs: Double, promise: Promise) {
+        scope.launch {
+            try {
+                val from = Instant.ofEpochMilli(fromEpochMs.toLong())
+                val to   = Instant.ofEpochMilli(toEpochMs.toLong())
+                val filter = InstantTimeFilter.of(from, to)
+                val result = WritableNativeMap()
+
+                // ── Heart Rate (aggregate day-by-day — readData() fails with 9003) ─
+                runCatching {
+                    val zone = ZoneId.systemDefault()
+                    val arrAvg = Arguments.createArray()
+                    val arrMin = Arguments.createArray()
+                    val arrMax = Arguments.createArray()
+                    var day = from.atZone(zone).toLocalDate()
+                    val toDate = to.atZone(zone).toLocalDate()
+                    while (!day.isAfter(toDate)) {
+                        val dayFilter = LocalDateFilter.of(day, day.plusDays(1))
+                        val dMin = store.aggregate(DataType.HeartRateType.MIN) { setLocalDateFilter(dayFilter) }
+                        val dMax = store.aggregate(DataType.HeartRateType.MAX) { setLocalDateFilter(dayFilter) }
+                        val minV = dMin.dataList.firstOrNull()?.value
+                        val maxV = dMax.dataList.firstOrNull()?.value
+                        if (minV != null && maxV != null) {
+                            val ts = day.atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+                            arrMin.pushMap(Arguments.createMap().apply { putDouble("v", minV.toDouble()); putDouble("ts", ts) })
+                            arrMax.pushMap(Arguments.createMap().apply { putDouble("v", maxV.toDouble()); putDouble("ts", ts) })
+                            arrAvg.pushMap(Arguments.createMap().apply { putDouble("v", ((minV + maxV) / 2f).toDouble()); putDouble("ts", ts) })
+                        }
+                        day = day.plusDays(1)
+                    }
+                    if (arrAvg.size() > 0) { result.putArray("8867-4", arrAvg); result.putArray("8638-5", arrMin); result.putArray("8639-3", arrMax) }
+                    Unit
+                }.getOrNull()
+
+                // ── Blood Pressure ──────────────────────────────────────────
+                runCatching {
+                    val req = DataTypes.BLOOD_PRESSURE.readDataRequestBuilder
+                        .setInstantTimeFilter(filter).setOrdering(Ordering.ASC).build()
+                    store.readData(req).dataList.filterIsInstance<HealthDataPoint>()
+                }.getOrNull()?.also { list ->
+                    val arrSbp = Arguments.createArray()
+                    val arrDbp = Arguments.createArray()
+                    for (dp in list) {
+                        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli() ?: continue
+                        val sbp = dp.getValue(DataType.BloodPressureType.SYSTOLIC) ?: continue
+                        val dbp = dp.getValue(DataType.BloodPressureType.DIASTOLIC) ?: continue
+                        arrSbp.pushMap(Arguments.createMap().apply { putDouble("v", sbp.toDouble()); putDouble("ts", ts.toDouble()) })
+                        arrDbp.pushMap(Arguments.createMap().apply { putDouble("v", dbp.toDouble()); putDouble("ts", ts.toDouble()) })
+                    }
+                    result.putArray("8480-6", arrSbp)
+                    result.putArray("8462-4", arrDbp)
+                }
+
+                // ── SpO2 ────────────────────────────────────────────────────
+                runCatching {
+                    val req = DataTypes.BLOOD_OXYGEN.readDataRequestBuilder
+                        .setInstantTimeFilter(filter).setOrdering(Ordering.ASC).build()
+                    store.readData(req).dataList.filterIsInstance<OxygenSaturation>()
+                }.getOrNull()?.also { list ->
+                    val arr = Arguments.createArray()
+                    for (s in list) {
+                        val ts = (s.endTime ?: s.startTime)?.toEpochMilli() ?: continue
+                        arr.pushMap(Arguments.createMap().apply { putDouble("v", s.oxygenSaturation.toDouble()); putDouble("ts", ts.toDouble()) })
+                    }
+                    result.putArray("59408-5", arr)
+                }
+
+                // ── Body Temperature ────────────────────────────────────────
+                runCatching {
+                    val req = DataTypes.BODY_TEMPERATURE.readDataRequestBuilder
+                        .setInstantTimeFilter(filter).setOrdering(Ordering.ASC).build()
+                    store.readData(req).dataList.filterIsInstance<HealthDataPoint>()
+                }.getOrNull()?.also { list ->
+                    val arr = Arguments.createArray()
+                    for (dp in list) {
+                        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli() ?: continue
+                        val temp = dp.getValue(DataType.BodyTemperatureType.BODY_TEMPERATURE) ?: continue
+                        arr.pushMap(Arguments.createMap().apply { putDouble("v", temp.toDouble()); putDouble("ts", ts.toDouble()) })
+                    }
+                    result.putArray("8310-5", arr)
+                }
+
+                // ── Blood Glucose ────────────────────────────────────────────
+                runCatching {
+                    val req = DataType.BloodGlucoseType().readDataRequestBuilder
+                        .setInstantTimeFilter(filter).setOrdering(Ordering.ASC).build()
+                    store.readData(req).dataList.filterIsInstance<BloodGlucose>()
+                }.getOrNull()?.also { list ->
+                    val arr = Arguments.createArray()
+                    for (bg in list) {
+                        val ts = bg.timestamp?.toEpochMilli() ?: continue
+                        arr.pushMap(Arguments.createMap().apply { putDouble("v", bg.glucose.toDouble()); putDouble("ts", ts.toDouble()) })
+                    }
+                    result.putArray("2339-0", arr)
+                }
+
+                // ── AFib ─────────────────────────────────────────────────────
+                runCatching {
+                    val req = DataType.IrregularHeartRhythmNotificationType().readDataRequestBuilder
+                        .setInstantTimeFilter(filter).setOrdering(Ordering.ASC).build()
+                    store.readData(req).dataList.filterIsInstance<HealthDataPoint>()
+                }.getOrNull()?.also { list ->
+                    val arr = Arguments.createArray()
+                    for (dp in list) {
+                        val ts = (dp.endTime ?: dp.startTime)?.toEpochMilli() ?: continue
+                        val status = dp.getValue(DataType.IrregularHeartRhythmNotificationType.STATUS)
+                        val v = if (status?.name == "DETECTED") 1.0 else 0.0
+                        arr.pushMap(Arguments.createMap().apply { putDouble("v", v); putDouble("ts", ts.toDouble()) })
+                    }
+                    result.putArray("80358-0", arr)
+                }
+
+                // ── Daily Steps (55423-8) ─────────────────────────────────────────────
+                // Steps are a daily aggregate (not an instant reading), so we iterate
+                // day by day between [from, to] and call aggregate() for each day.
+                runCatching {
+                    val zone = ZoneId.systemDefault()
+                    val arr  = Arguments.createArray()
+                    var dayStart = from.atZone(zone).toLocalDate().atStartOfDay()
+                    val toLocal  = to.atZone(zone).toLocalDateTime()
+                    while (dayStart.isBefore(toLocal)) {
+                        val dayEnd = dayStart.plusDays(1)
+                        val data = store.aggregate(DataType.StepsType.TOTAL) {
+                            setLocalTimeFilter(LocalTimeFilter.of(dayStart, dayEnd))
+                        }
+                        val total = data.dataList.firstOrNull()?.value
+                        if (total != null && total > 0) {
+                            val midTs = dayStart.plusHours(12)
+                                .atZone(zone).toInstant().toEpochMilli()
+                            arr.pushMap(Arguments.createMap().apply {
+                                putDouble("v", total.toDouble())
+                                putDouble("ts", midTs.toDouble())
+                            })
+                        }
+                        dayStart = dayEnd
+                    }
+                    if (arr.size() > 0) result.putArray("55423-8", arr)
+                }.getOrNull()
+
+                promise.resolve(result)
+            } catch (e: Throwable) {
+                promise.reject("HISTORY_ERROR", e.message ?: "Unknown error")
+            }
+        }
+    }
 }

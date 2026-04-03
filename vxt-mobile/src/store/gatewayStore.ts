@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { driverRegistry } from '../core/DriverRegistry';
 import { gatewayService } from '../services/GatewayService';
 import { SamsungHealthDriver } from '../drivers/SamsungHealthDriver';
@@ -19,92 +19,180 @@ const DEFAULT_CONFIG: GatewayConfig = {
   userId:           DEFAULT_USER_ID,
 };
 
+/** Human-readable lag string, e.g. "2 h 15 min" or "47 min" */
+function formatLag(ms: number): string {
+  if (ms <= 0) return 'live';
+  const minutes = Math.floor(ms / 60_000);
+  const hours   = Math.floor(minutes / 60);
+  const mins    = minutes % 60;
+  if (hours > 0) return `${hours} h ${mins} min`;
+  return `${minutes} min`;
+}
+
 // ─── Store shape ───────────────────────────────────────────────────────────
 
 interface GatewayState {
-  isRunning:       boolean;
-  driverStatus:    ConnectionStatus;
-  transportStatus: TransportStatus;
-  activeDriver:    DriverType;
-  framesSent:      number;
-  lastError:       string | null;
-  config:          GatewayConfig;
+  driverRunning:    boolean;
+  gatewayRunning:   boolean;
+  driverStatus:     ConnectionStatus;
+  transportStatus:  TransportStatus;
+  activeDriver:     DriverType;
+  framesSent:       number;
+  lastSentTs:       number;       // epoch ms of last successfully sent frame
+  lagMs:            number;       // Date.now() - lastSentTs (updated every 30 s)
+  lagDisplay:       string;       // human-readable lag, e.g. "2 h 15 min"
+  isSyncingBacklog: boolean;
+  backlogSynced:    number;
+  backlogTotal:     number;
+  lastError:        string | null;
+  config:           GatewayConfig;
 
+  startDriver():  Promise<void>;
+  stopDriver():   Promise<void>;
   startGateway(): Promise<void>;
-  stopGateway(): Promise<void>;
+  stopGateway():  Promise<void>;
   setActiveDriver(type: DriverType): Promise<void>;
   updateConfig(patch: Partial<GatewayConfig>): void;
   clearError(): void;
+  resetLag(): Promise<void>;
+}
+
+// ─── Lag ticker (updates lagMs every 30 s while store is alive) ────────────
+let _lagInterval: ReturnType<typeof setInterval> | null = null;
+
+function ensureLagTicker(getState: () => GatewayState) {
+  if (_lagInterval) return;
+  _lagInterval = setInterval(() => {
+    const { lastSentTs, lagMs: prev } = getState();
+    if (lastSentTs <= 0) return;
+    const next = Date.now() - lastSentTs;
+    if (Math.abs(next - prev) > 5_000) {
+      // Only write if changed meaningfully — avoids unnecessary re-renders
+      useGatewayStore.setState({ lagMs: next, lagDisplay: formatLag(next) });
+    }
+  }, 30_000);
 }
 
 // ─── Store implementation ──────────────────────────────────────────────────
 
 export const useGatewayStore = create<GatewayState>((set, get) => ({
-  isRunning:       false,
-  driverStatus:    'disconnected',
-  transportStatus: 'disconnected',
-  activeDriver:    DEFAULT_CONFIG.activeDriver,
-  framesSent:      0,
-  lastError:       null,
-  config:          DEFAULT_CONFIG,
+  driverRunning:    false,
+  gatewayRunning:   false,
+  driverStatus:     'disconnected',
+  transportStatus:  'disconnected',
+  activeDriver:     DEFAULT_CONFIG.activeDriver,
+  framesSent:       0,
+  lastSentTs:       0,
+  lagMs:            0,
+  lagDisplay:       '—',
+  isSyncingBacklog: false,
+  backlogSynced:    0,
+  backlogTotal:     0,
+  lastError:        null,
+  config:           DEFAULT_CONFIG,
 
-  // ── Start pipeline ────────────────────────────────────────────────────
-  async startGateway() {
-    const { config, isRunning } = get();
-    if (isRunning) return;
-
-    // Register the correct driver if not yet present
-    if (!driverRegistry.getActive()) {
-      const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
-      driverRegistry.register('SamsungHealth', driver);
-      await driverRegistry.setActive('SamsungHealth');  // must await — sets active synchronously after initialize()
-    }
-
-    // Wire GatewayService callbacks → store updates
-    gatewayService.setCallbacks({
-      onFrameSent:       (total) => set({ framesSent: total }),
-      onTransportStatus: (s)     => set({ transportStatus: s }),
-      onDriverStatus:    (s)     => set({ driverStatus: s }),
-      onDriverError:     (msg)   => set({ lastError: msg }),
-    });
+  // ── Start Driver only (no MQTT) ───────────────────────────────────────
+  async startDriver() {
+    const { driverRunning, config } = get();
+    if (driverRunning) return;
 
     try {
-      await gatewayService.start(config);
-      set({ isRunning: true, lastError: null });
+      if (!driverRegistry.getActive()) {
+        const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
+        driverRegistry.register('SamsungHealth', driver);
+        await driverRegistry.setActive('SamsungHealth');
+      }
+
+      gatewayService.setCallbacks({
+        onFrameSent:       (total) => set({ framesSent: total }),
+        onTransportStatus: (s)     => set({ transportStatus: s }),
+        onDriverStatus:    (s)     => set({ driverStatus: s }),
+        onDriverError:     (msg)   => set({ lastError: msg }),
+        onLastSentTs:      (ts) => {
+          const lagMs = Date.now() - ts;
+          set({ lastSentTs: ts, lagMs, lagDisplay: formatLag(lagMs) });
+        },
+        onBacklogProgress: (synced, total) =>
+          set({ backlogSynced: synced, backlogTotal: total, isSyncingBacklog: synced < total }),
+      });
+
+      await gatewayService.startDriver(config);
+      set({ driverRunning: true, lastError: null });
+      ensureLagTicker(get);
     } catch (err) {
-      console.error('[Gateway] start failed:', String(err));
-      set({ lastError: String(err), isRunning: false });
+      set({ lastError: String(err), driverRunning: false });
     }
   },
 
-  // ── Stop pipeline ─────────────────────────────────────────────────────
-  async stopGateway() {
-    if (!get().isRunning) return;
-    await gatewayService.stop();
+  // ── Stop Driver (and gateway if running) ──────────────────────────────
+  async stopDriver() {
+    if (!get().driverRunning) return;
+    await gatewayService.stopDriver();
     set({
-      isRunning:       false,
+      driverRunning:   false,
+      gatewayRunning:  false,
       driverStatus:    'disconnected',
       transportStatus: 'disconnected',
     });
   },
 
-  // ── Hot-swap driver without restarting the whole pipeline ─────────────
-  async setActiveDriver(type: DriverType) {
-    const { isRunning, config } = get();
-    if (isRunning) await gatewayService.stop();
+  // ── Start Gateway (MQTT to Azure) — starts driver first if needed ─────
+  async startGateway() {
+    const { gatewayRunning } = get();
+    if (gatewayRunning) return;
 
-    const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
-    driverRegistry.register(type, driver);
-    await driverRegistry.setActive(type);
+    try {
+      if (!get().driverRunning) await get().startDriver();
+      // If driver failed to start, lastError is already set — abort
+      if (!get().driverRunning) return;
 
-    set({ activeDriver: type });
-    if (isRunning) await gatewayService.start(config);
+      await gatewayService.startGateway(get().config);
+      set({ gatewayRunning: true, lastError: null });
+    } catch (err) {
+      set({ lastError: String(err), gatewayRunning: false });
+    }
   },
 
-  // ── Config patch ──────────────────────────────────────────────────────
-  updateConfig(patch) {
+  // ── Stop Gateway only (driver keeps running) ──────────────────────────
+  async stopGateway() {
+    if (!get().gatewayRunning) return;
+    await gatewayService.stopGateway();
+    set({ gatewayRunning: false, transportStatus: 'disconnected' });
+  },
+
+  // ── Hot-swap driver ───────────────────────────────────────────────────
+  async setActiveDriver(type: DriverType) {
+    const { driverRunning, config } = get();
+
+    // Stop driver if it's already running
+    if (driverRunning) await get().stopDriver();
+
+    // Register the new driver if not already registered
+    if (!driverRegistry.has(type)) {
+      if (type === 'SamsungHealth') {
+        const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
+        driverRegistry.register('SamsungHealth', driver);
+      }
+      // Other driver types are not yet implemented — silently skip
+    }
+
+    if (driverRegistry.has(type)) {
+      await driverRegistry.setActive(type);
+      set({ activeDriver: type, config: { ...config, activeDriver: type } });
+    }
+  },
+
+  updateConfig(patch: Partial<GatewayConfig>) {
     set(s => ({ config: { ...s.config, ...patch } }));
   },
 
-  clearError() { set({ lastError: null }); },
+  clearError() {
+    set({ lastError: null });
+  },
+
+  async resetLag() {
+    const now = Date.now();
+    await gatewayService.resetLastSentTs();
+    set({ lastSentTs: now, lagMs: 0, lagDisplay: '\u2014' });
+  },
 }));
