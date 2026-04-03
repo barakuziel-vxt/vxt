@@ -1,7 +1,7 @@
 buildscript {
     ext {
         buildToolsVersion = "34.0.0"
-        minSdkVersion     = 26
+        minSdkVersion     = 29  // Samsung Health SDK requires Android 10 (API 29)
         compileSdkVersion = 34
         targetSdkVersion  = 34
         ndkVersion        = "25.1.8937393"

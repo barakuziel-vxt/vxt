@@ -53,8 +53,9 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
-    // Samsung Health AAR (uncomment once AAR is placed in libs/):
-    // implementation(files("libs/samsung-health-data-1.5.0.0.aar"))
+    // Samsung Health Data SDK 1.1.0 (real SDK — replaces stub)
+    implementation(files("libs/samsung-health-data-api-1.1.0.aar"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
 }
