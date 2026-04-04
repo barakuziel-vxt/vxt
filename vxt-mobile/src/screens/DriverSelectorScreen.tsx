@@ -414,4 +414,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   hintText: { color: '#8b949e', fontSize: 12, lineHeight: 17 },
+
+  warningBanner: {
+    backgroundColor: '#0d1f38',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#388bfd',
+    padding: 12,
+    marginTop: 12,
+  },
+  warningText: { color: '#a0c4ff', fontSize: 12, lineHeight: 18 },
 });
