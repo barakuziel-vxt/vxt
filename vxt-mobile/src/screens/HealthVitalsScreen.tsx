@@ -413,19 +413,6 @@ export default function HealthVitalsScreen() {
         </View>
       )}
 
-      {/* Samsung Health sync hint — shown when permissions are granted but only a few metrics have data */}
-      {!loading && permGranted === true && displayDefs.length > 0 && displayDefs.length <= 6 && (
-        <View style={[styles.permBanner, { borderColor: '#388bfd', marginTop: 8 }]}>
-          <Text style={styles.permBannerText}>
-            ℹ️ <Text style={{ fontWeight: 'bold' }}>Only {displayDefs.length} metrics visible</Text> — Samsung Health may not be syncing all data to Health Connect.{'\n\n'}
-            <Text style={{ fontWeight: 'bold' }}>To get more metrics:</Text>{'\n'}
-            1. Open <Text style={{ fontWeight: 'bold' }}>Samsung Health</Text> → Settings → <Text style={{ fontWeight: 'bold' }}>Health Connect</Text> → enable all "Can Write" toggles{'\n'}
-            2. Update Samsung Health from <Text style={{ fontWeight: 'bold' }}>Galaxy Store</Text> — newer versions sync more data types{'\n'}
-            3. Some metrics (SpO2, BP) require <Text style={{ fontWeight: 'bold' }}>manual measurement</Text> on your watch
-          </Text>
-        </View>
-      )}
-
       {/* History range */}
       {driver && (
         <View style={[styles.rangeCard, { marginTop: 20 }]}>

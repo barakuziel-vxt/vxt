@@ -252,17 +252,14 @@ export default function DriverSelectorScreen() {
             {d.type === 'HealthConnect' && (
               <View style={styles.warningBanner}>
                 <Text style={styles.warningText}>
-                  ⚠️ <Text style={{ fontWeight: 'bold' }}>Limited data availability:</Text>{'
-'}
-                  Health Connect shows only measurements synced BY YOUR WEARABLE. Available types depend on:{'
-'}
-                  • Which data types Samsung Health syncs to HC (some are kept internal){'
-'}
-                  • Device capabilities (e.g., SpO2 requires Galaxy Watch){'
-'}
-                  • Manual measurements (e.g., Blood Pressure, Glucose){'
-'}
-                  • Ongoing activity (e.g., Distance, Calories require tracked workout)
+                  ℹ️ <Text style={{ fontWeight: 'bold' }}>Limited metrics on Health Connect:</Text>{'\n'}
+                  HC shows only data types that Samsung Health syncs to it — some are kept internal by Samsung Health.{'\n\n'}
+                  <Text style={{ fontWeight: 'bold' }}>Why you may see fewer metrics:</Text>{'\n'}
+                  • RHR, HRV, RR: Samsung Health typically doesn't sync these to HC{'\n'}
+                  • SpO₂, BP: Require explicit Galaxy Watch or device measurements{'\n'}
+                  • Glucose: Requires manual entry or compatible monitoring device{'\n'}
+                  • Steps/Calories/Distance: Show cumulative data from last 7 days{'\n'}
+                  • Other metrics: Appear only after at least one measurement is recorded
                 </Text>
               </View>
             )}
