@@ -12,7 +12,10 @@ import com.facebook.react.uimanager.ViewManager
 class VxtPackage : ReactPackage {
 
     override fun createNativeModules(ctx: ReactApplicationContext): List<NativeModule> =
-        listOf(SamsungHealthModule(ctx))
+        listOf(
+            SamsungHealthModule(ctx),
+            HealthConnectModule(ctx),
+        )
 
     override fun createViewManagers(ctx: ReactApplicationContext): List<ViewManager<*, *>> =
         emptyList()

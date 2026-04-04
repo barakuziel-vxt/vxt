@@ -1,7 +1,8 @@
 ﻿import { create } from 'zustand';
 import { driverRegistry } from '../core/DriverRegistry';
 import { gatewayService } from '../services/GatewayService';
-import { SamsungHealthDriver } from '../drivers/SamsungHealthDriver';
+import { SamsungHealthDriver }  from '../drivers/SamsungHealthDriver';
+import { HealthConnectDriver }  from '../drivers/HealthConnectDriver';
 import { IOT_HUB_CONNECTION_STRING, DEFAULT_USER_ID } from '../config/secrets';
 import type {
   DriverType,
@@ -98,9 +99,15 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
 
     try {
       if (!driverRegistry.getActive()) {
-        const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
-        driverRegistry.register('SamsungHealth', driver);
-        await driverRegistry.setActive('SamsungHealth');
+        if (config.activeDriver === 'HealthConnect') {
+          const driver = new HealthConnectDriver(config.userId, config.sampleIntervalMs);
+          driverRegistry.register('HealthConnect', driver);
+          await driverRegistry.setActive('HealthConnect');
+        } else {
+          const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
+          driverRegistry.register('SamsungHealth', driver);
+          await driverRegistry.setActive('SamsungHealth');
+        }
       }
 
       gatewayService.setCallbacks({
@@ -163,17 +170,14 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   // ── Hot-swap driver ───────────────────────────────────────────────────
   async setActiveDriver(type: DriverType) {
     const { driverRunning, config } = get();
-
-    // Stop driver if it's already running
     if (driverRunning) await get().stopDriver();
 
-    // Register the new driver if not already registered
     if (!driverRegistry.has(type)) {
       if (type === 'SamsungHealth') {
-        const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
-        driverRegistry.register('SamsungHealth', driver);
+        driverRegistry.register('SamsungHealth', new SamsungHealthDriver(config.userId, config.sampleIntervalMs));
+      } else if (type === 'HealthConnect') {
+        driverRegistry.register('HealthConnect', new HealthConnectDriver(config.userId, config.sampleIntervalMs));
       }
-      // Other driver types are not yet implemented — silently skip
     }
 
     if (driverRegistry.has(type)) {

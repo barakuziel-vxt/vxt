@@ -37,6 +37,7 @@ export type MeasurementValue = number | string | boolean | Record<string, number
 
 export type DriverType =
   | 'SamsungHealth'
+  | 'HealthConnect'  // Android Health Connect — any wearable
   | 'AppleHealth'    // reserved – future
   | 'SignalK'        // reserved – future
   | 'AzureCloud'     // reserved – future

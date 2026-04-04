@@ -13,7 +13,8 @@
 import { Platform } from 'react-native';
 
 import type { VitalsProvider, RestApiProviderConfig } from './types';
-import { SamsungHealthVitalsProvider } from './SamsungHealthVitalsProvider';
+import { SamsungHealthVitalsProvider }  from './SamsungHealthVitalsProvider';
+import { HealthConnectVitalsProvider }  from './HealthConnectVitalsProvider';
 import { RestApiVitalsProvider }        from './RestApiVitalsProvider';
 
 class VitalsRegistry {
@@ -55,7 +56,10 @@ class VitalsRegistry {
 
 export const vitalsRegistry = new VitalsRegistry();
 
-// ── Auto-register platform default ──────────────────────────────────────────
+// ── Auto-register platform defaults ────────────────────────────────────────────
 if (Platform.OS === 'android') {
   vitalsRegistry.register(new SamsungHealthVitalsProvider());
+  // Health Connect is registered second so Samsung Health stays the default.
+  // The source picker chip in HealthVitalsScreen lets the user switch.
+  vitalsRegistry.register(new HealthConnectVitalsProvider());
 }

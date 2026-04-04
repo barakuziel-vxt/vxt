@@ -64,9 +64,10 @@ export interface MetricDef {
 
 export const METRIC_DEFS: MetricDef[] = [
   // ── Heart Rate ─────────────────────────────────────────────────────────────
-  { key: '8867-4',  label: 'Heart Rate',       unit: 'bpm',    color: VC.orange,    defaultOn: true,  rangeColor: hrColor },
-  { key: '8638-5',  label: 'HR Min',           unit: 'bpm',    color: VC.teal,      defaultOn: false, rangeColor: hrColor },
-  { key: '8639-3',  label: 'HR Max',           unit: 'bpm',    color: VC.coral,     defaultOn: false, rangeColor: hrColor },
+  { key: '8867-4',  label: 'Heart Rate',        unit: 'bpm',    color: VC.orange,    defaultOn: true,  rangeColor: hrColor },
+  { key: '8638-5',  label: 'HR Min',             unit: 'bpm',    color: VC.teal,      defaultOn: false, rangeColor: hrColor },
+  { key: '8639-3',  label: 'HR Max',             unit: 'bpm',    color: VC.coral,     defaultOn: false, rangeColor: hrColor },
+  { key: '8418-4',  label: 'Resting HR',         unit: 'bpm',    color: VC.rose,      defaultOn: false, rangeColor: hrColor,    samsungUnavailable: true },
 
   // ── Blood ──────────────────────────────────────────────────────────────────
   // readData()-only types: unavailable on Samsung Health 6.31.x (ERR_INTERNAL_ERROR 9003)
