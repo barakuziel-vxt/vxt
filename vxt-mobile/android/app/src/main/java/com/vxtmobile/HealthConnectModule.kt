@@ -259,13 +259,10 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestHrMin(promise: Promise) = read(promise, "HRMin") {
-        // Query ALL heart rate records from today to find the true daily minimum.
-        // (Querying only the latest record gives a single-sample min = current HR.)
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
+        // Query last 7 days of heart rate records to find the true recent minimum.
+        // (If query today only, data disappears after midnight.)
         val records = client.readRecords(ReadRecordsRequest(
-            HeartRateRecord::class, TimeRangeFilter.between(todayStart, Instant.now()),
-            ascendingOrder = false, pageSize = 500
+            HeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 500
         )).records
         val min = records.flatMap { it.samples }.minOfOrNull { it.beatsPerMinute.toDouble() }
             ?: return@read null
@@ -274,12 +271,9 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestHrMax(promise: Promise) = read(promise, "HRMax") {
-        // Query ALL heart rate records from today to find the true daily maximum.
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
+        // Query last 7 days of heart rate records to find the true recent maximum.
         val records = client.readRecords(ReadRecordsRequest(
-            HeartRateRecord::class, TimeRangeFilter.between(todayStart, Instant.now()),
-            ascendingOrder = false, pageSize = 500
+            HeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 500
         )).records
         val max = records.flatMap { it.samples }.maxOfOrNull { it.beatsPerMinute.toDouble() }
             ?: return@read null
@@ -343,10 +337,9 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestStepCount(promise: Promise) = read(promise, "Steps") {
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
-        val records    = client.readRecords(ReadRecordsRequest(
-            StepsRecord::class, TimeRangeFilter.between(todayStart, Instant.now())
+        // Query last 7 days to get most recent step data (survives midnight boundary)
+        val records = client.readRecords(ReadRecordsRequest(
+            StepsRecord::class, since(7)
         )).records
         val total = records.sumOf { it.count }
         if (total == 0L) return@read null
@@ -405,19 +398,13 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestFloorsClimbed(promise: Promise) = read(promise, "Floors") {
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
-        val todayRecs  = client.readRecords(ReadRecordsRequest(
-            FloorsClimbedRecord::class, TimeRangeFilter.between(todayStart, Instant.now())
+        // Query last 7 days to fetch most recent floors data (survives midnight)
+        val records = client.readRecords(ReadRecordsRequest(
+            FloorsClimbedRecord::class, since(7)
         )).records
-        val todayTotal = todayRecs.sumOf { it.floors }
-        if (todayTotal > 0.0) return@read sample(todayTotal, "floors", Instant.now().toEpochMilli())
-        // Fallback: most recent record in last 7 days
-        val recent = client.readRecords(ReadRecordsRequest(
-            FloorsClimbedRecord::class, since(7), ascendingOrder = false, pageSize = 1
-        )).records
-        val r = recent.firstOrNull() ?: return@read null
-        sample(r.floors, "floors", r.endTime.toEpochMilli())
+        val total = records.sumOf { it.floors }
+        if (total == 0.0) return@read null
+        sample(total, "floors", Instant.now().toEpochMilli())
     }
 
     // ── Active Calories ───────────────────────────────────────────────────────
@@ -426,16 +413,15 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestActiveCalories(promise: Promise) = read(promise, "Calories") {
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
-        val records    = client.readRecords(ReadRecordsRequest(
-            ActiveCaloriesBurnedRecord::class, TimeRangeFilter.between(todayStart, Instant.now())
+        // Query last 7 days for active calories (survives midnight)
+        val records = client.readRecords(ReadRecordsRequest(
+            ActiveCaloriesBurnedRecord::class, since(7)
         )).records
         val total = records.sumOf { it.energy.inKilocalories }
         if (total > 0.0) return@read sample(total, "kcal", Instant.now().toEpochMilli())
-        // Fallback: Samsung Health writes TotalCaloriesBurned (not ActiveCaloriesBurned)
+        // Fallback: Samsung Health writes TotalCaloriesBurned (not ActiveCaloriesBurned) — also last 7 days
         val totalRecords = client.readRecords(ReadRecordsRequest(
-            TotalCaloriesBurnedRecord::class, TimeRangeFilter.between(todayStart, Instant.now())
+            TotalCaloriesBurnedRecord::class, since(7)
         )).records
         val totalKcal = totalRecords.sumOf { it.energy.inKilocalories }
         if (totalKcal == 0.0) return@read null
@@ -443,14 +429,12 @@ class HealthConnectModule(
     }
 
     // ── Distance ──────────────────────────────────────────────────────────────
-    // Total distance (walked/run) today in km.
+    // Total distance (walked/run) — last 7 days to survive midnight boundary.
 
     @ReactMethod
     fun getLatestDistance(promise: Promise) = read(promise, "Distance") {
-        val zone       = ZoneId.systemDefault()
-        val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
-        val records    = client.readRecords(ReadRecordsRequest(
-            DistanceRecord::class, TimeRangeFilter.between(todayStart, Instant.now())
+        val records = client.readRecords(ReadRecordsRequest(
+            DistanceRecord::class, since(7)
         )).records
         val totalKm = records.sumOf { it.distance.inKilometers }
         if (totalKm == 0.0) return@read null
