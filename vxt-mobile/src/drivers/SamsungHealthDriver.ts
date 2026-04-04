@@ -8,6 +8,7 @@ import type { TelemetryData, DriverCapabilities } from '../core/types';
 const { SamsungHealthModule } = NativeModules as {
   SamsungHealthModule: {
     requestPermissions(): Promise<boolean>;
+    checkPermissions(): Promise<boolean>;
     isAvailable(): Promise<boolean>;
     startDataCollection(intervalMs: number): Promise<void>;
     stopDataCollection(): Promise<void>;
@@ -19,9 +20,7 @@ const { SamsungHealthModule } = NativeModules as {
     getLatestSpo2(): Promise<RawSamsungSample>;
     getLatestBodyTemperature(): Promise<RawSamsungSample>;
     getLatestGlucose(): Promise<RawSamsungSample>;
-    getLatestAvgGlucose(): Promise<RawSamsungSample>;
     // Derived heart metrics
-    getLatestRestingHeartRate(): Promise<RawSamsungSample>;
     getLatestHrv(): Promise<RawSamsungSample>;
     getLatestHrMin(): Promise<RawSamsungSample>;
     getLatestHrMax(): Promise<RawSamsungSample>;
@@ -122,13 +121,20 @@ export class SamsungHealthDriver extends BaseDriver {
       );
     }
 
-    const granted = await SamsungHealthModule.requestPermissions();
-    if (!granted) {
-      throw new DriverError(
-        this.displayName,
-        'PERMISSION_DENIED',
-        'User denied Samsung Health permissions',
-      );
+    // Check permissions first — only show dialog if not already granted.
+    // This prevents the Samsung Health permission dialog from appearing twice
+    // when both GatewayStatusScreen (driver start) and HealthVitalsScreen both
+    // call into Samsung Health on app launch.
+    const alreadyGranted = await SamsungHealthModule.checkPermissions();
+    if (!alreadyGranted) {
+      const granted = await SamsungHealthModule.requestPermissions();
+      if (!granted) {
+        throw new DriverError(
+          this.displayName,
+          'PERMISSION_DENIED',
+          'User denied Samsung Health permissions',
+        );
+      }
     }
   }
 
@@ -181,7 +187,7 @@ export class SamsungHealthDriver extends BaseDriver {
   private async collectAllMetrics(): Promise<TelemetryData | null> {
     const [
       hr, sbp, dbp, steps, spo2, temp,
-      glucose, avgGlucose, rhr, hrv, hrMin, hrMax, rr, afib,
+      glucose, hrv, hrMin, hrMax, rr, afib,
     ] = await Promise.allSettled([
       SamsungHealthModule.getLatestHeartRate(),
       SamsungHealthModule.getLatestBloodPressure(),
@@ -190,8 +196,6 @@ export class SamsungHealthDriver extends BaseDriver {
       SamsungHealthModule.getLatestSpo2(),
       SamsungHealthModule.getLatestBodyTemperature(),
       SamsungHealthModule.getLatestGlucose(),
-      SamsungHealthModule.getLatestAvgGlucose(),
-      SamsungHealthModule.getLatestRestingHeartRate(),
       SamsungHealthModule.getLatestHrv(),
       SamsungHealthModule.getLatestHrMin(),
       SamsungHealthModule.getLatestHrMax(),
@@ -208,8 +212,6 @@ export class SamsungHealthDriver extends BaseDriver {
       ['59408-5', spo2],
       ['8310-5',  temp],
       ['2339-0',  glucose],
-      ['2345-7',  avgGlucose],
-      ['8418-4',  rhr],
       ['80404-7', hrv],
       ['8638-5',  hrMin],
       ['8639-3',  hrMax],

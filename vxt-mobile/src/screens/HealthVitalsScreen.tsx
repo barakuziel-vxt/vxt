@@ -37,10 +37,15 @@ const C = {
 function ago(ts: number | null): string {
   if (!ts) return '—';
   const diff = Date.now() - ts;
-  if (diff < 60_000)     return 'just now';
+  if (diff < 120_000)    return 'just now';    // < 2 min
   if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)} min ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} h ago`;
-  return new Date(ts).toLocaleDateString();
+  // Show actual time so users see when the reading was taken
+  const d = new Date(ts);
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  const isToday = d.toDateString() === new Date().toDateString();
+  if (isToday) return `today ${hh}:${mm}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
 }
 function fmtTime(ts: number): string {
   const d = new Date(ts);
@@ -101,7 +106,7 @@ const PRESETS = [
 
 // ─── Main Screen ──────────────────────────────────────────────────────────
 
-const REFRESH_INTERVAL_MS = 30_000;
+const REFRESH_INTERVAL_MS = 60_000; // Samsung Health aggregates update once per day; 1 min is sufficient
 const MAX_CHART_POINTS    = 300;
 
 export default function HealthVitalsScreen() {
@@ -470,11 +475,7 @@ export default function HealthVitalsScreen() {
                 color: def.color,
                 thickness: 2,
                 curved: true,
-                areaChart: true,
-                startFillColor: def.color,
-                endFillColor: C.bg,
-                startOpacity: 0.15,
-                endOpacity: 0.01,
+                // No area fill for secondary series — it would visually cover the primary line
                 hideDataPoints: pts.length > 80,
                 dataPointsColor: def.color,
                 dataPointsRadius: 2,

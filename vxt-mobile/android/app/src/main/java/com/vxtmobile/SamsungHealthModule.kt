@@ -246,7 +246,10 @@ class SamsungHealthModule(
         }
         val minV = dMin.dataList.firstOrNull()?.value ?: return@read null
         val maxV = dMax.dataList.firstOrNull()?.value ?: return@read null
-        sample(((minV + maxV) / 2f).toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
+        // Use today's noon as timestamp so ago() shows a meaningful age instead of "just now"
+        val zone = ZoneId.systemDefault()
+        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        sample(((minV + maxV) / 2f).toDouble(), "bpm", ts)
     }
 
     @ReactMethod
@@ -255,7 +258,9 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        sample(v.toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
+        val zone = ZoneId.systemDefault()
+        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        sample(v.toDouble(), "bpm", ts)
     }
 
     @ReactMethod
@@ -264,7 +269,9 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        sample(v.toDouble(), "bpm", Instant.now().toEpochMilli().toDouble())
+        val zone = ZoneId.systemDefault()
+        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        sample(v.toDouble(), "bpm", ts)
     }
 
     // ── readData() NOT AVAILABLE on this Samsung Health build ───────────────────
@@ -320,28 +327,45 @@ class SamsungHealthModule(
 
     @ReactMethod
     fun getLatestSleepDuration(promise: Promise) = read(promise) {
+        // Extend to 7 days; avoid setOrdering which may be unsupported for SleepType aggregate.
+        // dataList is ASC by default — lastOrNull picks the most recent non-zero entry.
         val data = store.aggregate(DataType.SleepType.TOTAL_DURATION) {
-            setLocalDateFilter(localDateLast(3))
-            setOrdering(Ordering.DESC)
+            setLocalDateFilter(localDateLast(7))
         }
-        val entry = data.dataList.firstOrNull() ?: return@read null
+        val entry = data.dataList.lastOrNull { it.value != null && it.value!!.toMinutes() > 0 }
+            ?: return@read null
         // TOTAL_DURATION aggregate returns java.time.Duration — convert to decimal hours
         val dur = entry.value ?: return@read null
         val hours = dur.toMinutes() / 60.0
-        sample(hours, "hrs", Instant.now().toEpochMilli().toDouble())
+        // Timestamp: last night's noon (sleep happened the previous calendar day)
+        val zone = ZoneId.systemDefault()
+        val ts = LocalDate.now().minusDays(1).atStartOfDay(zone).plusHours(20).toInstant().toEpochMilli().toDouble()
+        sample(hours, "hrs", ts)
     }
 
     // ── Floors Climbed (55426-1) — aggregate total for today ──────────────────
 
     @ReactMethod
     fun getLatestFloorsClimbed(promise: Promise) = read(promise) {
+        // Try today first; if zero (e.g. early morning) fall back to last 7 days
         val todayStart = LocalDateTime.now().with(LocalTime.MIDNIGHT)
-        val now = LocalDateTime.now()
-        val data = store.aggregate(DataType.FloorsClimbedType.TOTAL) {
+        val now        = LocalDateTime.now()
+        val todayData  = store.aggregate(DataType.FloorsClimbedType.TOTAL) {
             setLocalTimeFilter(LocalTimeFilter.of(todayStart, now))
         }
-        val total = data.dataList.firstOrNull()?.value ?: return@read null
-        sample(total.toDouble(), "floors", Instant.now().toEpochMilli().toDouble())
+        val todayTotal = todayData.dataList.firstOrNull()?.value
+        if (todayTotal != null && todayTotal.toDouble() > 0.0) {
+            return@read sample(todayTotal.toDouble(), "floors", Instant.now().toEpochMilli().toDouble())
+        }
+        // No floors today — look at the last 7 days via LocalTimeFilter
+        val weekStart = LocalDateTime.now().minusDays(7)
+        val weekData = store.aggregate(DataType.FloorsClimbedType.TOTAL) {
+            setLocalTimeFilter(LocalTimeFilter.of(weekStart, now))
+        }
+        val weekTotal = weekData.dataList.firstOrNull()?.value ?: return@read null
+        val zone = ZoneId.systemDefault()
+        val ts = LocalDate.now().minusDays(1).atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        sample(weekTotal.toDouble(), "floors", ts)
     }
 
     // ── Metrics NOT in SDK 1.1.0 ───────────────────────────────────────────────

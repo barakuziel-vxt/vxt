@@ -105,6 +105,17 @@ export default function GatewayStatusScreen() {
   const [togglingDriver,  setTogglingDriver]  = React.useState(false);
   const [togglingGateway, setTogglingGateway] = React.useState(false);
 
+  // Auto-start the Samsung Health driver when the screen first mounts
+  const hasAutoStarted = React.useRef(false);
+  React.useEffect(() => {
+    if (!hasAutoStarted.current && !driverRunning) {
+      hasAutoStarted.current = true;
+      setTogglingDriver(true);
+      startDriver().finally(() => setTogglingDriver(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleDriverToggle() {
     if (togglingDriver) return;
     setTogglingDriver(true);
