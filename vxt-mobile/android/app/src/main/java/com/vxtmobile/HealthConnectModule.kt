@@ -248,7 +248,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestHeartRate(promise: Promise) = read(promise, "HR") {
         val records = client.readRecords(ReadRecordsRequest(
-            HeartRateRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            HeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val record = records.firstOrNull() ?: return@read null
         if (record.samples.isEmpty()) return@read null
@@ -305,7 +305,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestSpo2(promise: Promise) = read(promise, "SpO2") {
         val records = client.readRecords(ReadRecordsRequest(
-            OxygenSaturationRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            OxygenSaturationRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.percentage.value, "%", r.time.toEpochMilli())
@@ -316,7 +316,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestBodyTemperature(promise: Promise) = read(promise, "Temp") {
         val records = client.readRecords(ReadRecordsRequest(
-            BodyTemperatureRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            BodyTemperatureRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.temperature.inCelsius, "°C", r.time.toEpochMilli())
@@ -327,7 +327,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestGlucose(promise: Promise) = read(promise, "Glucose") {
         val records = client.readRecords(ReadRecordsRequest(
-            BloodGlucoseRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            BloodGlucoseRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.level.inMillimolesPerLiter, "mmol/L", r.time.toEpochMilli())
@@ -352,7 +352,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestRestingHeartRate(promise: Promise) = read(promise, "RHR") {
         val records = client.readRecords(ReadRecordsRequest(
-            RestingHeartRateRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            RestingHeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.beatsPerMinute.toDouble(), "bpm", r.time.toEpochMilli())
@@ -364,7 +364,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestHrv(promise: Promise) = read(promise, "HRV") {
         val records = client.readRecords(ReadRecordsRequest(
-            HeartRateVariabilityRmssdRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            HeartRateVariabilityRmssdRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.heartRateVariabilityMillis, "ms", r.time.toEpochMilli())
@@ -376,7 +376,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestRespirationRate(promise: Promise) = read(promise, "RR") {
         val records = client.readRecords(ReadRecordsRequest(
-            RespiratoryRateRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            RespiratoryRateRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.rate, "br/min", r.time.toEpochMilli())
@@ -387,7 +387,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestSleepDuration(promise: Promise) = read(promise, "Sleep") {
         val records = client.readRecords(ReadRecordsRequest(
-            SleepSessionRecord::class, since(14), ascendingOrder = false, pageSize = 3
+            SleepSessionRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         val durationHours = (r.endTime.toEpochMilli() - r.startTime.toEpochMilli()) / 3_600_000.0
@@ -447,7 +447,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestVo2Max(promise: Promise) = read(promise, "VO2Max") {
         val records = client.readRecords(ReadRecordsRequest(
-            Vo2MaxRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            Vo2MaxRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.vo2MillilitersPerMinuteKilogram, "mL/kg·min", r.time.toEpochMilli())
@@ -459,7 +459,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestWeight(promise: Promise) = read(promise, "Weight") {
         val records = client.readRecords(ReadRecordsRequest(
-            WeightRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            WeightRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.weight.inKilograms, "kg", r.time.toEpochMilli())
@@ -471,7 +471,7 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestBodyFat(promise: Promise) = read(promise, "BodyFat") {
         val records = client.readRecords(ReadRecordsRequest(
-            BodyFatRecord::class, since(30), ascendingOrder = false, pageSize = 1
+            BodyFatRecord::class, since(7), ascendingOrder = false, pageSize = 1
         )).records
         val r = records.firstOrNull() ?: return@read null
         sample(r.percentage.value, "%", r.time.toEpochMilli())

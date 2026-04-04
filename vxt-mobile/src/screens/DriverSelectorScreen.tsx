@@ -247,6 +247,25 @@ export default function DriverSelectorScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* HealthConnect limited data warning */}
+            {d.type === 'HealthConnect' && (
+              <View style={styles.warningBanner}>
+                <Text style={styles.warningText}>
+                  ⚠️ <Text style={{ fontWeight: 'bold' }}>Limited data availability:</Text>{'
+'}
+                  Health Connect shows only measurements synced BY YOUR WEARABLE. Available types depend on:{'
+'}
+                  • Which data types Samsung Health syncs to HC (some are kept internal){'
+'}
+                  • Device capabilities (e.g., SpO2 requires Galaxy Watch){'
+'}
+                  • Manual measurements (e.g., Blood Pressure, Glucose){'
+'}
+                  • Ongoing activity (e.g., Distance, Calories require tracked workout)
+                </Text>
+              </View>
+            )}
           </View>
         );
       })}
