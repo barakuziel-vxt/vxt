@@ -159,7 +159,13 @@ class SamsungHealthModule(
                 val msg = e.message ?: ""
                 Log.d("SamsungHealthModule", "requestPermissions: exception: $msg")
                 if (msg.contains("2003") || msg.contains("policy", ignoreCase = true)) {
-                    promise.resolve(false)
+                    promise.reject(
+                        "POLICY_ERROR",
+                        "Samsung Health Developer Mode required. " +
+                        "Open Samsung Health → ☰ → Settings → About Samsung Health → " +
+                        "tap the version number 10 times until 'Developer mode enabled' appears, " +
+                        "then try again."
+                    )
                 } else {
                     promise.reject("PERMISSION_ERROR", msg)
                 }
@@ -246,9 +252,8 @@ class SamsungHealthModule(
         }
         val minV = dMin.dataList.firstOrNull()?.value ?: return@read null
         val maxV = dMax.dataList.firstOrNull()?.value ?: return@read null
-        // Use today's noon as timestamp so ago() shows a meaningful age instead of "just now"
-        val zone = ZoneId.systemDefault()
-        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        // Use current time so delta-mode sees a fresh timestamp on each poll
+        val ts = Instant.now().toEpochMilli().toDouble()
         sample(((minV + maxV) / 2f).toDouble(), "bpm", ts)
     }
 
@@ -258,8 +263,7 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        val zone = ZoneId.systemDefault()
-        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        val ts = Instant.now().toEpochMilli().toDouble()
         sample(v.toDouble(), "bpm", ts)
     }
 
@@ -269,8 +273,7 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        val zone = ZoneId.systemDefault()
-        val ts = LocalDate.now().atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        val ts = Instant.now().toEpochMilli().toDouble()
         sample(v.toDouble(), "bpm", ts)
     }
 
@@ -337,9 +340,8 @@ class SamsungHealthModule(
         // TOTAL_DURATION aggregate returns java.time.Duration — convert to decimal hours
         val dur = entry.value ?: return@read null
         val hours = dur.toMinutes() / 60.0
-        // Timestamp: last night's noon (sleep happened the previous calendar day)
-        val zone = ZoneId.systemDefault()
-        val ts = LocalDate.now().minusDays(1).atStartOfDay(zone).plusHours(20).toInstant().toEpochMilli().toDouble()
+        // Use current time so delta sends this metric on each poll
+        val ts = Instant.now().toEpochMilli().toDouble()
         sample(hours, "hrs", ts)
     }
 
@@ -363,8 +365,7 @@ class SamsungHealthModule(
             setLocalTimeFilter(LocalTimeFilter.of(weekStart, now))
         }
         val weekTotal = weekData.dataList.firstOrNull()?.value ?: return@read null
-        val zone = ZoneId.systemDefault()
-        val ts = LocalDate.now().minusDays(1).atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+        val ts = Instant.now().toEpochMilli().toDouble()
         sample(weekTotal.toDouble(), "floors", ts)
     }
 

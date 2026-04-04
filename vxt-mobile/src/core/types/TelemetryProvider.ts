@@ -1,64 +1,85 @@
-import type { TelemetryData, DriverCapabilities, ConnectionStatus } from './TelemetryData';
+import type { TelemetryData, DriverCapabilities, ConnectionStatus, DriverType, SnapshotMap, HistoryMap } from './TelemetryData';
 
 /**
- * TelemetryProvider – Strategy-Pattern interface.
+ * TelemetryProvider – Unified driver interface.
  *
- * Every data-source driver (SamsungHealth, AppleHealth, SignalK …)
- * must implement this contract. The GatewayService depends only on
- * this interface, never on a concrete driver, enabling hot-swap at
- * runtime without any changes to upper layers.
+ * All drivers (SamsungHealth, HealthConnect, AppleHealth, SignalK, …)
+ * implement this single contract, enabling:
+ *   - Hot-swap at runtime without changes to UI layers
+ *   - Generic Health Vitals display (driver-agnostic)
+ *   - Generic Gateway streaming (driver-agnostic)
+ *
+ * The UI always interacts with this interface — never with a concrete driver.
  */
 export interface TelemetryProvider {
   // ─── Identity ────────────────────────────────────────────────────────────
 
+  /** Stable machine ID, matches DriverType */
+  readonly id: DriverType;
+
   /** Human-readable display name shown in the UI */
   readonly displayName: string;
 
-  /** Static capability flags for this driver */
+  /** Platform hint for the Driver Selection UI */
+  readonly platform: 'android' | 'ios' | 'cross';
+
+  /** Static capability flags */
   readonly capabilities: DriverCapabilities;
+
+  // ─── Availability & Permissions ───────────────────────────────────────────
+
+  /** Returns true if this driver is usable on the current device/platform */
+  isAvailable(): Promise<boolean>;
+
+  /** Check if required permissions are already granted (no dialog) */
+  checkPermissions(): Promise<boolean>;
+
+  /** Request permissions — may show a system dialog. Returns granted state. */
+  requestPermissions(): Promise<boolean>;
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────
 
   /**
-   * Perform one-time initialisation (request permissions, open SDK
-   * connections …). Must be called once before start().
+   * One-time initialisation: check availability, request permissions if needed,
+   * open SDK connections. Called before start().
    * @throws DriverError if initialisation fails unrecoverably.
    */
   initialize(): Promise<void>;
 
-  /**
-   * Begin data collection.  After this call the driver will emit
-   * samples via the callback registered in onData().
-   */
+  /** Begin continuous data collection (foreground service / polling). */
   start(): Promise<void>;
 
   /** Gracefully stop data collection and release resources. */
   stop(): Promise<void>;
 
-  // ─── Data callbacks ──────────────────────────────────────────────────────
+  // ─── One-shot Vitals (used by HealthVitalsScreen) ─────────────────────────
 
   /**
-   * Register a callback that the driver calls every time a new
-   * TelemetryData sample is ready.
+   * Return the latest reading for every metric this driver supports.
+   * Key = LOINC code or provider-specific path (e.g. "navigation.speedOverGround").
+   * Returns null if the driver has no data yet.
    */
+  getLatest(): Promise<SnapshotMap | null>;
+
+  /**
+   * Return per-metric history between two epoch-ms timestamps.
+   * Returned arrays are ASC-sorted by ts.
+   */
+  getHistory(fromMs: number, toMs: number): Promise<HistoryMap>;
+
+  // ─── Streaming (used by Gateway pipeline) ────────────────────────────────
+
+  /** Register a callback fired each time a new TelemetryData frame is ready. */
   onData(callback: (data: TelemetryData) => void): void;
 
-  /**
-   * Register a callback for non-fatal errors (e.g. transient sensor
-   * read failure).  The driver stays running after calling this.
-   */
+  /** Register a callback for non-fatal errors. The driver keeps running. */
   onError(callback: (error: DriverError) => void): void;
 
   // ─── Status ──────────────────────────────────────────────────────────────
 
-  /** Current connection / health status of this driver */
   getStatus(): ConnectionStatus;
 
-  /**
-   * One-shot snapshot (used for UI polling fallback).
-   * Drivers that support streaming should still implement this for
-   * initial page load.
-   */
+  /** @deprecated Use getLatest() instead */
   getTelemetry(): Promise<TelemetryData | null>;
 }
 

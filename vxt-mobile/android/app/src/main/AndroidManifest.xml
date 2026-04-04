@@ -31,6 +31,11 @@
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
 
     <!-- ── Bluetooth (read bonded device names for wearable label) ───────── -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -63,7 +68,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Required so Health Connect can route the permissions rationale back to this app -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- Required for Health Connect to show "Manage app permissions" link in its UI -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- ── VXT Gateway Foreground Service ───────────────────────────── -->
         <service
@@ -71,7 +92,17 @@
             android:foregroundServiceType="health"
             android:exported="false"
             android:enabled="true" />
-
+        <!-- ── Health Connect permission trampoline ────────────────── -->
+        <!-- standard launchMode so registerForActivityResult works correctly -->
+        <!-- (MainActivity is singleTask which breaks startActivityForResult) -->
+        <!-- taskAffinity separates this into its own task so singleTask -->
+        <!-- MainActivity doesn't destroy it when HC dialog finishes -->
+        <activity
+            android:name=".PermissionHelperActivity"
+            android:theme="@style/Theme.Transparent"
+            android:launchMode="standard"
+            android:taskAffinity="com.vxtmobile.permissions"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -7,6 +7,8 @@ import {
   StatusBar,
   Dimensions,
   StyleSheet,
+  Platform,
+  I18nManager,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,11 +16,28 @@ import { DrawerContext } from './src/context/DrawerContext';
 import GatewayStatusScreen from './src/screens/GatewayStatusScreen';
 import DriverSelectorScreen from './src/screens/DriverSelectorScreen';
 import HealthVitalsScreen from './src/screens/HealthVitalsScreen';
+import { driverManager } from './src/core/DriverManager';
+import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
+import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
+import { SignalKDriver } from './src/drivers/SignalKDriver';
+import { AppleHealthDriver } from './src/drivers/AppleHealthDriver';
+import { DEFAULT_USER_ID } from './src/config/secrets';
+
+// ─── Driver bootstrap (runs once at module load) ────────────────────────────
+if (Platform.OS === 'android') {
+  driverManager.register(new SamsungHealthDriver(DEFAULT_USER_ID, 60_000));
+  driverManager.register(new HealthConnectDriver(DEFAULT_USER_ID, 60_000));
+}
+driverManager.register(new SignalKDriver('vessel', 60_000));
+driverManager.register(new AppleHealthDriver());
+// ────────────────────────────────────────────────────────────────────────────
+
 
 type Screen = 'Vitals' | 'Status' | 'Driver';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
+const isRTL = I18nManager.isRTL;
 
 const C = {
   bg:          '#0d1117',
@@ -50,7 +69,8 @@ function AppShell() {
   const [active, setActive]   = React.useState<Screen>('Vitals');
   const [isOpen, setIsOpen]   = React.useState(false);
 
-  const translateX     = React.useRef(new Animated.Value(-DRAWER_W)).current;
+  const hiddenValue    = isRTL ? DRAWER_W : -DRAWER_W;
+  const translateX     = React.useRef(new Animated.Value(hiddenValue)).current;
   const backdropOpacity = React.useRef(new Animated.Value(0)).current;
 
   function openDrawer() {
@@ -63,7 +83,7 @@ function AppShell() {
 
   function closeDrawer() {
     Animated.parallel([
-      Animated.timing(translateX,      { toValue: -DRAWER_W, duration: 220, useNativeDriver: true }),
+      Animated.timing(translateX,      { toValue: hiddenValue, duration: 220, useNativeDriver: true }),
       Animated.timing(backdropOpacity, { toValue: 0,         duration: 220, useNativeDriver: true }),
     ]).start(() => setIsOpen(false));
   }
@@ -202,7 +222,7 @@ const styles = StyleSheet.create({
   },
   menuIcon: {
     fontSize: 20,
-    marginRight: 14,
+    marginEnd: 14,
   },
   menuLabel: {
     fontSize: 16,

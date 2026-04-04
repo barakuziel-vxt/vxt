@@ -1,5 +1,6 @@
 ﻿import { create } from 'zustand';
 import { driverRegistry } from '../core/DriverRegistry';
+import { driverManager } from '../core/DriverManager';
 import { gatewayService } from '../services/GatewayService';
 import { SamsungHealthDriver }  from '../drivers/SamsungHealthDriver';
 import { HealthConnectDriver }  from '../drivers/HealthConnectDriver';
@@ -14,7 +15,7 @@ import type { TransportStatus } from '../services/MqttTransport';
 // ─── Default config ────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: GatewayConfig = {
   iotHubConnectionString: IOT_HUB_CONNECTION_STRING,
-  activeDriver:     'SamsungHealth',
+  activeDriver:     'HealthConnect',
   sampleIntervalMs: 60000,  // 60 s → 1 frame/min, 60 frames/hr
   mqttQos:          1,
   userId:           DEFAULT_USER_ID,
@@ -169,20 +170,37 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
 
   // ── Hot-swap driver ───────────────────────────────────────────────────
   async setActiveDriver(type: DriverType) {
-    const { driverRunning, config } = get();
+    const { driverRunning, activeDriver: prevDriver, config } = get();
     if (driverRunning) await get().stopDriver();
+
+    // Always keep driverManager in sync
+    driverManager.setActive(type);
 
     if (!driverRegistry.has(type)) {
       if (type === 'SamsungHealth') {
         driverRegistry.register('SamsungHealth', new SamsungHealthDriver(config.userId, config.sampleIntervalMs));
       } else if (type === 'HealthConnect') {
         driverRegistry.register('HealthConnect', new HealthConnectDriver(config.userId, config.sampleIntervalMs));
+      } else {
+        // SignalK / AppleHealth: managed via driverManager only
+        set({ activeDriver: type, config: { ...config, activeDriver: type } });
+        return;
       }
     }
 
     if (driverRegistry.has(type)) {
-      await driverRegistry.setActive(type);
-      set({ activeDriver: type, config: { ...config, activeDriver: type } });
+      try {
+        await driverRegistry.setActive(type);
+        set({ activeDriver: type, config: { ...config, activeDriver: type } });
+      } catch (err) {
+        // Restore previous driver on failure
+        driverManager.setActive(prevDriver);
+        if (driverRegistry.has(prevDriver)) {
+          try { await driverRegistry.setActive(prevDriver); } catch { /* best effort */ }
+        }
+        set({ activeDriver: prevDriver });
+        throw err; // Re-throw so DriverSelectorScreen can show the error
+      }
     }
   },
 

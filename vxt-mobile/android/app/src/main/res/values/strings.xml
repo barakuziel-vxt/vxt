@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">VXT Mobile</string>
+    <color name="ic_launcher_background">#E8EAED</color>
 </resources>

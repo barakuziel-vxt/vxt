@@ -86,8 +86,13 @@ export const METRIC_DEFS: MetricDef[] = [
   { key: '41982-0', label: 'Body Fat',         unit: '%',      color: VC.lime,      defaultOn: false, rangeColor: bodyFatColor,  format: (v) => v.toFixed(1), samsungUnavailable: true },
 
   // ── Activity ───────────────────────────────────────────────────────────────
-  { key: '55423-8', label: 'Steps',            unit: 'steps',  color: VC.green,     defaultOn: false, rangeColor: neutralColor },
-  { key: '55426-1', label: 'Floors Climbed',   unit: 'floors', color: VC.mintgreen, defaultOn: false, rangeColor: neutralColor },
+  { key: '55423-8', label: 'Steps',            unit: 'steps',     color: VC.green,     defaultOn: false, rangeColor: neutralColor },
+  { key: '55426-1', label: 'Floors Climbed',   unit: 'floors',    color: VC.mintgreen, defaultOn: false, rangeColor: neutralColor },
+  { key: '41981-2', label: 'Active Calories',  unit: 'kcal',      color: VC.orange,    defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(0), samsungUnavailable: true },
+  { key: '55430-3', label: 'Distance',         unit: 'km',        color: VC.teal,      defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(2), samsungUnavailable: true },
+
+  // ── Fitness ────────────────────────────────────────────────────────────────
+  { key: '60842-2', label: 'VO₂ Max',          unit: 'mL/kg·min', color: VC.steel,     defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(1), samsungUnavailable: true },
 
   // ── Cardiac Events ─────────────────────────────────────────────────────────
   { key: '73773-1', label: 'AFib',             unit: '',       color: VC.pink,      defaultOn: false, rangeColor: afibColor,     format: (v) => (v === 1 ? 'AFib' : 'Normal'), samsungUnavailable: true },

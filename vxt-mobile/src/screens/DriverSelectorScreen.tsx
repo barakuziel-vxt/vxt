@@ -4,11 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Switch,
+  TextInput,
   TouchableOpacity,
   Platform,
 } from 'react-native';
 import { useGatewayStore } from '../store/gatewayStore';
 import { DrawerContext } from '../context/DrawerContext';
+import { driverManager } from '../core/DriverManager';
 import type { DriverType } from '../core/types';
 
 // ─── Colour palette ────────────────────────────────────────────────────────
@@ -57,9 +60,41 @@ const DRIVERS: DriverEntry[] = [
     unavailableReason: Platform.OS !== 'android' ? 'Android only' : undefined,
   },
   {
+    type:         'HealthConnect',
+    label:        'Health Connect',
+    description:  'Reads from the Android Health Connect platform. Supports any compatible wearable or fitness app that writes to Health Connect.',
+    capabilities: [
+      'Heart Rate (8867-4)',
+      'SpO₂ (59408-5)',
+      'Blood Pressure (8480-6 / 8462-4)',
+      'Resting Heart Rate (8418-4)',
+      'HRV (80404-7)',
+      'Respiration Rate (9303-9)',
+      'Steps (55423-8)',
+    ],
+    platforms:    ['android'],
+    available:    Platform.OS === 'android',
+    unavailableReason: Platform.OS !== 'android' ? 'Android only' : undefined,
+  },
+  {
+    type:         'SignalK' as DriverType,
+    label:        'SignalK (Marine)',
+    description:  'Reads live vessel telemetry from a SignalK server on the local network via REST API. Designed for VXT maritime deployments.',
+    capabilities: [
+      'GPS Position & Speed',
+      'Vessel Heading',
+      'Engine Metrics',
+      'AIS data',
+      'Custom vessel sensors',
+    ],
+    platforms:    ['all'],
+    available:    true,
+    unavailableReason: undefined,
+  },
+  {
     type:         'AppleHealth' as DriverType,
     label:        'Apple Health (HealthKit)',
-    description:  'Reads health metrics from Apple HealthKit. Requires iOS and appropriate permissions.',
+    description:  'Reads health metrics from Apple HealthKit on iOS. Integration coming in a future release.',
     capabilities: [
       'Heart Rate',
       'SpO₂',
@@ -71,33 +106,6 @@ const DRIVERS: DriverEntry[] = [
     available:    false,
     unavailableReason: 'Coming soon',
   },
-  {
-    type:         'SignalK' as DriverType,
-    label:        'SignalK (Marine)',
-    description:  'Reads telemetry from a SignalK server on the local network. Designed for VXT vessel deployments.',
-    capabilities: [
-      'GPS Position',
-      'Vessel Speed & Heading',
-      'Engine Metrics',
-      'AIS',
-    ],
-    platforms:    ['all'],
-    available:    false,
-    unavailableReason: 'Coming soon',
-  },
-  {
-    type:         'Manual' as DriverType,
-    label:        'Manual Entry',
-    description:  'Manually submit health readings from the app. Useful for devices without automatic sensors.',
-    capabilities: [
-      'Heart Rate (manual)',
-      'Blood Pressure (manual)',
-      'Blood Glucose (manual)',
-    ],
-    platforms:    ['all'],
-    available:    false,
-    unavailableReason: 'Coming soon',
-  },
 ];
 
 // ─── Screen ────────────────────────────────────────────────────────────────
@@ -106,12 +114,31 @@ export default function DriverSelectorScreen() {
   const { activeDriver, driverRunning, setActiveDriver } = useGatewayStore();
   const { openDrawer } = useContext(DrawerContext);
   const [switching, setSwitching] = React.useState(false);
+  const [switchError, setSwitchError] = React.useState<string | null>(null);
+
+  // SignalK URL management
+  const signalKDriverRef = driverManager.get('SignalK' as DriverType) as any;
+  const [signalKUrl, setSignalKUrl] = React.useState<string>(
+    signalKDriverRef?.getBaseUrl?.() ?? 'http://localhost:3000'
+  );
+  const [urlSaved, setUrlSaved] = React.useState(false);
+
+  function saveSignalKUrl() {
+    signalKDriverRef?.setBaseUrl?.(signalKUrl);
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  }
 
   async function handleSelect(type: DriverType) {
-    if (type === activeDriver || switching) return;
+    // Tapping the already-active driver's switch does nothing (it's locked on)
+    if (type === activeDriver || switching || type === ('AppleHealth' as DriverType)) return;
     setSwitching(true);
+    setSwitchError(null);
     try {
       await setActiveDriver(type);
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      setSwitchError(`Could not activate ${type}: ${msg}`);
     } finally {
       setSwitching(false);
     }
@@ -126,10 +153,26 @@ export default function DriverSelectorScreen() {
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.heading}>Driver Selection</Text>
           <Text style={styles.subHeading}>
-            Choose the data source for telemetry collection.
-            {driverRunning ? ' Driver will restart on change.' : ''}
+            Select the active data source. Only one driver runs at a time.
           </Text>
         </View>
+      </View>
+
+      {/* Error banner */}
+      {switchError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{switchError}</Text>
+          <TouchableOpacity onPress={() => setSwitchError(null)}>
+            <Text style={styles.errorDismiss}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Active driver hint */}
+      <View style={styles.hintBanner}>
+        <Text style={styles.hintText}>
+          ℹ  The active driver's switch is locked ON. Tap a different driver's switch to switch.
+        </Text>
       </View>
 
       {DRIVERS.map(d => {
@@ -137,21 +180,16 @@ export default function DriverSelectorScreen() {
         const isDisabled = !d.available || switching;
 
         return (
-          <TouchableOpacity
+          <View
             key={d.type}
-            activeOpacity={isDisabled ? 1 : 0.75}
-            onPress={() => d.available && handleSelect(d.type)}
             style={[
               styles.card,
               isActive   && styles.cardActive,
               isDisabled && styles.cardDisabled,
             ]}
           >
-            {/* Header row */}
+            {/* Header row: title + switch */}
             <View style={styles.cardHeader}>
-              <View style={styles.radioOuter}>
-                {isActive && <View style={styles.radioInner} />}
-              </View>
               <Text style={[styles.cardTitle, isDisabled && styles.textDisabled]}>
                 {d.label}
               </Text>
@@ -160,11 +198,13 @@ export default function DriverSelectorScreen() {
                   <Text style={styles.badgeText}>{d.unavailableReason}</Text>
                 </View>
               )}
-              {isActive && !d.unavailableReason && (
-                <View style={[styles.badge, styles.badgeActive]}>
-                  <Text style={[styles.badgeText, { color: C.green }]}>Active</Text>
-                </View>
-              )}
+              <Switch
+                value={isActive}
+                disabled={isDisabled}
+                onValueChange={() => handleSelect(d.type)}
+                thumbColor={isActive ? C.blue : C.textMuted}
+                trackColor={{ false: C.border, true: C.blue + '55' }}
+              />
             </View>
 
             {/* Description */}
@@ -187,7 +227,27 @@ export default function DriverSelectorScreen() {
             <Text style={styles.platform}>
               Platform: {d.platforms.includes('all') ? 'iOS / Android' : d.platforms.join(', ')}
             </Text>
-          </TouchableOpacity>
+
+            {/* SignalK URL input (shown only when SignalK is active) */}
+            {d.type === ('SignalK' as DriverType) && isActive && (
+              <View style={styles.urlRow}>
+                <Text style={styles.urlLabel}>Server URL</Text>
+                <TextInput
+                  style={styles.urlInput}
+                  value={signalKUrl}
+                  onChangeText={setSignalKUrl}
+                  placeholder="http://localhost:3000"
+                  placeholderTextColor={C.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                />
+                <TouchableOpacity style={styles.urlSaveBtn} onPress={saveSignalKUrl}>
+                  <Text style={styles.urlSaveText}>{urlSaved ? '✓ Saved' : 'Save'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         );
       })}
     </ScrollView>
@@ -226,22 +286,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
-  },
-  radioOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: C.blue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  radioInner: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: C.blue,
+    gap: 8,
   },
 
   cardTitle: {
@@ -260,7 +305,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
   },
-  badgeActive: { borderColor: C.green + '55' },
   badgeText: { fontSize: 11, color: C.textMuted, fontWeight: '600' },
 
   cardDesc: {
@@ -293,4 +337,65 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+
+  urlRow: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 12,
+  },
+  urlLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  urlInput: {
+    backgroundColor: '#0d1117',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    color: C.textPrimary,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  urlSaveBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: C.blue,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+  urlSaveText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#2d1215',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f85149',
+    padding: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  errorText: { color: '#f85149', fontSize: 13, flex: 1 },
+  errorDismiss: { color: '#f85149', fontWeight: '700', fontSize: 16 },
+
+  hintBanner: {
+    backgroundColor: '#0d1f38',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#388bfd55',
+    padding: 10,
+    marginBottom: 14,
+  },
+  hintText: { color: '#8b949e', fontSize: 12, lineHeight: 17 },
 });

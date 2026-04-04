@@ -1,7 +1,7 @@
-import { NativeModules, DeviceEventEmitter, Platform } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Platform, PermissionsAndroid } from 'react-native';
 import { BaseDriver } from '../core/BaseDriver';
 import { DriverError } from '../core/types/TelemetryProvider';
-import type { TelemetryData, DriverCapabilities } from '../core/types';
+import type { TelemetryData, DriverCapabilities, SnapshotMap, HistoryMap } from '../core/types';
 
 // ─── Native Module bridge declaration ────────────────────────────────────────
 // This matches the Java module we expose in SamsungHealthModule.kt
@@ -10,6 +10,7 @@ const { SamsungHealthModule } = NativeModules as {
     requestPermissions(): Promise<boolean>;
     checkPermissions(): Promise<boolean>;
     isAvailable(): Promise<boolean>;
+    getConnectedDeviceName(): Promise<string | null>;
     startDataCollection(intervalMs: number): Promise<void>;
     stopDataCollection(): Promise<void>;
     // Core vitals
@@ -19,14 +20,22 @@ const { SamsungHealthModule } = NativeModules as {
     getLatestStepCount(): Promise<RawSamsungSample>;
     getLatestSpo2(): Promise<RawSamsungSample>;
     getLatestBodyTemperature(): Promise<RawSamsungSample>;
+    getLatestSkinTemperature(): Promise<RawSamsungSample>;
+    getLatestBodyWeight(): Promise<RawSamsungSample>;
+    getLatestBmi(): Promise<RawSamsungSample>;
+    getLatestBodyFat(): Promise<RawSamsungSample>;
     getLatestGlucose(): Promise<RawSamsungSample>;
+    getLatestFloorsClimbed(): Promise<RawSamsungSample>;
+    getLatestAfib(): Promise<RawSamsungSample>;
+    getLatestSleepDuration(): Promise<RawSamsungSample>;
     // Derived heart metrics
     getLatestHrv(): Promise<RawSamsungSample>;
     getLatestHrMin(): Promise<RawSamsungSample>;
     getLatestHrMax(): Promise<RawSamsungSample>;
     // Respiratory / cardiac
     getLatestRespirationRate(): Promise<RawSamsungSample>;
-    getLatestAfib(): Promise<RawSamsungSample>;
+    // History
+    fetchAllHistory(fromMs: number, toMs: number): Promise<Record<string, Array<{ v: number; ts: number }>>>;
   };
 };
 
@@ -70,7 +79,9 @@ let configuredUserId = 'user_unknown';
  * are included in each telemetry frame (delta mode).
  */
 export class SamsungHealthDriver extends BaseDriver {
+  readonly id = 'SamsungHealth' as const;
   readonly displayName = 'Samsung Health';
+  readonly platform = 'android' as const;
   readonly capabilities: DriverCapabilities = {
     realtime: true,
     requiresHealthPermissions: true,
@@ -91,6 +102,46 @@ export class SamsungHealthDriver extends BaseDriver {
   ) {
     super();
     configuredUserId = userId;
+  }
+
+  // ─── Availability & Permissions ────────────────────────────────────────────
+
+  async isAvailable(): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    if (!SamsungHealthModule) return false;
+    try { return await SamsungHealthModule.isAvailable(); }
+    catch { return false; }
+  }
+
+  async checkPermissions(): Promise<boolean> {
+    if (!SamsungHealthModule?.checkPermissions) return false;
+    try { return await SamsungHealthModule.checkPermissions(); }
+    catch { return false; }
+  }
+
+  async requestPermissions(): Promise<boolean> {
+    if (!SamsungHealthModule?.requestPermissions) return false;
+    try { return await SamsungHealthModule.requestPermissions(); }
+    catch (e: any) {
+      // POLICY_ERROR (error 2003) must be surfaced — re-throw so initialize() can show actionable message
+      if (e?.code === 'POLICY_ERROR') throw e;
+      return false;
+    }
+  }
+
+  /** Returns the paired Galaxy Watch name, or null if unavailable. */
+  async getConnectedDeviceName(): Promise<string | null> {
+    if (!SamsungHealthModule?.getConnectedDeviceName) return null;
+    try {
+      if (Platform.OS === 'android' && Platform.Version >= 31) {
+        const status = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          { title: 'Bluetooth', message: 'VXT needs Bluetooth to show your wearable name.', buttonPositive: 'Allow' },
+        );
+        if (status !== PermissionsAndroid.RESULTS.GRANTED) return null;
+      }
+      return await SamsungHealthModule.getConnectedDeviceName();
+    } catch { return null; }
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -127,7 +178,16 @@ export class SamsungHealthDriver extends BaseDriver {
     // call into Samsung Health on app launch.
     const alreadyGranted = await SamsungHealthModule.checkPermissions();
     if (!alreadyGranted) {
-      const granted = await SamsungHealthModule.requestPermissions();
+      let granted = false;
+      try {
+        granted = await SamsungHealthModule.requestPermissions();
+      } catch (e: any) {
+        throw new DriverError(
+          this.displayName,
+          'PERMISSION_DENIED',
+          e?.message ?? String(e),
+        );
+      }
       if (!granted) {
         throw new DriverError(
           this.displayName,
@@ -168,14 +228,6 @@ export class SamsungHealthDriver extends BaseDriver {
     await SamsungHealthModule.stopDataCollection();
   }
 
-  protected async fetchOnce(): Promise<TelemetryData | null> {
-    try {
-      return await this.collectAllMetrics();
-    } catch {
-      return null;
-    }
-  }
-
   // ─── Data collection ───────────────────────────────────────────────────────
 
   /**
@@ -188,6 +240,7 @@ export class SamsungHealthDriver extends BaseDriver {
     const [
       hr, sbp, dbp, steps, spo2, temp,
       glucose, hrv, hrMin, hrMax, rr, afib,
+      sleep, floors,
     ] = await Promise.allSettled([
       SamsungHealthModule.getLatestHeartRate(),
       SamsungHealthModule.getLatestBloodPressure(),
@@ -201,6 +254,8 @@ export class SamsungHealthDriver extends BaseDriver {
       SamsungHealthModule.getLatestHrMax(),
       SamsungHealthModule.getLatestRespirationRate(),
       SamsungHealthModule.getLatestAfib(),
+      SamsungHealthModule.getLatestSleepDuration(),
+      SamsungHealthModule.getLatestFloorsClimbed(),
     ]);
 
     // Map each settled result to its LOINC code
@@ -208,15 +263,17 @@ export class SamsungHealthDriver extends BaseDriver {
       ['8867-4',  hr],
       ['8480-6',  sbp],
       ['8462-4',  dbp],
-      ['55411-3', steps],
+      ['55423-8', steps],   // fixed: was 55411-3
       ['59408-5', spo2],
       ['8310-5',  temp],
       ['2339-0',  glucose],
       ['80404-7', hrv],
       ['8638-5',  hrMin],
       ['8639-3',  hrMax],
-      ['9279-1',  rr],
-      ['80358-0', afib],
+      ['9303-9',  rr],      // fixed: was 9279-1
+      ['73773-1', afib],    // fixed: was 80358-0 — matches getLatest()
+      ['93832-4', sleep],
+      ['55426-1', floors],
     ];
 
     // Delta: include only metrics where Samsung Health recorded a newer reading
@@ -254,5 +311,64 @@ export class SamsungHealthDriver extends BaseDriver {
       measurements,
       metadata: { platform: 'android' },
     };
+  }
+
+  // ─── One-shot Vitals (HealthVitalsScreen) ──────────────────────────────────
+
+  /** Returns the latest snapshot for all supported metrics as a SnapshotMap. */
+  async getLatest(): Promise<SnapshotMap | null> {
+    if (!SamsungHealthModule) return null;
+
+    async function trySnap(fn: () => Promise<RawSamsungSample>): Promise<{ value: number; ts: number } | null> {
+      try {
+        const r = await fn();
+        if (r == null || r.value == null) return null;
+        return { value: r.value, ts: r.timestamp };
+      } catch { return null; }
+    }
+
+    const [hr, hrMin, hrMax, spo2, sbp, dbp, glucose, temp, skinTemp,
+           weight, bmi, bodyFat, steps, floors, afib, sleep] = await Promise.all([
+      trySnap(() => SamsungHealthModule.getLatestHeartRate()),
+      trySnap(() => SamsungHealthModule.getLatestHrMin()),
+      trySnap(() => SamsungHealthModule.getLatestHrMax()),
+      trySnap(() => SamsungHealthModule.getLatestSpo2()),
+      trySnap(() => SamsungHealthModule.getLatestBloodPressure()),
+      trySnap(() => SamsungHealthModule.getLatestDiastolicBloodPressure()),
+      trySnap(() => SamsungHealthModule.getLatestGlucose()),
+      trySnap(() => SamsungHealthModule.getLatestBodyTemperature()),
+      trySnap(() => SamsungHealthModule.getLatestSkinTemperature()),
+      trySnap(() => SamsungHealthModule.getLatestBodyWeight()),
+      trySnap(() => SamsungHealthModule.getLatestBmi()),
+      trySnap(() => SamsungHealthModule.getLatestBodyFat()),
+      trySnap(() => SamsungHealthModule.getLatestStepCount()),
+      trySnap(() => SamsungHealthModule.getLatestFloorsClimbed()),
+      trySnap(() => SamsungHealthModule.getLatestAfib()),
+      trySnap(() => SamsungHealthModule.getLatestSleepDuration()),
+    ]);
+
+    const pairs: Array<[string, { value: number; ts: number } | null]> = [
+      ['8867-4',  hr],    ['8638-5', hrMin],  ['8639-3', hrMax],
+      ['59408-5', spo2],  ['8480-6', sbp],    ['8462-4', dbp],
+      ['2339-0',  glucose], ['8310-5', temp],  ['8327-9', skinTemp],
+      ['29463-7', weight], ['39156-5', bmi],   ['41982-0', bodyFat],
+      ['55423-8', steps], ['55426-1', floors], ['73773-1', afib], ['93832-4', sleep],
+    ];
+
+    const snapshot: SnapshotMap = {};
+    for (const [key, v] of pairs) {
+      if (v !== null) snapshot[key] = v;
+    }
+    return Object.keys(snapshot).length > 0 ? snapshot : null;
+  }
+
+  async getHistory(fromMs: number, toMs: number): Promise<HistoryMap> {
+    if (!SamsungHealthModule?.fetchAllHistory) return {};
+    try {
+      return await SamsungHealthModule.fetchAllHistory(fromMs, toMs);
+    } catch (e: any) {
+      console.warn(`[Samsung] getHistory error: ${e?.code} – ${e?.message ?? e}`);
+      return {};
+    }
   }
 }

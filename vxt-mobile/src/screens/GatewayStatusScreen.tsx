@@ -99,30 +99,20 @@ export default function GatewayStatusScreen() {
     stopGateway,
     clearError,
     resetLag,
-    setActiveDriver,
   } = useGatewayStore();
   const { openDrawer } = useContext(DrawerContext);
 
-  const [togglingDriver,  setTogglingDriver]  = React.useState(false);
   const [togglingGateway, setTogglingGateway] = React.useState(false);
 
-  // Auto-start the Samsung Health driver when the screen first mounts
+  // Auto-start the active driver when the screen first mounts
   const hasAutoStarted = React.useRef(false);
   React.useEffect(() => {
     if (!hasAutoStarted.current && !driverRunning) {
       hasAutoStarted.current = true;
-      setTogglingDriver(true);
-      startDriver().finally(() => setTogglingDriver(false));
+      startDriver().catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function handleDriverToggle() {
-    if (togglingDriver) return;
-    setTogglingDriver(true);
-    try { driverRunning ? await stopDriver() : await startDriver(); }
-    finally { setTogglingDriver(false); }
-  }
 
   async function handleGatewayToggle() {
     if (togglingGateway) return;
@@ -204,47 +194,6 @@ export default function GatewayStatusScreen() {
         </View>
       )}
 
-      {/* ── Driver picker ───────────────────────────────────────────── */}
-      <Text style={styles.sectionLabel}>DATA SOURCE</Text>
-      <View style={styles.driverPickerRow}>
-        {(['SamsungHealth', 'HealthConnect'] as const).map(type => {
-          const isActive = activeDriver === type;
-          return (
-            <TouchableOpacity
-              key={type}
-              style={[styles.driverCard, isActive && styles.driverCardActive]}
-              onPress={() => !driverRunning && setActiveDriver(type)}
-              disabled={driverRunning}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.driverCardTitle, isActive && { color: C.green }]}>
-                {type === 'SamsungHealth' ? '⌚ Samsung Health' : '🩺 Health Connect'}
-              </Text>
-              <Text style={styles.driverCardSub}>
-                {type === 'SamsungHealth'
-                  ? 'Galaxy Watch (SDK)'
-                  : 'Any compatible watch'}
-              </Text>
-              {isActive && <View style={styles.driverCardDot} />}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {driverRunning && (
-        <Text style={styles.driverPickerNote}>Stop driver to switch source</Text>
-      )}
-
-      {/* ── Driver toggle ─────────────────────────────────────────────── */}
-      <ToggleRow
-        label={activeDriver === 'HealthConnect' ? 'Health Connect Driver' : 'Samsung Health Driver'}
-        sub={activeDriver === 'HealthConnect'
-          ? 'Reads from Android Health Connect (any watch)'
-          : 'Polls heart rate, SpO₂, BP & more from local Health data'}
-        value={driverRunning}
-        busy={togglingDriver}
-        onToggle={handleDriverToggle}
-      />
-
       {/* ── Gateway toggle ────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { marginTop: 16 }]}>CLOUD PUBLISHING</Text>
       <ToggleRow
@@ -281,9 +230,7 @@ export default function GatewayStatusScreen() {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Buffer strategy</Text>
-          <Text style={styles.infoValue}>
-            {activeDriver === 'HealthConnect' ? 'Android Health Connect' : 'Samsung Health history'}
-          </Text>
+          <Text style={styles.infoValue}>Local queue / driver history</Text>
         </View>
       </View>
 
@@ -343,51 +290,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 8,
     marginTop: 4,
-  },
-
-  driverPickerRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 6,
-  },
-  driverCard: {
-    flex: 1,
-    backgroundColor: C.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 14,
-    alignItems: 'center',
-  },
-  driverCardActive: {
-    borderColor: C.green,
-    backgroundColor: '#0d2a1a',
-  },
-  driverCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.textPrimary,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  driverCardSub: {
-    fontSize: 11,
-    color: C.textMuted,
-    textAlign: 'center',
-  },
-  driverCardDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: C.green,
-    marginTop: 8,
-  },
-  driverPickerNote: {
-    fontSize: 11,
-    color: C.textMuted,
-    textAlign: 'center',
-    marginBottom: 8,
-    fontStyle: 'italic',
   },
 
   toggleRow: {

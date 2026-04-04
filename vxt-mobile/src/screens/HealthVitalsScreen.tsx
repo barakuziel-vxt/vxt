@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -7,19 +8,16 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
 
+import CorrelationChart from '../components/CorrelationChart';
+import type { ChartSeries } from '../components/CorrelationChart';
 import { DrawerContext } from '../context/DrawerContext';
-
-import { vitalsRegistry }                                  from '../vitals/registry';
-import { METRIC_DEFS, formatMetricValue,
-         buildDynamicDef, VC }                             from '../vitals/VitalsDefs';
-import type { MetricDef }                                  from '../vitals/VitalsDefs';
-import type { VitalHistory, VitalSnapshot }                from '../vitals/types';
-
-const { width: SCREEN_W } = Dimensions.get('window');
+import { driverManager } from '../core/DriverManager';
+import { useGatewayStore } from '../store/gatewayStore';
+import { METRIC_DEFS, formatMetricValue, buildDynamicDef, VC } from '../vitals/VitalsDefs';
+import type { MetricDef } from '../vitals/VitalsDefs';
+import type { SnapshotMap, HistoryMap } from '../core/types';
 
 // ─── Colour palette ────────────────────────────────────────────────────────
 const C = {
@@ -39,7 +37,6 @@ function ago(ts: number | null): string {
   const diff = Date.now() - ts;
   if (diff < 120_000)    return 'just now';    // < 2 min
   if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)} min ago`;
-  // Show actual time so users see when the reading was taken
   const d = new Date(ts);
   const hh = d.getHours().toString().padStart(2, '0');
   const mm = d.getMinutes().toString().padStart(2, '0');
@@ -47,16 +44,8 @@ function ago(ts: number | null): string {
   if (isToday) return `today ${hh}:${mm}`;
   return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
 }
-function fmtTime(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-}
 
-// ─── Types used inside this screen ────────────────────────────────────────
-
-type LiveMap = Record<string, { value: number; timestamp: number } | null>;
-
-// ─── Metric tile (click-to-select, EntityTelemetry style) ─────────────────
+// ─── Metric tile ───────────────────────────────────────────────────────────
 
 interface MetricTileProps {
   def:       MetricDef;
@@ -106,66 +95,55 @@ const PRESETS = [
 
 // ─── Main Screen ──────────────────────────────────────────────────────────
 
-const REFRESH_INTERVAL_MS = 60_000; // Samsung Health aggregates update once per day; 1 min is sufficient
-const MAX_CHART_POINTS    = 300;
+const REFRESH_INTERVAL_MS = 60_000;
 
 export default function HealthVitalsScreen() {
   const { openDrawer } = useContext(DrawerContext);
+  // activeDriver from store makes this screen reactive to driver changes
+  const { activeDriver } = useGatewayStore();
 
-  // ── Provider state ───────────────────────────────────────────────────
-  const allProviders  = vitalsRegistry.getAll();
-  const [activeId, setActiveId] = React.useState<string>(
-    () => vitalsRegistry.getActive()?.id ?? ''
-  );
+  const driver = driverManager.get(activeDriver) ?? driverManager.getActive();
 
-  function selectProvider(id: string) {
-    vitalsRegistry.setActive(id);
-    setActiveId(id);
-  }
+  // ── Snapshot state ───────────────────────────────────────────────────
+  const [live,       setLive]       = React.useState<SnapshotMap>({});
+  const [loading,    setLoading]    = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const provider = vitalsRegistry.getActive();
-
-  // ── Live latest values ───────────────────────────────────────────────
-  const [live,        setLive]        = React.useState<LiveMap>({});
-  const [latestLoad,  setLatestLoad]  = React.useState(true);
-  const [refreshing,  setRefreshing]  = React.useState(false);
-
-  // ── Graph state ──────────────────────────────────────────────────────
+  // ── Chart state ──────────────────────────────────────────────────────
   const [selectedMetrics, setSelectedMetrics] = React.useState<Record<string,boolean>>(
     () => Object.fromEntries(METRIC_DEFS.filter(m => m.defaultOn).map(m => [m.key, true]))
   );
-  const [startDate,    setStartDate]   = React.useState(() => new Date(Date.now() - 3600_000));
-  const [endDate,      setEndDate]     = React.useState(() => new Date());
-  const [historyData,  setHistoryData] = React.useState<VitalHistory>({});
-  const [historyLoad,  setHistoryLoad] = React.useState(false);
-  const [historyErr,   setHistoryErr]  = React.useState<string | null>(null);
+  const [startDate,   setStartDate]   = React.useState(() => new Date(Date.now() - 3_600_000));
+  const [endDate,     setEndDate]     = React.useState(() => new Date());
+  const [historyData, setHistoryData] = React.useState<HistoryMap>({});
+  const [historyLoad, setHistoryLoad] = React.useState(false);
+  const [historyErr,  setHistoryErr]  = React.useState<string | null>(null);
   const [activePreset, setActivePreset] = React.useState('1h');
-  const [deviceName,   setDeviceName]  = React.useState<string | null>(null);
-  const [permGranted,  setPermGranted] = React.useState<boolean | null>(null);
-  const [permBusy,     setPermBusy]    = React.useState(false);
 
-  // ── Fetch latest values ──────────────────────────────────────────────
-  async function fetchLatest() {
-    if (!provider) return;
+  // ── Permissions state ────────────────────────────────────────────────
+  const [permGranted,     setPermGranted]     = React.useState<boolean | null>(null);
+  const [permBusy,        setPermBusy]        = React.useState(false);
+  const [hcNotInstalled,  setHcNotInstalled]  = React.useState(false);
+
+  // ── Layout state ──────────────────────────────────────────────────────
+  const [chartW, setChartW] = React.useState(0);
+
+  // ── Fetch latest ─────────────────────────────────────────────────────
+  async function fetchLatest(d = driver) {
+    if (!d) return;
     try {
-      const snapshots: VitalSnapshot[] = await provider.getLatest();
-      const map: LiveMap = {};
-      for (const s of snapshots) {
-        map[s.key] = { value: s.value, timestamp: s.timestamp };
-      }
-      setLive(map);
-    } catch {
-      // provider unavailable — keep stale values
-    }
+      const snapshot = await d.getLatest();
+      if (snapshot) setLive(snapshot);
+    } catch { /* keep stale values */ }
   }
 
-  // ── Fetch history for chart ──────────────────────────────────────────
-  async function fetchHistory() {
-    if (!provider) return;
+  // ── Fetch history ─────────────────────────────────────────────────────
+  async function fetchHistory(d = driver) {
+    if (!d) return;
     setHistoryLoad(true);
     setHistoryErr(null);
     try {
-      const data = await provider.getHistory(startDate.getTime(), endDate.getTime());
+      const data = await d.getHistory(startDate.getTime(), endDate.getTime());
       setHistoryData(data);
     } catch (e: any) {
       setHistoryErr(String(e?.message ?? e));
@@ -174,85 +152,81 @@ export default function HealthVitalsScreen() {
     }
   }
 
-  // ── Samsung Health permission request ──────────────────────────────
-  async function requestSamsungPerms() {
-    if (!(provider && typeof (provider as any).requestHealthPermissions === 'function')) return;
+  // ── Request permissions — opens HC settings screen ──────────────────
+  // After user toggles permissions in HC app and returns, the AppState
+  // listener re-checks automatically.
+  async function requestPerms(d = driver): Promise<boolean> {
+    if (!d) return false;
     setPermBusy(true);
     try {
-      const granted: boolean = await (provider as any).requestHealthPermissions();
-      setPermGranted(granted);
-      if (granted) {
-        setLive({});
-        setLatestLoad(true);
-        fetchLatest().finally(() => setLatestLoad(false));
-        fetchHistory();
-      }
-    } catch {
-      setPermGranted(false);
-    } finally {
-      setPermBusy(false);
-    }
+      await d.requestPermissions();
+      // requestPermissions now opens HC settings — resolve immediately
+      // Permissions are re-checked by AppState listener on foreground return
+      return false;
+    } catch { return false; }
+    finally { setPermBusy(false); }
   }
 
-  // ── Permission + init effect ─────────────────────────────────────────
+  // ── Init (re-runs on driver switch) ──────────────────────────────────
   React.useEffect(() => {
+    const d = driverManager.get(activeDriver) ?? driverManager.getActive();
     setPermGranted(null);
-    setDeviceName(null);
-
-    if (provider && typeof (provider as any).getConnectedDeviceName === 'function') {
-      (provider as any).getConnectedDeviceName()
-        .then((n: string | null) => setDeviceName(n))
-        .catch(() => {});
-    }
-
-    const hasPerm = provider && typeof (provider as any).requestHealthPermissions === 'function';
+    setLive({});
+    setHistoryData({});
+    setLoading(true);
 
     void (async () => {
-      if (hasPerm) {
-        setLive({});
-        setHistoryData({});
-        setLatestLoad(true);
-        // Check existing grants silently — only show dialog if not already granted
-        const alreadyGranted: boolean =
-          typeof (provider as any).checkHealthPermissions === 'function'
-            ? await (provider as any).checkHealthPermissions().catch(() => false)
-            : false;
-
-        if (alreadyGranted) {
-          console.log('[VXT] Permissions already granted — skipping dialog');
-          setPermGranted(true);
-          fetchLatest().finally(() => setLatestLoad(false));
-          fetchHistory();
-        } else {
-          console.log('[VXT] Permissions not granted — showing Samsung Health consent dialog...');
-          try {
-            const granted: boolean = await (provider as any).requestHealthPermissions();
-            console.log(`[VXT] Permissions resolved: granted=${granted}`);
-            setPermGranted(granted);
-            fetchLatest().finally(() => setLatestLoad(false));
-            fetchHistory();
-          } catch (e: any) {
-            console.warn(`[VXT] Permission request threw: ${e?.message ?? e}`);
-            setPermGranted(false);
-            setLatestLoad(false);
-          }
-        }
-      } else {
-        // Non-Samsung provider — fetch immediately
-        setLive({});
-        setHistoryData({});
-        setLatestLoad(true);
-        fetchLatest().finally(() => setLatestLoad(false));
-        fetchHistory();
+      if (!d) { setLoading(false); return; }
+      // Check if the driver/hardware is installed at all (e.g. Health Connect app)
+      const available = await d.isAvailable().catch(() => true);
+      if (!available) {
+        setHcNotInstalled(true);
+        setLoading(false);
+        return;
       }
+      setHcNotInstalled(false);
+      const already = await d.checkPermissions().catch(() => false);
+      setPermGranted(already);
+      // Do NOT auto-request here — HC throttles the dialog if shown more than once
+      // per session. The user must tap "Grant Permissions" to trigger the dialog.
+      if (!already) { setLoading(false); return; }
+      await Promise.all([fetchLatest(d), fetchHistory(d)]);
+      setLoading(false);
     })();
 
-    const id = setInterval(fetchLatest, REFRESH_INTERVAL_MS);
+    const id = setInterval(() => { fetchLatest(); fetchHistory(); }, REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeDriver]);
 
   React.useEffect(() => { fetchHistory(); }, [startDate, endDate]);
+
+  // Re-check permissions whenever app returns to foreground
+  // (covers user returning from HC settings after granting permissions)
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      const d = driverManager.get(activeDriver) ?? driverManager.getActive();
+      if (!d) return;
+      void (async () => {
+        const available = await d.isAvailable().catch(() => true);
+        if (!available) { setHcNotInstalled(true); return; }
+        setHcNotInstalled(false);
+        const granted = await d.checkPermissions().catch(() => false);
+        if (granted && !permGranted) {
+          setPermGranted(true);
+          setLoading(true);
+          await Promise.all([fetchLatest(d), fetchHistory(d)]);
+          setLoading(false);
+        } else if (granted) {
+          // Silently refresh data even if already granted
+          await Promise.all([fetchLatest(d), fetchHistory(d)]);
+        }
+      })();
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDriver, permGranted]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -260,7 +234,6 @@ export default function HealthVitalsScreen() {
     setRefreshing(false);
   }
 
-  // ── Preset range handler ─────────────────────────────────────────────
   function applyPreset(p: typeof PRESETS[0]) {
     const end   = new Date();
     const start = new Date(end.getTime() - p.ms);
@@ -269,58 +242,78 @@ export default function HealthVitalsScreen() {
     setActivePreset(p.label);
   }
 
-  // ── Toggle metric in graph ───────────────────────────────────────────
   function toggleMetric(key: string) {
     setSelectedMetrics(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // ── Derive displayed metric defs ─────────────────────────────────────
-  // Include catalog metrics + any extra keys returned by the provider.
-  // Hide metrics that are permanently unavailable on the active provider.
-  const isSamsung   = provider?.id === 'samsung-health';
+  // ── Derive displayed metric defs from live snapshot ───────────────────
+  // Show any key returned by the driver; use METRIC_DEFS catalog for display hints.
+  // Extra keys (driver-specific, not in catalog) get a dynamic def automatically.
   const liveKeys    = Object.keys(live);
   const catalogKeys = new Set(METRIC_DEFS.map(m => m.key));
-  const extraKeys   = liveKeys.filter(k => !catalogKeys.has(k));
-  const displayDefs = [
-    ...METRIC_DEFS.filter(m => !isSamsung || !m.samsungUnavailable),
-    ...extraKeys.map((k, i) => buildDynamicDef(k, METRIC_DEFS.length + i)),
-  ];
+  const catalogDefs = METRIC_DEFS.filter(m => liveKeys.includes(m.key));
+  const extraDefs   = liveKeys
+    .filter(k => !catalogKeys.has(k))
+    .map((k, i) => buildDynamicDef(k, METRIC_DEFS.length + i));
+  const displayDefs: MetricDef[] = [...catalogDefs, ...extraDefs];
 
-  // ── Build combined chart datasets (all selected metrics in one chart) ─
-  const activeSeries = React.useMemo(() => {
-    return displayDefs
-      .filter(m => selectedMetrics[m.key] && (historyData[m.key]?.length ?? 0) > 0)
-      .map(def => {
-        const raw     = historyData[def.key] ?? [];
-        const step    = Math.max(1, Math.floor(raw.length / MAX_CHART_POINTS));
-        const sampled = raw.filter((_, idx) => idx % step === 0);
-        // If data spans more than one calendar day, show MM/DD instead of HH:MM
-        // (daily aggregates are pinned to noon so HH:MM would show "12:00" everywhere)
-        const multiDay = sampled.length > 1 &&
-          (sampled[sampled.length - 1].ts - sampled[0].ts) > 23 * 3_600_000;
-        const fmtLabel = (ts: number) => {
-          const d = new Date(ts);
-          if (multiDay) {
-            return `${(d.getMonth() + 1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
-          }
-          return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-        };
-        const pts = sampled.map(s => ({ value: s.v, label: fmtLabel(s.ts), dataPointText: '' }));
-        return { key: def.key, def, pts };
+  // ── Chart series — time-binned for aligned multi-series display ─────────
+  const chartData = React.useMemo(() => {
+    const from = startDate.getTime();
+    const to   = endDate.getTime();
+    if (to <= from) return null;
+    const candidates = displayDefs.filter(
+      m => selectedMetrics[m.key] && (historyData[m.key]?.length ?? 0) > 0,
+    );
+    if (candidates.length === 0) return null;
+
+    const NUM_BINS = 80;
+    const binW     = (to - from) / NUM_BINS;
+    const binTimes = Array.from({ length: NUM_BINS }, (_, i) => from + (i + 0.5) * binW);
+
+    const chartSeries: ChartSeries[] = [];
+    for (const def of candidates) {
+      const raw  = historyData[def.key] ?? [];
+      const sums = new Array<number>(NUM_BINS).fill(0);
+      const cnts = new Array<number>(NUM_BINS).fill(0);
+      for (const pt of raw) {
+        if (pt.ts < from || pt.ts > to) continue;
+        const idx = Math.min(Math.floor((pt.ts - from) / binW), NUM_BINS - 1);
+        sums[idx] += pt.v;
+        cnts[idx] += 1;
+      }
+      const values: (number | null)[] = sums.map((s, i) => cnts[i] > 0 ? s / cnts[i] : null);
+      // Forward-fill gaps
+      let last: number | null = null;
+      for (let i = 0; i < NUM_BINS; i++) {
+        if (values[i] !== null) last = values[i];
+        else if (last !== null) values[i] = last;
+      }
+      const filled = values.filter((v): v is number => v !== null);
+      if (filled.length === 0) continue;
+      chartSeries.push({
+        key: def.key, def, values,
+        rawMin: Math.min(...filled), rawMax: Math.max(...filled),
       });
+    }
+
+    if (chartSeries.length === 0) return null;
+
+    const unitSet   = new Set(chartSeries.map(s => s.def.unit));
+    const normalise = chartSeries.length > 1 && unitSet.size > 1;
+
+    return { chartSeries, binTimes, normalise };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyData, selectedMetrics]);
+  }, [historyData, selectedMetrics, startDate, endDate]);
 
-  const noProvider = !provider;
-
-  // ── Render ───────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <ScrollView
       style={styles.root}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.blue} colors={[C.blue]} />}
     >
-      {/* ── Header ────────────────────────────────────────────────────── */}
+      {/* Header */}
       <View style={styles.pageHeader}>
         <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
           <Text style={styles.menuBtnText}>☰</Text>
@@ -328,7 +321,7 @@ export default function HealthVitalsScreen() {
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.heading}>Health Vitals</Text>
           <Text style={styles.subHeading}>
-            {deviceName ?? (provider ? provider.name : 'No data source configured')}
+            {driver ? driver.displayName : 'No data source configured'}
           </Text>
         </View>
         <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
@@ -336,216 +329,159 @@ export default function HealthVitalsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Source Selector ───────────────────────────────────────────── */}
-      {allProviders.length > 1 && (
-        <View style={styles.sourceRow}>
-          <Text style={styles.sourceLabel}>Source  </Text>
-          {allProviders.map(p => (
-            <TouchableOpacity
-              key={p.id}
-              onPress={() => selectProvider(p.id)}
-              style={[styles.sourceChip, p.id === activeId && styles.sourceChipActive]}
-            >
-              <Text style={[styles.sourceChipText, p.id === activeId && { color: C.bg }]}>
-                {p.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {noProvider && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>No vitals provider available on this platform.</Text>
-        </View>
-      )}
-
-      {/* ── Permission banner (shown when Samsung Health perms denied) ─ */}
-      {permGranted === false && (
-        <TouchableOpacity
-          style={styles.permBanner}
-          onPress={requestSamsungPerms}
-          disabled={permBusy}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.permBannerText}>
-            {permBusy
-              ? '⏳ Waiting for Samsung Health…'
-              : '⚠️ Health permissions not fully granted. Tap to authorize in Samsung Health.'}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────── */}
-      {/* Section 1 — Latest Values (click to toggle in graph)           */}
-      {/* ─────────────────────────────────────────────────────────────── */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>📌 Latest Values</Text>
-        <Text style={styles.sectionSub}>Tap a tile to show/hide in graph</Text>
-      </View>
-
-      {latestLoad ? (
-        <View style={styles.centeredRow}>
-          <ActivityIndicator color={C.blue} />
-          <Text style={[styles.subHeading, { marginLeft: 8 }]}>Loading…</Text>
-        </View>
-      ) : (
-        <View style={styles.tileGrid}>
-          {displayDefs.map(def => {
-            const reading = live[def.key] ?? null;
-            return (
-              <MetricTile
-                key={def.key}
-                def={def}
-                value={reading?.value ?? null}
-                timestamp={reading?.timestamp ?? null}
-                selected={!!selectedMetrics[def.key]}
-                onPress={() => toggleMetric(def.key)}
-              />
-            );
-          })}
-        </View>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────── */}
-      {/* Section 2 — Date Range + History Chart                         */}
-      {/* ─────────────────────────────────────────────────────────────── */}
-      <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-        <Text style={styles.sectionTitle}>📈 History Chart</Text>
-      </View>
-
-      {/* Date range card */}
-      <View style={styles.rangeCard}>
-        {/* Preset chips */}
-        <View style={styles.presetRow}>
-          {PRESETS.map(p => (
-            <TouchableOpacity
-              key={p.label}
-              onPress={() => applyPreset(p)}
-              style={[styles.presetChip, activePreset === p.label && styles.presetChipActive]}
-            >
-              <Text style={[styles.presetText, activePreset === p.label && { color: C.bg }]}>
-                {p.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Chart area */}
-      {historyLoad ? (
-        <View style={[styles.centeredRow, { marginTop: 20 }]}>
-          <ActivityIndicator color={C.blue} />
-          <Text style={[styles.subHeading, { marginLeft: 8 }]}>Loading history…</Text>
-        </View>
-      ) : historyErr ? (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{historyErr}</Text>
-        </View>
-      ) : activeSeries.length === 0 ? (
+      {/* No driver */}
+      {!driver && (
         <View style={styles.noDataBox}>
           <Text style={styles.noDataText}>
-            {Object.values(selectedMetrics).some(v => v)
-              ? 'No data in this date range. Try a wider range.'
-              : 'Tap a metric tile above to display history.'}
+            No data source selected.{'\n'}Open Driver Selection to enable a driver.
           </Text>
         </View>
-      ) : (
-        <View style={styles.chartCard}>
-          {/* Legend row */}
+      )}
+
+      {/* Health Connect not installed banner */}
+      {driver && hcNotInstalled && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>
+            ⚠ Health Connect is not installed on this device.{'\n'}It is required to read health data from your wearables.
+          </Text>
+          <TouchableOpacity
+            style={[styles.refreshBtn, { marginTop: 8, alignSelf: 'flex-start' }]}
+            onPress={() => {
+              const { Linking } = require('react-native');
+              Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata');
+            }}
+          >
+            <Text style={styles.refreshText}>Install Health Connect</Text>
+          </TouchableOpacity>
+          <Text style={[styles.permBannerText, { marginTop: 6, fontSize: 11 }]}>
+            After installing, return here and pull down to refresh.
+          </Text>
+        </View>
+      )}
+
+      {/* Permission banner */}
+      {driver && !hcNotInstalled && permGranted === false && !permBusy && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>
+            ⚠ Permissions not granted for {driver.displayName}.
+          </Text>
+          <TouchableOpacity
+            style={[styles.refreshBtn, { marginTop: 8, alignSelf: 'flex-start' }]}
+            onPress={() => requestPerms()}
+          >
+            <Text style={styles.refreshText}>Grant Permissions</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Loading */}
+      {loading && driver && (
+        <View style={styles.centeredRow}>
+          <ActivityIndicator color={C.blue} />
+          <Text style={[styles.subHeading, { marginLeft: 8 }]}>Loading {driver.displayName}…</Text>
+        </View>
+      )}
+
+      {/* Latest Values */}
+      {!loading && displayDefs.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📌 Latest Values</Text>
+            <Text style={styles.sectionSub}>Tap to show/hide in graph</Text>
+          </View>
+          <View style={styles.tileGrid}>
+            {displayDefs.map(def => {
+              const entry = live[def.key];
+              return (
+                <MetricTile
+                  key={def.key}
+                  def={def}
+                  value={entry?.value ?? null}
+                  timestamp={entry?.ts ?? null}
+                  selected={!!selectedMetrics[def.key]}
+                  onPress={() => toggleMetric(def.key)}
+                />
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {!loading && driver && displayDefs.length === 0 && permGranted !== false && (
+        <View style={styles.noDataBox}>
+          <Text style={styles.noDataText}>No readings available from {driver.displayName} yet.</Text>
+        </View>
+      )}
+
+      {/* Samsung Health sync hint — shown when permissions are granted but only a few metrics have data */}
+      {!loading && permGranted === true && displayDefs.length > 0 && displayDefs.length <= 6 && (
+        <View style={[styles.permBanner, { borderColor: '#388bfd', marginTop: 8 }]}>
+          <Text style={styles.permBannerText}>
+            ℹ️ <Text style={{ fontWeight: 'bold' }}>Only {displayDefs.length} metrics visible</Text> — Samsung Health may not be syncing all data to Health Connect.{'\n\n'}
+            <Text style={{ fontWeight: 'bold' }}>To get more metrics:</Text>{'\n'}
+            1. Open <Text style={{ fontWeight: 'bold' }}>Samsung Health</Text> → Settings → <Text style={{ fontWeight: 'bold' }}>Health Connect</Text> → enable all "Can Write" toggles{'\n'}
+            2. Update Samsung Health from <Text style={{ fontWeight: 'bold' }}>Galaxy Store</Text> — newer versions sync more data types{'\n'}
+            3. Some metrics (SpO2, BP) require <Text style={{ fontWeight: 'bold' }}>manual measurement</Text> on your watch
+          </Text>
+        </View>
+      )}
+
+      {/* History range */}
+      {driver && (
+        <View style={[styles.rangeCard, { marginTop: 20 }]}>
+          <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>📈 History Range</Text>
+          <View style={styles.presetRow}>
+            {PRESETS.map(p => (
+              <TouchableOpacity
+                key={p.label}
+                onPress={() => applyPreset(p)}
+                style={[styles.presetChip, p.label === activePreset && styles.presetChipActive]}
+              >
+                <Text style={[styles.presetText, p.label === activePreset && { color: C.bg }]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Chart */}
+      {chartData && chartData.chartSeries.length > 0 && (
+        <View style={styles.chartCard} onLayout={e => setChartW(e.nativeEvent.layout.width)}>
           <View style={styles.chartLegend}>
-            {activeSeries.map(({ def, pts }) => (
+            {chartData.chartSeries.map(({ def, rawMin, rawMax }) => (
               <View key={def.key} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: def.color }]} />
                 <Text style={[styles.legendLabel, { color: def.color }]}>
                   {def.label}{def.unit ? ` (${def.unit})` : ''}
+                  {chartData.normalise ? `  ${rawMin.toFixed(0)}–${rawMax.toFixed(0)}` : ''}
                 </Text>
-                <Text style={styles.legendPts}> {pts.length}pts</Text>
               </View>
             ))}
+            {chartData.normalise && (
+              <Text style={{ color: C.textMuted, fontSize: 10, marginTop: 2 }}>Y-axis: 0–100 % (normalised per metric)</Text>
+            )}
           </View>
-
-          {activeSeries[0].pts.length < 2 ? (
-            <Text style={styles.noDataText}>Not enough data points</Text>
-          ) : (
-            <LineChart
-              data={activeSeries[0].pts}
-              dataSet={activeSeries.slice(1).map(({ def, pts }) => ({
-                data: pts,
-                color: def.color,
-                thickness: 2,
-                curved: true,
-                // No area fill for secondary series — it would visually cover the primary line
-                hideDataPoints: pts.length > 80,
-                dataPointsColor: def.color,
-                dataPointsRadius: 2,
-              }))}
-              width={SCREEN_W - 96}
-              height={220}
-              color={activeSeries[0].def.color}
-              thickness={2}
-              dataPointsColor={activeSeries[0].def.color}
-              dataPointsRadius={2}
-              startFillColor={activeSeries[0].def.color}
-              endFillColor={C.bg}
-              startOpacity={0.15}
-              endOpacity={0.01}
-              areaChart
-              curved
-              hideDataPoints={activeSeries[0].pts.length > 80}
-              noOfSections={4}
-              yAxisTextStyle={{ color: C.textMuted, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: C.textMuted, fontSize: 9 }}
-              backgroundColor={C.card}
-              rulesColor={C.border}
-              xAxisColor={C.border}
-              yAxisColor={C.border}
-              hideYAxisText={false}
-              showVerticalLines={false}
-              isAnimated={false}
-              scrollAnimation={false}
-              hideRules={false}
-              hideOrigin
-              xAxisLabelTexts={
-                activeSeries[0].pts.length > 12
-                  ? activeSeries[0].pts.map((p, i) =>
-                      i % Math.ceil(activeSeries[0].pts.length / 8) === 0 ? p.label : '')
-                  : activeSeries[0].pts.map(p => p.label)
-              }
-              pointerConfig={{
-                pointerStripWidth: 1,
-                pointerStripColor: C.textMuted,
-                pointerColorForDataSet: activeSeries.slice(1).map(s => s.def.color),
-                radius: 5,
-                pointerLabelWidth: 130,
-                pointerLabelHeight: activeSeries.length * 26 + 16,
-                activatePointersOnLongPress: false,
-                autoAdjustPointerLabelPosition: true,
-                pointerLabelComponent: (items: any[]) => (
-                  <View style={[styles.tooltipBox, { marginTop: 8 }]}>
-                    {items.map((item: any, i: number) => {
-                      const s = activeSeries[i];
-                      if (!s || item?.value == null) return null;
-                      return (
-                        <Text key={s.key} style={[styles.tooltipVal, { color: s.def.color, fontSize: 12 }]}>
-                          {s.def.label}: {Number(item.value).toFixed(1)} {s.def.unit}
-                        </Text>
-                      );
-                    })}
-                    <Text style={styles.tooltipTime}>{items[0]?.label}</Text>
-                  </View>
-                ),
-              }}
+          {historyErr && <View style={styles.errorBox}><Text style={styles.errorText}>{historyErr}</Text></View>}
+          {historyLoad && <View style={styles.centeredRow}><ActivityIndicator color={C.blue} /></View>}
+          {!historyLoad && chartW > 0 && (
+            <CorrelationChart
+              series={chartData.chartSeries}
+              binTimesMs={chartData.binTimes}
+              normalise={chartData.normalise}
+              width={chartW - 28}
             />
           )}
         </View>
       )}
 
-      {/* Bottom spacer */}
       <View style={{ height: 30 }} />
     </ScrollView>
   );
 }
+
+
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
@@ -623,29 +559,7 @@ const styles = StyleSheet.create({
   legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot:   { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { fontSize: 11, fontWeight: '600' },
-  legendPts:   { fontSize: 10, color: C.textMuted },
-  chartHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  chartDot:    { width: 10, height: 10, borderRadius: 5 },
-  chartTitle:  { fontSize: 14, fontWeight: '700', color: C.textPrimary, flex: 1 },
-  chartUnit:   { fontSize: 12, color: C.textMuted },
-  chartPts:    { fontSize: 10, color: C.textMuted, marginLeft: 4 },
 
-  tooltipBox: {
-    backgroundColor: '#2d2d2d',
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  tooltipVal:  { color: C.textPrimary, fontWeight: '700', fontSize: 14 },
-  tooltipTime: { color: C.textMuted, fontSize: 11, marginTop: 2 },
-
-  // source selector
-  sourceRow:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  sourceLabel:     { fontSize: 12, color: C.textMuted, fontWeight: '600' },
-  sourceChip:      { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  sourceChipActive:{ backgroundColor: C.blue, borderColor: C.blue },
-  sourceChipText:  { fontSize: 12, color: C.textPrimary, fontWeight: '500' },
 
   // util
   centeredRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 20 },
