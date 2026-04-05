@@ -193,11 +193,11 @@ export default function EntityTelemetryRNPage() {
       setLoading(true);
       setError(null);
       let data;
-      if (IS_DRIVER_MODE) {
+      if (IS_EMBEDDED) {
         data = await driverRequest('loadEntities');
         if (!data) data = [];
       } else {
-        const res = await fetch(`${BASE}/entities`, { headers: { 'Content-Type': 'application/json' } });
+        const res = await fetch(`${BASE}/entities`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         data = await res.json();
       }
@@ -222,8 +222,8 @@ export default function EntityTelemetryRNPage() {
       const end   = new Date(endDate).toISOString();
       console.log('[EntityTelemetryRNPage] Loading entity', selectedEntity, 'from', start, 'to', end);
 
-      if (IS_DRIVER_MODE) {
-        // Bridge: request data from RN driver APIs
+      if (IS_EMBEDDED) {
+        // Bridge: request data from RN native layer (driver APIs or HTTP proxy)
         const [latest, tel, ev] = await Promise.all([
           driverRequest('loadLatest', { entityId: String(selectedEntity) }),
           driverRequest('loadRange',  { entityId: String(selectedEntity), startDate: start, endDate: end }),
@@ -234,9 +234,9 @@ export default function EntityTelemetryRNPage() {
         setEvents(ev || []);
       } else {
         const [latestRes, telRes, evRes] = await Promise.all([
-          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}`, { headers: { 'Content-Type': 'application/json' } }),
-          fetch(`${BASE}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`, { headers: { 'Content-Type': 'application/json' } }),
-          fetch(`${BASE}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`, { headers: { 'Content-Type': 'application/json' } }),
+          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}`),
+          fetch(`${BASE}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
+          fetch(`${BASE}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
         ]);
 
         if (latestRes.ok) {
@@ -271,12 +271,17 @@ export default function EntityTelemetryRNPage() {
   }
 
   async function fetchEventDetails(eventLogId) {
-    if (IS_DRIVER_MODE) return; // events not available from driver
     try {
       setEventDetailsLoading(true);
-      const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`, { headers: { 'Content-Type': 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let data;
+      if (IS_EMBEDDED) {
+        data = await driverRequest('loadEventDetails', { eventLogId: String(eventLogId) });
+        if (!data) return;
+      } else {
+        const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+      }
       setSelectedEventLog(data);
     } catch (e) {
       setError('Failed to load event details: ' + e.message);
@@ -300,7 +305,6 @@ export default function EntityTelemetryRNPage() {
   }
 
   async function showScoreDetails(detail) {
-    if (IS_DRIVER_MODE) return; // scores not available from driver
     try {
       setScoreDetailsLoading(true);
       const attributeCode = detail.attributeCode;
@@ -322,9 +326,15 @@ export default function EntityTelemetryRNPage() {
         }
       }
 
-      const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      detailToShow.scores = await response.json();
+      let scores;
+      if (IS_EMBEDDED) {
+        scores = await driverRequest('loadScores', { attributeCode });
+      } else {
+        const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        scores = await response.json();
+      }
+      detailToShow.scores = scores || [];
       detailToShow.isPythonAnalysis = false;
       setSelectedScoreDetail(detailToShow);
     } catch (err) {
@@ -458,12 +468,27 @@ export default function EntityTelemetryRNPage() {
   return (
     <div className="management-page" style={IS_EMBEDDED ? { padding: 0, margin: 0, borderRadius: 0, boxShadow: 'none', background: '#0d1117', minHeight: '100vh' } : undefined}>
       {IS_EMBEDDED ? (
-        // Embedded mode: compact header with just buttons
-        <div style={{ display: 'flex', gap: '6px', padding: '4px 4px', justifyContent: 'flex-end', borderBottom: '1px solid #30363d', backgroundColor: '#0d1117' }}>
+        // Embedded mode: entity selector + buttons in one compact row
+        <div style={{ display: 'flex', gap: '6px', padding: '4px 4px', alignItems: 'center', borderBottom: '1px solid #30363d', backgroundColor: '#0d1117' }}>
+          {!IS_DRIVER_MODE && (
+            <select
+              value={selectedEntity ?? ''}
+              onChange={e => setSelectedEntity(e.target.value)}
+              disabled={loading}
+              style={{ flex: 1, padding: '5px 6px', backgroundColor: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: '4px', fontSize: '12px', minWidth: 0 }}
+            >
+              <option value="">-- Entity --</option>
+              {entities.map(e => (
+                <option key={e.entityId} value={e.entityId}>
+                  {e.entityFirstName || e.entityName}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={exportToPDF}
             disabled={loading}
-            style={{ padding: '5px 10px', backgroundColor: '#5a6a8a', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500' }}
+            style={{ padding: '5px 10px', backgroundColor: '#5a6a8a', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}
             title="Export to PDF"
           >
             📄 PDF
@@ -471,20 +496,33 @@ export default function EntityTelemetryRNPage() {
           <button
             onClick={() => { setLoading(true); loadData(); }}
             disabled={loading}
-            style={{ padding: '5px 10px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500' }}
+            style={{ padding: '5px 10px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}
             title="Refresh data"
           >
             🔄 {loading ? '...' : 'Refresh'}
           </button>
         </div>
       ) : (
-        // PC admin dashboard: full header
-        <div className="page-header">
-          <div className="page-header-title">
-            <h2>📱 Entity Telemetry</h2>
-            <p>{IS_DRIVER_MODE ? 'Driver mode — data from local device' : 'Real-time telemetry from mobile data source'}</p>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+        // PC admin dashboard: entity selector + buttons (no titles)
+        <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {!IS_DRIVER_MODE && (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <select
+                value={selectedEntity ?? ''}
+                onChange={e => setSelectedEntity(e.target.value)}
+                disabled={loading}
+                style={{ width: '100%', padding: '8px 12px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px', fontSize: '14px' }}
+              >
+                <option value="">-- Select Entity --</option>
+                {entities.map(e => (
+                  <option key={e.entityId} value={e.entityId}>
+                    {e.entityFirstName || e.entityName} ({e.entityId})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
             <button
               onClick={exportToPDF}
               disabled={loading}
@@ -510,50 +548,29 @@ export default function EntityTelemetryRNPage() {
       <div id="telemetry-rn-content" style={IS_EMBEDDED ? { padding: 0 } : undefined}>
 
       {/* ── Filter Section (Compact, left-aligned) ── */}
-      <div className="filter-section" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px', padding: IS_EMBEDDED ? '4px 4px' : '8px 10px', alignItems: 'flex-end', backgroundColor: IS_EMBEDDED ? '#0d1117' : undefined, margin: IS_EMBEDDED ? '4px 0 0 0' : undefined, borderRadius: IS_EMBEDDED ? 0 : undefined }}> 
-        {!IS_DRIVER_MODE && (
-        <div className="filter-group" style={{ flex: '0 0 auto' }}>
-          <label style={{ fontSize: '12px' }}>
-            Entity:
-            <select 
-              value={selectedEntity ?? ''} 
-              onChange={e => setSelectedEntity(e.target.value)}
-              disabled={loading}
-              style={{ marginLeft: '4px' }}
-            >
-              <option value="">-- Select Entity --</option>
-              {entities.map(e => (
-                <option key={e.entityId} value={e.entityId}>
-                  {e.entityFirstName || e.entityName} ({e.entityId})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        )}
-
-        <div className="filter-group" style={{ flex: '0 0 auto' }}>
-          <label style={{ fontSize: '12px' }}>
-            Start:
+      <div className="filter-section" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '6px', padding: IS_EMBEDDED ? '4px 4px' : '8px 10px', alignItems: 'flex-end', backgroundColor: IS_EMBEDDED ? '#0d1117' : undefined, margin: IS_EMBEDDED ? '4px 0 0 0' : undefined, borderRadius: IS_EMBEDDED ? 0 : undefined }}> 
+        <div className="filter-group" style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            From
             <input 
               type="datetime-local" 
               value={startDate} 
               onChange={e => setStartDate(e.target.value)}
               disabled={loading}
-              style={{ marginLeft: '4px' }}
+              style={{ flex: 1, minWidth: 0, fontSize: '12px', padding: '4px 4px' }}
             />
           </label>
         </div>
 
-        <div className="filter-group" style={{ flex: '0 0 auto' }}>
-          <label style={{ fontSize: '12px' }}>
-            End:
+        <div className="filter-group" style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            To
             <input 
               type="datetime-local" 
               value={endDate} 
               onChange={e => setEndDate(e.target.value)}
               disabled={loading}
-              style={{ marginLeft: '4px' }}
+              style={{ flex: 1, minWidth: 0, fontSize: '12px', padding: '4px 4px' }}
             />
           </label>
         </div>

@@ -15,7 +15,7 @@ export type DataSourceType = 'cloud' | 'local' | 'driver';
 
 export const DEFAULT_CLOUD_URL =
   'https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net';
-export const DEFAULT_LOCAL_URL = 'http://192.168.1.29:8000';
+export const DEFAULT_LOCAL_URL = 'http://192.168.1.22:8000';
 
 const KEY_TYPE          = '@vxt_ds_type';
 const KEY_CLOUD_URL     = '@vxt_ds_cloud_url';

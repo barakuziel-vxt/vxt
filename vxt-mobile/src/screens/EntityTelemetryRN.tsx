@@ -19,9 +19,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Share,
   Alert,
 } from 'react-native';
+import RNShare from 'react-native-share';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { DrawerContext } from '../context/DrawerContext';
@@ -47,7 +47,7 @@ function deriveDashboardUrl(localUrl: string): string {
     const u = new URL(localUrl);
     return `${u.protocol}//${u.hostname}:3002`;
   } catch {
-    return 'http://192.168.1.22:3002';
+    return 'http://192.168.1.22:3002';  // fallback: current PC IP
   }
 }
 
@@ -89,11 +89,14 @@ export default function EntityTelemetryRN() {
   const { activeDriver } = useGatewayStore();
   const webViewRef = useRef<WebView>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver = ds.type === 'driver';
   const dashboardUrl = deriveDashboardUrl(ds.localUrl);
+  // Driver mode: load from bundled APK asset (no network needed)
+  // Local/Cloud mode: load from the running dashboard on the network
   const webViewUrl = isDriver
-    ? `${dashboardUrl}/?embedded=true&mode=driver&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}#telemetryRN`
+    ? `file:///android_asset/www/index.html?embedded=true&mode=driver&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}#telemetryRN`
     : `${dashboardUrl}/?embedded=true&dsType=${ds.type}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
 
   // ── Bridge: handle requests from WebView ─────────────────────────────────────
@@ -110,13 +113,17 @@ export default function EntityTelemetryRN() {
       try {
         const { pdfData, entityName } = msg;
         if (!pdfData) return;
-        await Share.share({
+        await RNShare.open({
           url: pdfData,
           title: `Telemetry Report - ${entityName || 'Export'}`,
-          message: `Telemetry report for ${entityName || 'entity'}`,
+          type: 'application/pdf',
+          filename: `telemetry-${entityName || 'report'}`,
         });
-      } catch (e) {
-        console.warn('[EntityTelemetryRN] Share error:', e);
+      } catch (e: any) {
+        // User cancel is not an error
+        if (e?.message !== 'User did not share') {
+          console.warn('[EntityTelemetryRN] Share error:', e);
+        }
       }
       return;
     }
@@ -240,21 +247,26 @@ export default function EntityTelemetryRN() {
           <Text style={styles.errorText}>{webViewUrl}</Text>
           <Text style={styles.errorText}>{loadError}</Text>
           <Text style={styles.hintText}>
-            Make sure the admin dashboard is running{'\n'}
-            (start_all.ps1, or: cd admin-dashboard && npm run dev)
+            {isDriver
+              ? 'Bundled UI failed to load — try rebuilding the app'
+              : `Make sure the admin dashboard is running\n(start_all.ps1, or: cd admin-dashboard && npm run dev)`}
           </Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => setLoadError(null)}
+            onPress={() => { setLoadError(null); setWebViewKey(k => k + 1); }}
           >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <WebView
+          key={`${webViewUrl}_${webViewKey}`}
           ref={webViewRef}
           source={{ uri: webViewUrl }}
           style={styles.webView}
+          cacheEnabled={false}
+          allowFileAccess={true}
+          originWhitelist={['*', 'file://']}
           startInLoadingState
           renderLoading={() => (
             <View style={[StyleSheet.absoluteFill, styles.center]}>

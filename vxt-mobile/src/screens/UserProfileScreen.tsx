@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useUserProfile, saveUserProfile } from '../hooks/useUserProfile';
+import { DrawerContext } from '../context/DrawerContext';
 
 const C = {
   bg:          '#0d1117',
@@ -28,6 +29,7 @@ export default function UserProfileScreen() {
   const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone);
   const [isSaving, setIsSaving] = useState(false);
+  const { openDrawer } = useContext(DrawerContext);
 
   const handleSave = async () => {
     if (!fullName.trim() || !userId.trim() || !email.trim() || !phone.trim()) {
@@ -65,9 +67,14 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView style={styles.root}>
-      <View style={styles.header}>
-        <Text style={styles.title}>User Profile</Text>
-        <Text style={styles.subtitle}>Manage your account information</Text>
+      <View style={styles.pageHeader}>
+        <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
+          <Text style={styles.menuBtnText}>☰</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.title}>👤 User Profile</Text>
+          <Text style={styles.subtitle}>Manage your account information</Text>
+        </View>
       </View>
 
       <View style={styles.form}>
@@ -155,11 +162,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.bg,
   },
-  header: {
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     paddingTop: 12,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
+  },
+  menuBtn: {
+    padding: 8,
+    backgroundColor: C.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  menuBtnText: {
+    color: C.textPrimary,
+    fontSize: 20,
   },
   title: {
     fontSize: 22,
