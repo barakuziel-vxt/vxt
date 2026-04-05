@@ -47,7 +47,7 @@ function deriveDashboardUrl(localUrl: string): string {
     const u = new URL(localUrl);
     return `${u.protocol}//${u.hostname}:3002`;
   } catch {
-    return 'http://192.168.1.22:3002';
+    return 'http://192.168.1.22:3002';  // fallback: current PC IP
   }
 }
 
@@ -89,6 +89,7 @@ export default function EntityTelemetryRN() {
   const { activeDriver } = useGatewayStore();
   const webViewRef = useRef<WebView>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver = ds.type === 'driver';
   const dashboardUrl = deriveDashboardUrl(ds.localUrl);
@@ -245,16 +246,18 @@ export default function EntityTelemetryRN() {
           </Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => setLoadError(null)}
+            onPress={() => { setLoadError(null); setWebViewKey(k => k + 1); }}
           >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <WebView
+          key={`${webViewUrl}_${webViewKey}`}
           ref={webViewRef}
           source={{ uri: webViewUrl }}
           style={styles.webView}
+          cacheEnabled={false}
           startInLoadingState
           renderLoading={() => (
             <View style={[StyleSheet.absoluteFill, styles.center]}>

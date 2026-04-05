@@ -193,11 +193,11 @@ export default function EntityTelemetryRNPage() {
       setLoading(true);
       setError(null);
       let data;
-      if (IS_DRIVER_MODE) {
+      if (IS_EMBEDDED) {
         data = await driverRequest('loadEntities');
         if (!data) data = [];
       } else {
-        const res = await fetch(`${BASE}/entities`, { headers: { 'Content-Type': 'application/json' } });
+        const res = await fetch(`${BASE}/entities`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         data = await res.json();
       }
@@ -222,8 +222,8 @@ export default function EntityTelemetryRNPage() {
       const end   = new Date(endDate).toISOString();
       console.log('[EntityTelemetryRNPage] Loading entity', selectedEntity, 'from', start, 'to', end);
 
-      if (IS_DRIVER_MODE) {
-        // Bridge: request data from RN driver APIs
+      if (IS_EMBEDDED) {
+        // Bridge: request data from RN native layer (driver APIs or HTTP proxy)
         const [latest, tel, ev] = await Promise.all([
           driverRequest('loadLatest', { entityId: String(selectedEntity) }),
           driverRequest('loadRange',  { entityId: String(selectedEntity), startDate: start, endDate: end }),
@@ -234,9 +234,9 @@ export default function EntityTelemetryRNPage() {
         setEvents(ev || []);
       } else {
         const [latestRes, telRes, evRes] = await Promise.all([
-          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}`, { headers: { 'Content-Type': 'application/json' } }),
-          fetch(`${BASE}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`, { headers: { 'Content-Type': 'application/json' } }),
-          fetch(`${BASE}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`, { headers: { 'Content-Type': 'application/json' } }),
+          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}`),
+          fetch(`${BASE}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
+          fetch(`${BASE}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
         ]);
 
         if (latestRes.ok) {
@@ -271,12 +271,17 @@ export default function EntityTelemetryRNPage() {
   }
 
   async function fetchEventDetails(eventLogId) {
-    if (IS_DRIVER_MODE) return; // events not available from driver
     try {
       setEventDetailsLoading(true);
-      const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`, { headers: { 'Content-Type': 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let data;
+      if (IS_EMBEDDED) {
+        data = await driverRequest('loadEventDetails', { eventLogId: String(eventLogId) });
+        if (!data) return;
+      } else {
+        const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+      }
       setSelectedEventLog(data);
     } catch (e) {
       setError('Failed to load event details: ' + e.message);
@@ -300,7 +305,6 @@ export default function EntityTelemetryRNPage() {
   }
 
   async function showScoreDetails(detail) {
-    if (IS_DRIVER_MODE) return; // scores not available from driver
     try {
       setScoreDetailsLoading(true);
       const attributeCode = detail.attributeCode;
@@ -322,9 +326,15 @@ export default function EntityTelemetryRNPage() {
         }
       }
 
-      const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      detailToShow.scores = await response.json();
+      let scores;
+      if (IS_EMBEDDED) {
+        scores = await driverRequest('loadScores', { attributeCode });
+      } else {
+        const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        scores = await response.json();
+      }
+      detailToShow.scores = scores || [];
       detailToShow.isPythonAnalysis = false;
       setSelectedScoreDetail(detailToShow);
     } catch (err) {
