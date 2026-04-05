@@ -175,7 +175,7 @@ export default function EntityTelemetryRNPage() {
       setLoading(true);
       setError(null);
       let data;
-      if (IS_DRIVER_MODE) {
+      if (IS_EMBEDDED) {
         data = await driverRequest('loadEntities');
         if (!data) data = [];
       } else {
@@ -204,12 +204,12 @@ export default function EntityTelemetryRNPage() {
       const end   = new Date(endDate).toISOString();
       console.log('[EntityTelemetryRNPage] Loading entity', selectedEntity, 'from', start, 'to', end);
 
-      if (IS_DRIVER_MODE) {
-        // Bridge: request data from RN driver
+      if (IS_EMBEDDED) {
+        // Bridge: request data from RN (driver APIs or HTTP proxy)
         const [latest, tel, ev] = await Promise.all([
-          driverRequest('loadLatest', { entityId: selectedEntity }),
-          driverRequest('loadRange',  { entityId: selectedEntity, startDate: start, endDate: end }),
-          driverRequest('loadEvents', { entityId: selectedEntity, startDate: start, endDate: end }),
+          driverRequest('loadLatest', { entityId: String(selectedEntity) }),
+          driverRequest('loadRange',  { entityId: String(selectedEntity), startDate: start, endDate: end }),
+          driverRequest('loadEvents', { entityId: String(selectedEntity), startDate: start, endDate: end }),
         ]);
         setLatestValues(latest || []);
         setTelemetryData(tel || []);
@@ -256,6 +256,11 @@ export default function EntityTelemetryRNPage() {
     if (IS_DRIVER_MODE) return; // events not available from driver
     try {
       setEventDetailsLoading(true);
+      if (IS_EMBEDDED) {
+        const data = await driverRequest('loadEventDetails', { eventLogId: String(eventLogId) });
+        if (data) setSelectedEventLog(data);
+        return;
+      }
       const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`, { headers: { 'Content-Type': 'application/json' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -302,6 +307,14 @@ export default function EntityTelemetryRNPage() {
         } catch (e) {
           console.warn('Could not parse analysisMetadata:', e);
         }
+      }
+
+      if (IS_EMBEDDED) {
+        const scores = await driverRequest('loadScores', { attributeCode });
+        detailToShow.scores = scores || [];
+        detailToShow.isPythonAnalysis = false;
+        setSelectedScoreDetail(detailToShow);
+        return;
       }
 
       const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
@@ -491,11 +504,6 @@ export default function EntityTelemetryRNPage() {
 
       <div id="telemetry-rn-content" style={IS_EMBEDDED ? { padding: 0 } : undefined}>
 
-      {/* ── Location Map — auto-hides when no lat/lon data ── */}
-      <div style={IS_EMBEDDED ? { margin: 0, padding: 0, width: '100%' } : undefined}>
-        <LocationMap telemetryData={telemetryData} title="Location History" />
-      </div>
-
       {/* ── Filter Section (Compact, left-aligned) ── */}
       <div className="filter-section" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px', padding: IS_EMBEDDED ? '4px 4px' : '8px 10px', alignItems: 'flex-end', backgroundColor: IS_EMBEDDED ? '#0d1117' : undefined, margin: IS_EMBEDDED ? '4px 0 0 0' : undefined, borderRadius: IS_EMBEDDED ? 0 : undefined }}> 
         {!IS_DRIVER_MODE && (
@@ -544,6 +552,11 @@ export default function EntityTelemetryRNPage() {
             />
           </label>
         </div>
+      </div>
+
+      {/* ── Location Map — below filters, above attributes ── */}
+      <div style={IS_EMBEDDED ? { margin: 0, padding: 0, width: '100%' } : undefined}>
+        <LocationMap telemetryData={telemetryData} title="Location History" />
       </div>
 
       {/* ── Latest Value Metrics ── */}

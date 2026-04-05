@@ -241,7 +241,7 @@ export default function EntityTelemetryRN() {
           onError={(e) => {
             setLoadError(e.nativeEvent.description || 'Connection failed');
           }}
-          onMessage={isDriver ? handleBridgeMessage : undefined}
+          onMessage={handleBridgeMessage}
           javaScriptEnabled
           domStorageEnabled
           allowsInlineMediaPlayback
