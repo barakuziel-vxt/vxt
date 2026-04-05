@@ -1,0 +1,1014 @@
+/**
+ * EntityTelemetryRN — entity telemetry analytics screen for React Native.
+ *
+ * Mirrors the functionality of EntityTelemetryAnalyticsPage.jsx (admin dashboard)
+ * but uses the HealthVitals-style multi-series line chart (CorrelationChart).
+ *
+ * Data source routing (configured in DataSourceScreen):
+ *   'cloud'  / 'local' → fetches from REST API at the configured base URL
+ *   'driver'           → uses the active driver's getLatest() / getHistory()
+ *
+ * Sections:
+ *   1. Entity selector    (Cloud/Local only)
+ *   2. Date range presets (all sources)
+ *   3. Latest values      (tile grid, tap to toggle in chart)
+ *   4. Multi-series chart (CorrelationChart, same as HealthVitals)
+ *   5. Events list        (Cloud/Local only)
+ */
+import React, { useContext } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
+  Modal,
+} from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import CorrelationChart from '../components/CorrelationChart';
+import type { ChartSeries } from '../components/CorrelationChart';
+import { DrawerContext } from '../context/DrawerContext';
+import { driverManager } from '../core/DriverManager';
+import { useGatewayStore } from '../store/gatewayStore';
+import { useDataSource } from '../hooks/useDataSource';
+import { METRIC_DEFS, buildDynamicDef, VC } from '../vitals/VitalsDefs';
+import type { MetricDef } from '../vitals/VitalsDefs';
+import type { SnapshotMap, HistoryMap } from '../core/types';
+
+// ─── Colours ──────────────────────────────────────────────────────────────
+const C = {
+  bg:          '#0d1117',
+  card:        '#161b22',
+  cardActive:  '#0d1f38',
+  border:      '#30363d',
+  textPrimary: '#e6edf3',
+  textMuted:   '#8b949e',
+  blue:        VC.blue,
+  green:       VC.green,
+  red:         VC.red,
+  orange:      VC.orange,
+};
+
+const CHART_COLORS = [
+  '#ff7300', '#38a3b8', '#41b922', '#bb4c99',
+  '#ff4d4d', '#8884d8', '#f5a623', '#50e3c2',
+];
+
+const NUM_BINS = 80;
+
+// ─── Date format helper ───────────────────────────────────────────────────
+function formatDateTime(d: Date): string {
+  const y   = d.getFullYear();
+  const mo  = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h   = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${mo}-${day}  ${h}:${min}`;
+}
+
+// ─── Helper: format timestamp ─────────────────────────────────────────────
+function ago(ts: number | null): string {
+  if (!ts) return '—';
+  const diff = Date.now() - ts;
+  if (diff < 120_000)   return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
+  const d = new Date(ts);
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  if (d.toDateString() === new Date().toDateString()) return `today ${hh}:${mm}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    const s = iso.endsWith('Z') ? iso : iso + 'Z';
+    return new Date(s).toLocaleString();
+  } catch { return iso; }
+}
+
+// ─── Helper: convert REST telemetry records to HistoryMap ─────────────────
+// REST records: Array<{ endTimestampUTC: string, [code: string]: number }>
+function recordsToHistoryMap(records: Record<string, unknown>[]): HistoryMap {
+  const map: HistoryMap = {};
+  for (const rec of records) {
+    const rawTs = rec['endTimestampUTC'];
+    if (typeof rawTs !== 'string') continue;
+    const tsStr = rawTs.endsWith('Z') ? rawTs : rawTs + 'Z';
+    const ts = new Date(tsStr).getTime();
+    if (isNaN(ts)) continue;
+    for (const [key, val] of Object.entries(rec)) {
+      if (key === 'endTimestampUTC' || key === 'attributeCode') continue;
+      if (typeof val !== 'number' || isNaN(val)) continue;
+      if (!map[key]) map[key] = [];
+      map[key].push({ ts, v: val });
+    }
+  }
+  // Sort each series by timestamp ascending
+  for (const arr of Object.values(map)) arr.sort((a, b) => a.ts - b.ts);
+  return map;
+}
+
+// ─── Helper: build MetricDef for cloud attributes ─────────────────────────
+function buildCloudDef(
+  attributeCode: string,
+  attributeName: string,
+  attributeUnit: string,
+  index: number,
+): MetricDef {
+  // Try to match existing catalog first
+  const catalog = METRIC_DEFS.find(m => m.key === attributeCode);
+  if (catalog) return catalog;
+  return {
+    key:        attributeCode,
+    label:      attributeName || attributeCode,
+    unit:       attributeUnit || '',
+    color:      CHART_COLORS[index % CHART_COLORS.length],
+    defaultOn:  false,
+    rangeColor: () => C.textPrimary,
+  };
+}
+
+// ─── Helper: bin HistoryMap into ChartSeries ──────────────────────────────
+function binToChartSeries(
+  historyData: HistoryMap,
+  defs: Record<string, MetricDef>,
+  selectedMetrics: Record<string, boolean>,
+  startMs: number,
+  endMs: number,
+): { chartSeries: ChartSeries[]; binTimes: number[] } | null {
+  if (endMs <= startMs) return null;
+  const binW = (endMs - startMs) / NUM_BINS;
+  const binTimes = Array.from({ length: NUM_BINS }, (_, i) => startMs + (i + 0.5) * binW);
+
+  const chartSeries: ChartSeries[] = [];
+
+  const keys = Object.keys(defs).filter(
+    key => selectedMetrics[key] && (historyData[key]?.length ?? 0) > 0,
+  );
+
+  for (const key of keys) {
+    const def = defs[key];
+    const raw = historyData[key] ?? [];
+    const sums = new Array<number>(NUM_BINS).fill(0);
+    const cnts = new Array<number>(NUM_BINS).fill(0);
+
+    for (const pt of raw) {
+      if (pt.ts < startMs || pt.ts > endMs) continue;
+      const idx = Math.min(Math.floor((pt.ts - startMs) / binW), NUM_BINS - 1);
+      sums[idx] += pt.v;
+      cnts[idx] += 1;
+    }
+
+    const values: (number | null)[] = sums.map((s, i) => (cnts[i] > 0 ? s / cnts[i] : null));
+
+    // Forward-fill gaps
+    let last: number | null = null;
+    for (let i = 0; i < NUM_BINS; i++) {
+      if (values[i] !== null) last = values[i];
+      else if (last !== null) values[i] = last;
+    }
+
+    const filled = values.filter((v): v is number => v !== null);
+    if (filled.length === 0) continue;
+
+    chartSeries.push({
+      key,
+      def,
+      values,
+      rawMin: Math.min(...filled),
+      rawMax: Math.max(...filled),
+    });
+  }
+
+  if (chartSeries.length === 0) return null;
+
+  const unitSet  = new Set(chartSeries.map(s => s.def.unit));
+  const normalise = chartSeries.length > 1 && unitSet.size > 1;
+
+  return { chartSeries: chartSeries.map(s => ({ ...s, normalise })) as ChartSeries[], binTimes };
+}
+
+// ─── Metric tile ──────────────────────────────────────────────────────────
+
+interface TileData {
+  key:       string;
+  label:     string;
+  unit:      string;
+  value:     number | null;
+  ts:        number | null;
+  color:     string;
+  selected:  boolean;
+}
+
+function MetricTile({
+  tile,
+  onPress,
+}: { tile: TileData; onPress(): void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={[
+        styles.tile,
+        tile.selected && { borderColor: tile.color, backgroundColor: C.cardActive },
+      ]}
+    >
+      <View style={[styles.tileBar, { backgroundColor: tile.color }]} />
+      <Text style={styles.tileLabel}>{tile.label}</Text>
+      <Text style={[styles.tileValue, { color: tile.selected ? tile.color : C.textPrimary }]}>
+        {tile.value !== null ? tile.value.toFixed(1) : '—'}
+        {tile.value !== null && tile.unit
+          ? <Text style={styles.tileUnit}> {tile.unit}</Text>
+          : null}
+      </Text>
+      <Text style={styles.tileTime}>{ago(tile.ts)}</Text>
+      {tile.selected && (
+        <View style={[styles.selectedBadge, { backgroundColor: tile.color + '33' }]}>
+          <Text style={[styles.selectedBadgeText, { color: tile.color }]}>in graph</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ─── Entity picker modal ──────────────────────────────────────────────────
+
+interface Entity {
+  entityId:        number | string;
+  entityName:      string;
+  entityFirstName: string;
+  entityTypeId:    number;
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────
+
+export default function EntityTelemetryRN() {
+  const { openDrawer }   = useContext(DrawerContext);
+  const { activeDriver } = useGatewayStore();
+  const ds = useDataSource();
+
+  const driver = driverManager.get(activeDriver) ?? driverManager.getActive();
+
+  // ── Date range ───────────────────────────────────────────────────────
+  const [startDate, setStartDate] = React.useState(() => new Date(Date.now() - 3_600_000));
+  const [endDate,   setEndDate]   = React.useState(() => new Date());
+
+  // ── Date/time picker state ───────────────────────────────────────────
+  const [dtPickerVisible, setDtPickerVisible] = React.useState(false);
+  const [dtPickerTarget,  setDtPickerTarget]  = React.useState<'start' | 'end'>('start');
+  const [dtPickerMode,    setDtPickerMode]    = React.useState<'date' | 'time'>('date');
+  const [dtPickerTemp,    setDtPickerTemp]    = React.useState(new Date());
+
+  // ── Entity state (cloud/local only) ──────────────────────────────────
+  const [entities,       setEntities]       = React.useState<Entity[]>([]);
+  const [selectedEntity, setSelectedEntity] = React.useState<number | string | null>(null);
+  const [pickerVisible,  setPickerVisible]  = React.useState(false);
+
+  // ── Cloud/Local data ─────────────────────────────────────────────────
+  const [latestValues,   setLatestValues]   = React.useState<ApiLatestValue[]>([]);
+  const [telemetryRecs,  setTelemetryRecs]  = React.useState<Record<string, unknown>[]>([]);
+  const [events,         setEvents]         = React.useState<ApiEvent[]>([]);
+
+  // ── Driver data ─────────────────────────────────────────────────────
+  const [live,           setLive]           = React.useState<SnapshotMap>({});
+  const [historyData,    setHistoryData]    = React.useState<HistoryMap>({});
+
+  // ── Shared UI state ──────────────────────────────────────────────────
+  const [loading,         setLoading]         = React.useState(false);
+  const [historyLoading,  setHistoryLoading]  = React.useState(false);
+  const [error,           setError]           = React.useState<string | null>(null);
+  const [refreshing,      setRefreshing]      = React.useState(false);
+  const [selectedMetrics, setSelectedMetrics] = React.useState<Record<string, boolean>>({});
+  const [chartW,          setChartW]          = React.useState(0);
+
+  // ── Event detail modal ───────────────────────────────────────────────
+  const [selectedEvent,    setSelectedEvent]    = React.useState<ApiEvent | null>(null);
+  const [eventDetailLoading, setEventDetailLoading] = React.useState(false);
+  const [eventDetails,     setEventDetails]     = React.useState<ApiEventDetails | null>(null);
+
+  // ── Initial load (re-runs on data source change) ──────────────────────
+  React.useEffect(() => {
+    if (!ds.loaded) return;
+    if (ds.type === 'driver') {
+      loadDriverData();
+    } else {
+      loadEntities();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ds.loaded, ds.type, ds.baseUrl]);
+
+  React.useEffect(() => {
+    if (!ds.loaded) return;
+    if (ds.type === 'driver') {
+      fetchDriverHistory();
+    } else if (selectedEntity) {
+      loadCloudData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, selectedEntity, ds.loaded, ds.type, ds.baseUrl]);
+
+  // ── Driver ────────────────────────────────────────────────────────────
+
+  async function loadDriverData() {
+    if (!driver) { setError('No driver active. Go to Driver Selection.'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const snap = await driver.getLatest();
+      if (snap) setLive(snap);
+    } catch (e: unknown) {
+      setError('Driver error: ' + String(e));
+    } finally {
+      setLoading(false);
+    }
+    fetchDriverHistory();
+  }
+
+  async function fetchDriverHistory() {
+    if (!driver || ds.type !== 'driver') return;
+    setHistoryLoading(true);
+    try {
+      const data = await driver.getHistory(startDate.getTime(), endDate.getTime());
+      if (Object.keys(data).length > 0) setHistoryData(data);
+    } catch { /* keep stale */ }
+    finally { setHistoryLoading(false); }
+  }
+
+  // ── Cloud / Local ─────────────────────────────────────────────────────
+
+  async function loadEntities() {
+    if (!ds.baseUrl) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${ds.baseUrl}/entities`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: Entity[] = await res.json();
+      console.log('[EntityTelemetryRN] Loaded entities:', data.map(e => ({ id: e.entityId, name: e.entityName, typeId: e.entityTypeId })));
+      setEntities(data);
+      if (data.length > 0) {
+        // Default to yacht/vessel (entityTypeId !== 1), else first entity
+        const preferred = data.find(e => e.entityTypeId !== 1) ?? data[0];
+        console.log('[EntityTelemetryRN] Setting default entity:', { id: preferred.entityId, name: preferred.entityName, typeId: preferred.entityTypeId });
+        setSelectedEntity(preferred.entityId);
+      }
+    } catch (e: unknown) {
+      setError('Failed to load entities: ' + String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadCloudData() {
+    if (!ds.baseUrl || !selectedEntity) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const startUTC = new Date(startDate).toISOString();
+      const endUTC   = new Date(endDate).toISOString();
+      const entityStr = String(selectedEntity);
+      console.log('[EntityTelemetryRN] Loading data for entity', entityStr, 'from', startUTC, 'to', endUTC);
+
+      const [latestRes, telemetryRes, eventsRes] = await Promise.all([
+        fetch(`${ds.baseUrl}/api/telemetry/latest/${entityStr}`, {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+        fetch(
+          `${ds.baseUrl}/api/telemetry/range/${entityStr}?startDate=${encodeURIComponent(startUTC)}&endDate=${encodeURIComponent(endUTC)}`,
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+        fetch(
+          `${ds.baseUrl}/api/events/range/${entityStr}?startDate=${encodeURIComponent(startUTC)}&endDate=${encodeURIComponent(endUTC)}`,
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      ]);
+
+      if (latestRes.ok) {
+        const latest = await latestRes.json();
+        console.log('[EntityTelemetryRN] Latest values received:', latest.length, 'metrics');
+        setLatestValues(latest);
+      } else {
+        console.error('[EntityTelemetryRN] Latest values failed:', latestRes.status);
+      }
+      if (telemetryRes.ok) {
+        const telemetry = await telemetryRes.json();
+        console.log('[EntityTelemetryRN] Telemetry received:', telemetry.length, 'records');
+        setTelemetryRecs(telemetry);
+      } else {
+        console.error('[EntityTelemetryRN] Telemetry failed:', telemetryRes.status);
+      }
+      if (eventsRes.ok) {
+        const events = await eventsRes.json();
+        console.log('[EntityTelemetryRN] Events received:', events.length, 'events');
+        setEvents(events);
+      }
+    } catch (e: unknown) {
+      setError('Failed to load data: ' + String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Refresh ───────────────────────────────────────────────────────────
+
+  async function onRefresh() {
+    setRefreshing(true);
+    if (ds.type === 'driver') {
+      await loadDriverData();
+    } else {
+      await loadCloudData();
+    }
+    setRefreshing(false);
+  }
+
+  // ── Date picker helpers ──────────────────────────────────────────────
+
+  function openDatePicker(target: 'start' | 'end') {
+    setDtPickerTarget(target);
+    setDtPickerTemp(target === 'start' ? startDate : endDate);
+    setDtPickerMode('date');
+    setDtPickerVisible(true);
+  }
+
+  function onDateTimeChange(event: DateTimePickerEvent, selected?: Date) {
+    if (event.type === 'dismissed') {
+      setDtPickerVisible(false);
+      return;
+    }
+    if (!selected) return;
+    if (dtPickerMode === 'date') {
+      // Date chosen — now pick time
+      setDtPickerTemp(selected);
+      setDtPickerMode('time');
+    } else {
+      // Time chosen — finalise
+      setDtPickerVisible(false);
+      if (dtPickerTarget === 'start') setStartDate(selected);
+      else setEndDate(selected);
+    }
+  }
+
+  // ── Auto-select default metrics for cloud data ────────────────────────
+
+  React.useEffect(() => {
+    if (latestValues.length > 0 && Object.keys(selectedMetrics).length === 0) {
+      const defaults: Record<string, boolean> = {};
+      latestValues.forEach(v => {
+        if (v.defaultInGraph === 'Y') defaults[v.attributeCode] = true;
+      });
+      if (Object.keys(defaults).length > 0) setSelectedMetrics(defaults);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestValues]);
+
+  // ── Reset selections when entity changes ─────────────────────────────
+
+  React.useEffect(() => {
+    setSelectedMetrics({});
+    setTelemetryRecs([]);
+    setEvents([]);
+    setLatestValues([]);
+  }, [selectedEntity]);
+
+  function toggleMetric(key: string) {
+    setSelectedMetrics(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // ── Build tile data ───────────────────────────────────────────────────
+
+  const tiles: TileData[] = React.useMemo(() => {
+    if (ds.type === 'driver') {
+      // From driver snapshot + VitalsDefs
+      const liveKeys    = Object.keys(live);
+      const catalogKeys = new Set(METRIC_DEFS.map(m => m.key));
+      const catalogDefs = METRIC_DEFS.filter(m => liveKeys.includes(m.key));
+      const extraDefs   = liveKeys
+        .filter(k => !catalogKeys.has(k))
+        .map((k, i) => buildDynamicDef(k, METRIC_DEFS.length + i));
+      const allDefs = [...catalogDefs, ...extraDefs];
+      return allDefs.map(def => ({
+        key:      def.key,
+        label:    def.label,
+        unit:     def.unit,
+        value:    live[def.key]?.value ?? null,
+        ts:       live[def.key]?.ts ?? null,
+        color:    def.color,
+        selected: !!selectedMetrics[def.key],
+      }));
+    } else {
+      // From REST latest values
+      return latestValues
+        .filter(v => {
+          const c = v.attributeCode.toLowerCase();
+          return !c.includes('latitude') && !c.includes('longitude') && c !== 'navigation.position';
+        })
+        .sort((a, b) => (a.attributeCode || '').localeCompare(b.attributeCode || ''))
+        .map((v, i) => ({
+          key:      v.attributeCode,
+          label:    v.attributeName || v.attributeCode,
+          unit:     v.attributeUnit || '',
+          value:    typeof v.numericValue === 'number' ? v.numericValue : null,
+          ts:       v.endTimestampUTC ? new Date(v.endTimestampUTC.endsWith('Z') ? v.endTimestampUTC : v.endTimestampUTC + 'Z').getTime() : null,
+          color:    CHART_COLORS[i % CHART_COLORS.length],
+          selected: !!selectedMetrics[v.attributeCode],
+        }));
+    }
+  }, [ds.type, live, latestValues, selectedMetrics]);
+
+  // ── Build MetricDef map for chart ─────────────────────────────────────
+
+  const metricDefs: Record<string, MetricDef> = React.useMemo(() => {
+    if (ds.type === 'driver') {
+      const liveKeys    = Object.keys(live);
+      const catalogKeys = new Set(METRIC_DEFS.map(m => m.key));
+      const catalogDefs = METRIC_DEFS.filter(m => liveKeys.includes(m.key));
+      const extraDefs   = liveKeys
+        .filter(k => !catalogKeys.has(k))
+        .map((k, i) => buildDynamicDef(k, METRIC_DEFS.length + i));
+      const result: Record<string, MetricDef> = {};
+      [...catalogDefs, ...extraDefs].forEach(d => { result[d.key] = d; });
+      return result;
+    } else {
+      const result: Record<string, MetricDef> = {};
+      latestValues.forEach((v, i) => {
+        result[v.attributeCode] = buildCloudDef(
+          v.attributeCode, v.attributeName, v.attributeUnit, i,
+        );
+      });
+      return result;
+    }
+  }, [ds.type, live, latestValues]);
+
+  // ── Build chart series ────────────────────────────────────────────────
+
+  const chartResult = React.useMemo(() => {
+    const rawHistory: HistoryMap =
+      ds.type === 'driver' ? historyData : recordsToHistoryMap(telemetryRecs);
+
+    return binToChartSeries(
+      rawHistory,
+      metricDefs,
+      selectedMetrics,
+      startDate.getTime(),
+      endDate.getTime(),
+    );
+  }, [ds.type, historyData, telemetryRecs, metricDefs, selectedMetrics, startDate, endDate]);
+
+  // ── Fetch event details ───────────────────────────────────────────────
+
+  async function openEventDetails(event: ApiEvent) {
+    setSelectedEvent(event);
+    if (!ds.baseUrl || !event.eventLogId) return;
+    setEventDetailLoading(true);
+    try {
+      const res = await fetch(`${ds.baseUrl}/api/eventlog/${event.eventLogId}/details`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) setEventDetails(await res.json());
+    } catch { /* show summary only */ }
+    finally { setEventDetailLoading(false); }
+  }
+
+  const getRiskColor = (risk?: string | null) => {
+    if (!risk) return C.textMuted;
+    const r = risk.toUpperCase();
+    if (r === 'HIGH')   return '#ff4444';
+    if (r === 'MEDIUM') return '#ff9900';
+    if (r === 'LOW')    return '#ffdd00';
+    return C.textMuted;
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.blue} colors={[C.blue]} />
+      }
+    >
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <View style={styles.pageHeader}>
+        <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
+          <Text style={styles.menuBtnText}>☰</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.heading}>Entity Telemetry</Text>
+          <Text style={styles.subHeading}>
+            {ds.loaded
+              ? ds.type === 'driver'
+                ? (driver ? driver.displayName : 'No driver')
+                : (ds.type === 'cloud' ? '☁️ Cloud' : '🏠 Local')
+              : '…'}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
+          <Text style={styles.refreshText}>↺</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Loading / Error ─────────────────────────────────────────── */}
+      {!ds.loaded && (
+        <View style={styles.centeredRow}>
+          <ActivityIndicator color={C.blue} />
+          <Text style={[styles.mutedText, { marginLeft: 8 }]}>Loading settings…</Text>
+        </View>
+      )}
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>⚠ {error}</Text>
+        </View>
+      )}
+
+      {/* ── Entity selector (cloud / local only) ────────────────────── */}
+      {ds.loaded && ds.type !== 'driver' && (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>Entity</Text>
+          {entities.length === 0 && loading ? (
+            <ActivityIndicator color={C.blue} style={{ marginTop: 8 }} />
+          ) : (
+            <TouchableOpacity
+              style={styles.entitySelector}
+              onPress={() => setPickerVisible(true)}
+            >
+              <Text style={styles.entitySelectorText}>
+                {selectedEntity
+                  ? (() => {
+                      const e = entities.find(x => x.entityId === selectedEntity);
+                      return e ? (e.entityFirstName || e.entityName) + ` (${e.entityId})` : String(selectedEntity);
+                    })()
+                  : '— Select an entity —'}
+              </Text>
+              <Text style={styles.entitySelectorChevron}>▾</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ── Date range ──────────────────────────────────────────────── */}
+      {ds.loaded && (
+        <View style={[styles.card, { marginTop: 12 }]}>
+          <Text style={styles.cardLabel}>Date Range</Text>
+          <TouchableOpacity style={styles.dateRow} onPress={() => openDatePicker('start')}>
+            <Text style={styles.dateLabel}>Start Date</Text>
+            <Text style={styles.dateValue}>{formatDateTime(startDate)}</Text>
+          </TouchableOpacity>
+          <View style={styles.dateDivider} />
+          <TouchableOpacity style={styles.dateRow} onPress={() => openDatePicker('end')}>
+            <Text style={styles.dateLabel}>End Date</Text>
+            <Text style={styles.dateValue}>{formatDateTime(endDate)}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* DateTimePicker dialog (Android modal) */}
+      {dtPickerVisible && (
+        <DateTimePicker
+          value={dtPickerTemp}
+          mode={dtPickerMode}
+          display="default"
+          onChange={onDateTimeChange}
+        />
+      )}
+
+      {/* ── Loading spinner ──────────────────────────────────────────── */}
+      {loading && ds.loaded && (
+        <View style={styles.centeredRow}>
+          <ActivityIndicator color={C.blue} />
+          <Text style={[styles.mutedText, { marginLeft: 8 }]}>Loading…</Text>
+        </View>
+      )}
+
+      {/* ── Latest values tiles ─────────────────────────────────────── */}
+      {!loading && tiles.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📌 Latest Values</Text>
+            <Text style={styles.sectionSub}>Tap to toggle in chart</Text>
+          </View>
+          <View style={styles.tileGrid}>
+            {tiles.map(t => (
+              <MetricTile key={t.key} tile={t} onPress={() => toggleMetric(t.key)} />
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* ── Chart ───────────────────────────────────────────────────── */}
+      {chartResult && chartResult.chartSeries.length > 0 && (
+        <View style={styles.chartCard} onLayout={e => setChartW(e.nativeEvent.layout.width)}>
+          <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>📈 Telemetry Chart</Text>
+          <View style={styles.chartLegend}>
+            {chartResult.chartSeries.map(({ def, rawMin, rawMax }) => (
+              <View key={def.key} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: def.color }]} />
+                <Text style={[styles.legendLabel, { color: def.color }]}>
+                  {def.label}{def.unit ? ` (${def.unit})` : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+          {historyLoading && (
+            <View style={styles.centeredRow}><ActivityIndicator color={C.blue} /></View>
+          )}
+          {!historyLoading && chartW > 0 && (
+            <CorrelationChart
+              series={chartResult.chartSeries}
+              binTimesMs={chartResult.binTimes}
+              normalise={chartResult.chartSeries.length > 1 && new Set(chartResult.chartSeries.map(s => s.def.unit)).size > 1}
+              width={chartW - 28}
+            />
+          )}
+        </View>
+      )}
+
+      {/* empty chart state */}
+      {!loading && ds.loaded && tiles.length > 0 && (!chartResult || chartResult.chartSeries.length === 0) && (
+        <View style={styles.noDataBox}>
+          <Text style={styles.noDataText}>
+            No chart data — tap tiles above to select metrics.
+          </Text>
+        </View>
+      )}
+
+      {/* ── Events (cloud / local only) ─────────────────────────────── */}
+      {ds.type !== 'driver' && !loading && (
+        <>
+          <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+            <Text style={styles.sectionTitle}>⚠️ Events ({events.length})</Text>
+          </View>
+          {events.length > 0 ? (
+            events.map((ev, i) => (
+              <TouchableOpacity
+                key={ev.eventLogId ?? i}
+                style={styles.eventRow}
+                onPress={() => openEventDetails(ev)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.eventLeft}>
+                  <Text style={styles.eventDesc}>{ev.eventDescription || `Event ${ev.eventId}`}</Text>
+                  <Text style={styles.eventTime}>{formatDate(ev.triggeredAt ?? null)}</Text>
+                </View>
+                <View style={styles.eventRight}>
+                  <View style={[styles.riskBadge, { backgroundColor: getRiskColor(ev.risk) }]}>
+                    <Text style={styles.riskBadgeText}>{ev.risk || 'N/A'}</Text>
+                  </View>
+                  {ev.detailCount && ev.detailCount > 0
+                    ? <Text style={styles.eventViewBtn}>Details ›</Text>
+                    : null}
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.noDataBox}>
+              <Text style={styles.noDataText}>No events in selected range.</Text>
+            </View>
+          )}
+        </>
+      )}
+
+      <View style={{ height: 40 }} />
+
+      {/* ── Entity picker modal ─────────────────────────────────────── */}
+      <Modal
+        visible={pickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPickerVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Entity</Text>
+              <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {entities.map(e => (
+                <TouchableOpacity
+                  key={e.entityId}
+                  style={[
+                    styles.modalItem,
+                    e.entityId === selectedEntity && styles.modalItemActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedEntity(e.entityId);
+                    setPickerVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, e.entityId === selectedEntity && { color: C.blue }]}>
+                    {e.entityFirstName || e.entityName}
+                  </Text>
+                  <Text style={styles.modalItemSub}>ID: {e.entityId}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Event detail modal ──────────────────────────────────────── */}
+      <Modal
+        visible={!!selectedEvent}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setSelectedEvent(null); setEventDetails(null); }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Event {selectedEvent?.eventLogId}
+              </Text>
+              <TouchableOpacity onPress={() => { setSelectedEvent(null); setEventDetails(null); }}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {eventDetailLoading ? (
+                <View style={styles.centeredRow}><ActivityIndicator color={C.blue} /></View>
+              ) : (
+                <View style={{ padding: 16 }}>
+                  {selectedEvent && (
+                    <View style={{ gap: 8 }}>
+                      <Text style={styles.detailRow}>
+                        <Text style={styles.detailKey}>Description: </Text>
+                        <Text style={styles.detailVal}>{selectedEvent.eventDescription || '—'}</Text>
+                      </Text>
+                      <Text style={styles.detailRow}>
+                        <Text style={styles.detailKey}>Risk: </Text>
+                        <Text style={[styles.detailVal, { color: getRiskColor(selectedEvent.risk) }]}>
+                          {selectedEvent.risk || 'N/A'}
+                        </Text>
+                      </Text>
+                      <Text style={styles.detailRow}>
+                        <Text style={styles.detailKey}>Score: </Text>
+                        <Text style={styles.detailVal}>{selectedEvent.cumulativeScore ?? '—'}</Text>
+                      </Text>
+                      <Text style={styles.detailRow}>
+                        <Text style={styles.detailKey}>Probability: </Text>
+                        <Text style={styles.detailVal}>
+                          {selectedEvent.probability != null
+                            ? (selectedEvent.probability * 100).toFixed(1) + '%'
+                            : '—'}
+                        </Text>
+                      </Text>
+                      <Text style={styles.detailRow}>
+                        <Text style={styles.detailKey}>Triggered: </Text>
+                        <Text style={styles.detailVal}>{formatDate(selectedEvent.triggeredAt ?? null)}</Text>
+                      </Text>
+                    </View>
+                  )}
+                  {eventDetails?.details && eventDetails.details.length > 0 && (
+                    <View style={{ marginTop: 16 }}>
+                      <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>Attribute Details</Text>
+                      {eventDetails.details.map((d, i) => (
+                        <View key={i} style={styles.detailRow2}>
+                          <Text style={styles.detailKey}>{d.attributeName || d.attributeCode}</Text>
+                          <Text style={styles.detailVal}>
+                            {d.currentValue != null ? String(d.currentValue) : '—'}
+                            {d.unit ? ` ${d.unit}` : ''}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+}
+
+// ── API types ──────────────────────────────────────────────────────────────
+
+interface ApiLatestValue {
+  attributeCode:    string;
+  attributeName:    string;
+  attributeUnit:    string;
+  numericValue:     number | null;
+  endTimestampUTC:  string | null;
+  defaultInGraph:   string | null;
+}
+
+interface ApiEvent {
+  eventLogId:       number | null;
+  eventId:          number | null;
+  eventDescription: string | null;
+  risk:             string | null;
+  cumulativeScore:  number | null;
+  probability:      number | null;
+  triggeredAt:      string | null;
+  detailCount:      number | null;
+}
+
+interface ApiEventDetailItem {
+  attributeCode:  string;
+  attributeName:  string;
+  currentValue:   number | string | null;
+  unit:           string | null;
+}
+
+interface ApiEventDetails {
+  eventLogId:  number;
+  details:     ApiEventDetailItem[];
+}
+
+// ── Styles ─────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: C.bg },
+  content: { padding: 16, paddingBottom: 50 },
+
+  pageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  menuBtn:    { padding: 8, backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.border },
+  menuBtnText:{ color: C.textPrimary, fontSize: 20 },
+  heading:    { fontSize: 26, fontWeight: '700', color: C.textPrimary },
+  subHeading: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  refreshBtn: { backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: 7 },
+  refreshText:{ color: C.blue, fontWeight: '600', fontSize: 16 },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 10 },
+  sectionTitle:  { fontSize: 15, fontWeight: '700', color: C.textPrimary },
+  sectionSub:    { fontSize: 11, color: C.textMuted },
+
+  card:      { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+  cardLabel: { fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+
+  entitySelector:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.bg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: 10 },
+  entitySelectorText: { color: C.textPrimary, fontSize: 14, flex: 1 },
+  entitySelectorChevron: { color: C.textMuted, fontSize: 14, marginLeft: 8 },
+
+  dateRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
+  dateLabel:   { color: C.textMuted, fontSize: 13 },
+  dateValue:   { color: C.blue, fontSize: 13, fontWeight: '600' },
+  dateDivider: { height: 1, backgroundColor: C.border },
+
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    width: '31.5%',
+    backgroundColor: C.card,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    paddingHorizontal: 8,
+    paddingTop: 0,
+    paddingBottom: 8,
+    overflow: 'hidden',
+  },
+  tileBar:          { height: 3, borderRadius: 1, marginBottom: 7, marginHorizontal: -8 },
+  tileLabel:        { fontSize: 10, color: C.textMuted, marginBottom: 2 },
+  tileValue:        { fontSize: 18, fontWeight: '700' },
+  tileUnit:         { fontSize: 10, fontWeight: '400', color: C.textMuted },
+  tileTime:         { fontSize: 9, color: C.textMuted, marginTop: 1 },
+  selectedBadge:    { alignSelf: 'flex-start', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, marginTop: 3 },
+  selectedBadgeText:{ fontSize: 9, fontWeight: '600' },
+
+  chartCard:   { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 16, marginBottom: 14, overflow: 'visible' },
+  chartLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot:   { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { fontSize: 11, fontWeight: '600' },
+
+  eventRow:    { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  eventLeft:   { flex: 1, marginRight: 12 },
+  eventRight:  { alignItems: 'flex-end', gap: 4 },
+  eventDesc:   { color: C.textPrimary, fontSize: 13, fontWeight: '500', marginBottom: 3 },
+  eventTime:   { color: C.textMuted, fontSize: 11 },
+  riskBadge:   { borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  riskBadgeText:{ color: '#fff', fontSize: 11, fontWeight: '600' },
+  eventViewBtn:{ color: C.blue, fontSize: 12, fontWeight: '600' },
+
+  centeredRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  noDataBox:   { backgroundColor: C.card, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: C.border, marginTop: 8 },
+  noDataText:  { color: C.textMuted, fontSize: 13, textAlign: 'center' },
+  errorBox:    { backgroundColor: '#2d1215', borderRadius: 10, padding: 14, marginBottom: 12 },
+  errorText:   { color: C.red, fontSize: 13 },
+  mutedText:   { color: C.textMuted, fontSize: 13 },
+
+  // Modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalCard:     { backgroundColor: C.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
+  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: C.border },
+  modalTitle:    { color: C.textPrimary, fontSize: 18, fontWeight: '700' },
+  modalClose:    { color: C.textMuted, fontSize: 20, paddingHorizontal: 4 },
+  modalItem:     { padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  modalItemActive:{ backgroundColor: C.cardActive },
+  modalItemText: { color: C.textPrimary, fontSize: 15, fontWeight: '500' },
+  modalItemSub:  { color: C.textMuted, fontSize: 12, marginTop: 2 },
+
+  detailRow:   { marginBottom: 4 },
+  detailRow2:  { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.border },
+  detailKey:   { color: C.textMuted, fontSize: 13 },
+  detailVal:   { color: C.textPrimary, fontSize: 13, fontWeight: '500' },
+});

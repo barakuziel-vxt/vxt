@@ -33,12 +33,25 @@ export interface TelemetryData {
 /** Scalar or composite measurement value */
 export type MeasurementValue = number | string | boolean | Record<string, number>;
 
+/**
+ * Generic snapshot returned by IDriver.getLatest().
+ * Each key maps to the latest reading for that metric (LOINC code, SignalK path, etc.).
+ */
+export type SnapshotMap = Record<string, { value: number; ts: number }>;
+
+/**
+ * History map returned by IDriver.getHistory().
+ * Each key maps to an ASC-sorted array of { value, timestamp } pairs.
+ */
+export type HistoryMap = Record<string, Array<{ v: number; ts: number }>>;
+
 // ─── Supported driver types ───────────────────────────────────────────────────
 
 export type DriverType =
   | 'SamsungHealth'
-  | 'AppleHealth'    // reserved – future
-  | 'SignalK'        // reserved – future
+  | 'HealthConnect'  // Android Health Connect — any wearable
+  | 'AppleHealth'    // iOS HealthKit — future
+  | 'SignalK'        // Marine telemetry via SignalK REST API
   | 'AzureCloud'     // reserved – future
   | 'Mock';
 

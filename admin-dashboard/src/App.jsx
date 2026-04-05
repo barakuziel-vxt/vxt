@@ -13,9 +13,15 @@ import ProviderEventPage from './pages/ProviderEventPage';
 import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 import CustomerGeofencePage from './pages/CustomerGeofencePage';
+import EntityTelemetryRNPage from './pages/EntityTelemetryRNPage';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('telemetry');
+  // Support URL hash navigation (e.g. #telemetryRN) and embedded mode (?embedded=true)
+  const urlParams = new URLSearchParams(window.location.search);
+  const embedded = urlParams.get('embedded') === 'true';
+  const hashPage = window.location.hash.replace('#', '');
+
+  const [currentPage, setCurrentPage] = useState(hashPage || 'telemetryRN');
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
   const handlePageChange = (page) => {
@@ -40,6 +46,8 @@ export default function App() {
         return <EventPage />;
       case 'telemetry':
         return <EntityTelemetryAnalyticsPage />;
+      case 'telemetryRN':
+        return <EntityTelemetryRNPage />;
       case 'protocol':
         return <ProtocolPage />;
       case 'protocolAttribute':
@@ -55,9 +63,20 @@ export default function App() {
       case 'customerGeofence':
         return <CustomerGeofencePage />;
       default:
-        return <EntityTelemetryAnalyticsPage />;
+        return <EntityTelemetryRNPage />;
     }
   };
+
+  // Embedded mode: render only the page without header/sidebar (for WebView)
+  if (embedded) {
+    return (
+      <div className="app" style={{ padding: 0 }}>
+        <main className="app-main" style={{ marginLeft: 0 }}>
+          {renderPage()}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -170,6 +189,12 @@ export default function App() {
               onClick={() => handlePageChange('telemetry')}
             >
               📊 Telemetry & Events
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'telemetryRN' ? 'active' : ''}`}
+              onClick={() => handlePageChange('telemetryRN')}
+            >
+              📱 Entity Telemetry
             </button>
           </div>
 

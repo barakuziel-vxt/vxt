@@ -1,4 +1,4 @@
-import type { TelemetryData, DriverCapabilities, ConnectionStatus } from '../types';
+import type { TelemetryData, DriverCapabilities, ConnectionStatus, DriverType, SnapshotMap, HistoryMap } from '../types';
 import type { TelemetryProvider, DriverError } from '../types/TelemetryProvider';
 
 /**
@@ -9,14 +9,16 @@ import type { TelemetryProvider, DriverError } from '../types/TelemetryProvider'
  *  - Status tracking
  *  - Lifecycle guards (prevent double-start, etc.)
  *
- * Subclasses only need to implement:
- *  - initialize()
- *  - doStart()
- *  - doStop()
- *  - fetchOnce()  – for one-shot getTelemetry()
+ * Subclasses must implement:
+ *  - id, displayName, platform, capabilities
+ *  - initialize(), doStart(), doStop()
+ *  - isAvailable(), checkPermissions(), requestPermissions()
+ *  - getLatest(), getHistory()
  */
 export abstract class BaseDriver implements TelemetryProvider {
+  abstract readonly id: DriverType;
   abstract readonly displayName: string;
+  abstract readonly platform: 'android' | 'ios' | 'cross';
   abstract readonly capabilities: DriverCapabilities;
 
   protected status: ConnectionStatus = 'disconnected';
@@ -26,6 +28,10 @@ export abstract class BaseDriver implements TelemetryProvider {
   private errorCallbacks: Array<(err: DriverError) => void> = [];
 
   // ─── TelemetryProvider contract ──────────────────────────────────────────
+
+  abstract isAvailable(): Promise<boolean>;
+  abstract checkPermissions(): Promise<boolean>;
+  abstract requestPermissions(): Promise<boolean>;
 
   onData(cb: (data: TelemetryData) => void): void {
     this.dataCallbacks.push(cb);
@@ -54,16 +60,21 @@ export abstract class BaseDriver implements TelemetryProvider {
     this.status = 'disconnected';
   }
 
+  /** @deprecated Use getLatest() */
   async getTelemetry(): Promise<TelemetryData | null> {
-    return this.fetchOnce();
+    return null;
   }
+
+  // ─── One-shot vitals (HealthVitalsScreen) ────────────────────────────────
+
+  abstract getLatest(): Promise<SnapshotMap | null>;
+  abstract getHistory(fromMs: number, toMs: number): Promise<HistoryMap>;
 
   // ─── Subclass hooks ──────────────────────────────────────────────────────
 
   abstract initialize(): Promise<void>;
   protected abstract doStart(): Promise<void>;
   protected abstract doStop(): Promise<void>;
-  protected abstract fetchOnce(): Promise<TelemetryData | null>;
 
   // ─── Emit helpers for subclasses ─────────────────────────────────────────
 

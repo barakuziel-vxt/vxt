@@ -9,6 +9,7 @@ import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
 import com.facebook.react.jstasks.HeadlessJsTaskContext
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
  * GatewayForegroundService
@@ -23,10 +24,24 @@ import com.facebook.react.jstasks.HeadlessJsTaskContext
 class GatewayForegroundService : Service() {
 
     companion object {
-        const val CHANNEL_ID      = "vxt_gateway_channel"
-        const val NOTIFICATION_ID = 1001
-        const val ACTION_START    = "com.vxtmobile.ACTION_START"
-        const val ACTION_STOP     = "com.vxtmobile.ACTION_STOP"
+        const val CHANNEL_ID               = "vxt_gateway_channel"
+        const val NOTIFICATION_ID          = 1001
+        const val ACTION_START             = "com.vxtmobile.ACTION_START"
+        const val ACTION_STOP              = "com.vxtmobile.ACTION_STOP"
+        const val EXTRA_SAMPLE_INTERVAL_MS = "sampleIntervalMs"
+        const val DEFAULT_SAMPLE_INTERVAL  = 60_000L
+    }
+
+    // Native Handler — runs on the main looper inside a foreground service,
+    // so Android will NOT throttle or defer it when the screen is off.
+    private val handler = Handler(Looper.getMainLooper())
+    private var sampleIntervalMs = DEFAULT_SAMPLE_INTERVAL
+
+    private val sampleRunnable: Runnable = object : Runnable {
+        override fun run() {
+            sendEventToJS("GatewaySampleTick", null)
+            handler.postDelayed(this, sampleIntervalMs)
+        }
     }
 
     // ─── Service lifecycle ─────────────────────────────────────────────────
@@ -39,7 +54,11 @@ class GatewayForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
-            else        -> startForegroundWithNotification()
+            else        -> {
+                sampleIntervalMs = intent?.getLongExtra(EXTRA_SAMPLE_INTERVAL_MS, DEFAULT_SAMPLE_INTERVAL)
+                    ?: DEFAULT_SAMPLE_INTERVAL
+                startForegroundWithNotification()
+            }
         }
         // Sticky — Android restarts the service if killed
         return START_STICKY
@@ -48,6 +67,7 @@ class GatewayForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        handler.removeCallbacks(sampleRunnable)
         super.onDestroy()
         // JS layer listens for this via the NativeEventEmitter
         sendEventToJS("GatewayServiceStopped", null)
@@ -98,6 +118,9 @@ class GatewayForegroundService : Service() {
         }
 
         sendEventToJS("GatewayServiceStarted", null)
+        // Start the native sampling ticker — fires reliably even when screen is off
+        handler.removeCallbacks(sampleRunnable)
+        handler.postDelayed(sampleRunnable, sampleIntervalMs)
     }
 
     // ─── Bridge helper ─────────────────────────────────────────────────────

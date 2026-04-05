@@ -1,0 +1,186 @@
+--------- beginning of main
+04-04 21:37:36.661   792   792 I WifiHAL : Done!
+04-04 21:37:37.102  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.019318951]
+04-04 21:37:37.102  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.06497517]
+04-04 21:37:37.102  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.6980147]
+04-04 21:37:37.102  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.606154 msecs
+04-04 21:37:37.104  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.343308 msecs
+04-04 21:37:37.105  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.240077 msecs
+--------- beginning of system
+04-04 21:37:37.256  1209  8602 I AfterimageCompensationService: AfcThread mLuminance : 15 , AfpcPeriodCount : 117 , rotation : 0 , AOD : false
+04-04 21:37:37.258   780   780 D gralloc : [mali_gralloc_allocate] begin
+04-04 21:37:37.258   780   780 D gralloc : buffer_descriptor: wh(1080 2400) usage_pc(0xb66 0xb06) hal_format(0x1) layer_count(1) sizes(0 0 0) strde(0) byte_stride(0) alloc_wh(0 0) internal_format(0x0) alloc_format(0x0) fd_count(1) plane_count(0)
+04-04 21:37:37.258   780   780 D gralloc : [mali_gralloc_allocate] allocation successful
+04-04 21:37:37.273  1209  8602 D system_server: mAFPC_Read - w = 1080, h = 2400, s = 8, f = 4, s_size = 10444800, luminance = 15, count = 117, captureOrientation = 0
+04-04 21:37:37.281  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:37.281  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-88, periodicAdvInt=0x0
+04-04 21:37:37.286  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:37.286  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-88, periodicAdvInt=0x0
+04-04 21:37:37.379  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:37.380  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-88, periodicAdvInt=0x0
+04-04 21:37:37.398  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-82, periodicAdvInt=0x0
+04-04 21:37:37.453  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:37.453  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:37.453  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:37.476  1209  1360 I PowerManagerService: [PWL] On : 0 (3581116 ms ago)
+04-04 21:37:37.476  1209  1360 I PowerManagerService: [PWL]  mStayOn: true  mWakeLockSummary & WAKE_LOCK_STAY_AWAKE: 0  mUserActivitySummary: 0x4
+04-04 21:37:37.522  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:37.522  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:37.605  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.0266809]
+04-04 21:37:37.606  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.02098476]
+04-04 21:37:37.606  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.8967691]
+04-04 21:37:37.606  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.599654 msecs
+04-04 21:37:37.607  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.180077 msecs
+04-04 21:37:37.608  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.181423 msecs
+04-04 21:37:37.804  1209  3173 D SemWifiUsabilityStatsMonitor: onWifiUsabilityStats - seqNum 1151, isSameBssidAndFreq true
+04-04 21:37:37.805  1209  1623 I SemWifiLinkQualityMonitor: Link Qos Query: 0.483 ms / 16.562 Mbps (72 / 0.211 / 1.500)
+04-04 21:37:38.069  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:38.069  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:38.076  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:38.077  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-88, periodicAdvInt=0x0
+04-04 21:37:38.110  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.027623033]
+04-04 21:37:38.110  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.009957809]
+04-04 21:37:38.110  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.82934785]
+04-04 21:37:38.110  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.700231 msecs
+04-04 21:37:38.113  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 2.025346 msecs
+04-04 21:37:38.116  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 3.304731 msecs
+04-04 21:37:38.172  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:38.172  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-88, periodicAdvInt=0x0
+04-04 21:37:38.265   784   784 I android.hardware.health@2.1-service-samsung: updateLrpSysfs: write: 292
+04-04 21:37:38.454  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:38.454  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:38.454  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:38.857  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x0, addressType=1, address=0976FA_F, primaryPhy=1, secondaryPhy=1, advertisingSid=0x2, txPower=127, rssi=-75, periodicAdvInt=0x0
+04-04 21:37:38.876  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:38.876  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:38.892  1209  2852 D FreecessController: com.samsung.android.calendar(10167) is important[!isUidIdle]
+04-04 21:37:38.980  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:38.980  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:38.982 12483 12529 I BCMGR[11.2.04.4]: BeaconMainController] onReceive - [1 : bad rssi][2 : bad rssi][3 : bad rssi][4 : bad rssi][5 : bad rssi][6 : bad rssi][7 : bad rssi][8 : bad rssi][9 : bad rssi][10 : bad rssi]
+04-04 21:37:39.096  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.009184651]
+04-04 21:37:39.097  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.050338335]
+04-04 21:37:39.097  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.93462116]
+04-04 21:37:39.097  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.758539 msecs
+04-04 21:37:39.098  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.460192 msecs
+04-04 21:37:39.102  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.490077 msecs
+04-04 21:37:39.275  1209  1292 E Watchdog: !@Sync: 120 heap: 103 / 113 FD: 1004 objects: 1908093 WaitTime: 0.000 GCcnt: 0 FullGC: 0 [2026-04-04 21:37:39.273]
+04-04 21:37:39.454  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:39.455  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:39.455  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:39.538  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:39.538  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:39.604  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.021818606]
+04-04 21:37:39.604  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.017568741]
+04-04 21:37:39.604  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.9104622]
+04-04 21:37:39.604  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.673846 msecs
+04-04 21:37:39.606  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.309769 msecs
+04-04 21:37:39.607  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.032731 msecs
+04-04 21:37:39.700  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-78, periodicAdvInt=0x0
+04-04 21:37:39.727  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:39.728  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-89, periodicAdvInt=0x0
+04-04 21:37:40.108  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.025271181]
+04-04 21:37:40.109  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.016984578]
+04-04 21:37:40.109  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.8770562]
+04-04 21:37:40.109  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.652077 msecs
+04-04 21:37:40.110  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.468076 msecs
+04-04 21:37:40.112  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.3405 msecs
+04-04 21:37:40.382   742   742 E audit   : type=1400 audit(1775327860.377:760): avc:  denied  { write } for  pid=3354 comm="ThreadPoolForeg" name="traced_producer" dev="tmpfs" ino=25171 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 SEPF_SM-N980F_12_0001 audit_filtered
+04-04 21:37:40.382   742   742 E audit   : type=1300 audit(1775327860.377:760): arch=c00000b7 syscall=203 success=no exit=-13 a0=6 a1=7ac7856450 a2=1e a3=ffffffff962eb38b items=0 ppid=762 pid=3354 auid=4294967295 uid=10236 gid=10236 euid=10236 suid=10236 fsuid=10236 egid=10236 sgid=10236 fsgid=10236 tty=(none) ses=4294967295 comm="ThreadPoolForeg" exe="/system/bin/app_process64" subj=u:r:gmscore_app:s0:c512,c768 key=(null)
+04-04 21:37:40.382   742   742 E audit   : type=1327 audit(1775327860.377:760): proctitle="com.google.android.gms.unstable"
+04-04 21:37:40.455  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:40.455  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:40.455  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:40.559  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-78, periodicAdvInt=0x0
+04-04 21:37:40.569  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x0, addressType=1, address=0976FA_F, primaryPhy=1, secondaryPhy=1, advertisingSid=0x2, txPower=127, rssi=-81, periodicAdvInt=0x0
+04-04 21:37:40.613  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.017756447]
+04-04 21:37:40.613  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.01855756]
+04-04 21:37:40.613  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.8923796]
+04-04 21:37:40.613  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.629808 msecs
+04-04 21:37:40.615  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.235462 msecs
+04-04 21:37:40.616  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.143577 msecs
+04-04 21:37:40.626  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:40.626  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:40.739   742   742 E audit   : type=1400 audit(1775327860.733:761): avc:  denied  { write } for  pid=2631 comm="ThreadPoolForeg" name="traced_producer" dev="tmpfs" ino=25171 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 SEPF_SM-N980F_12_0001 audit_filtered
+04-04 21:37:40.739   742   742 E audit   : type=1300 audit(1775327860.733:761): arch=c00000b7 syscall=203 success=no exit=-13 a0=6f a1=7ac78b35d0 a2=1e a3=ffffffff962eb38b items=0 ppid=762 pid=2631 auid=4294967295 uid=10236 gid=10236 euid=10236 suid=10236 fsuid=10236 egid=10236 sgid=10236 fsgid=10236 tty=(none) ses=4294967295 comm="ThreadPoolForeg" exe="/system/bin/app_process64" subj=u:r:gmscore_app:s0:c512,c768 key=(null)
+04-04 21:37:40.739   742   742 E audit   : type=1327 audit(1775327860.733:761): proctitle="com.google.android.gms.persistent"
+04-04 21:37:40.906  2554  4009 I ContactsProvider_EventLog: cp_s: [CONTACT con(957) dat(5374) acc({google(12)=955, com.google.android.apps.tachyon(9)=4, core(8)=3}) calls([logtype:100 cnt:98, logtype:300 cnt:45, logtype:1000 cnt:66]) Iso(IL) uId(0) ]
+04-04 21:37:40.906  2554  4009 I ContactsProvider_EventLog: cp_s: [ agr({[8]=3, [12 ,12]=1, [12 ,9]=4, [12]=949}) ]
+04-04 21:37:40.906  2554  4009 I ContactsProvider_EventLog: cp_s: [ cnt({acore(2554)=1, gms(2961)=5}) ]
+04-04 21:37:40.906  2554  4009 I ContactsProvider_EventLog: cp_s: [PROFILE ] [SAPROFILE con(1) dat(2) acc({phone(1)=1}) ]
+04-04 21:37:40.906  2554  4009 I ContactsProvider_EventLog: cp_s: [STATE R(F) ]
+04-04 21:37:40.946  1209  3173 D SemWifiUsabilityStatsMonitor: onWifiUsabilityStats - seqNum 1152, isSameBssidAndFreq true
+04-04 21:37:40.948  1209  1623 I SemWifiLinkQualityMonitor: Link Qos Query: 0.333 ms / 24.056 Mbps (72 / 0.111 / 1.500)
+04-04 21:37:41.117  1209  1621 D SemNscXgbMsL1: Probability - Cloud gaming: [0.022599336]
+04-04 21:37:41.118  1209  1621 D SemNscXgbMsL1: Probability - Real time: [0.1267714]
+04-04 21:37:41.118  1209  1621 D SemNscXgbMsL1: Probability - Non real time: [0.90800285]
+04-04 21:37:41.118  1209  1621 D SemNscXgbMsL1: 1 sample inference time: 0.672192 msecs
+04-04 21:37:41.119  1209  1621 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 1.4535 msecs
+04-04 21:37:41.121  1209  1621 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 1.301692 msecs
+04-04 21:37:41.310  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:41.310  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:41.340  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:41.340  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:41.424  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x0, addressType=1, address=0976FA_F, primaryPhy=1, secondaryPhy=1, advertisingSid=0x2, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:41.432  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:41.433  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:41.455  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:41.456  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:41.456  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:41.552  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:41.553  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:41.603  1209  1621 I SemWifiServiceDetector: Traff. tracking stopped
+04-04 21:37:41.641  3441  3441 I SDHMS:LOAD: type: LoadsFreqs, value: 0:7:0:546000:546000:546000:557440:1508000:507000:0:0:0
+04-04 21:37:41.881  1209  2545 D CustomizedBinderCallsStatsInternal: reportCpuUsage() : 2%
+04-04 21:37:41.882  1209  1295 I BinderCallsStats: Collected cpu time : 0us, collected call count : 0 for 60159 ms
+04-04 21:37:42.301   539   539 D io_stats: !@   8,0 r 415127 12565932 w 91759 1746432 d 32698 1564204 f 0 0 iot 88676 0 th 0 0 0 pt 0 inp 0 0 3585.941
+04-04 21:37:42.456  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:42.456  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:42.456  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:42.858  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x0, addressType=1, address=0976FA_F, primaryPhy=1, secondaryPhy=1, advertisingSid=0x2, txPower=127, rssi=-90, periodicAdvInt=0x0
+04-04 21:37:42.868  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-78, periodicAdvInt=0x0
+04-04 21:37:42.885  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:42.886  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:42.985  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:42.985  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-86, periodicAdvInt=0x0
+04-04 21:37:43.457  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:43.457  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:43.457  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:43.565  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:43.678  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:43.678  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:43.728  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:43.729  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:43.730  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-78, periodicAdvInt=0x0
+04-04 21:37:43.800  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:43.800  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:43.802 12483 12529 I BCMGR[11.2.04.4]: BeaconMainController] onReceive - [1 : bad rssi][2 : bad rssi][3 : bad rssi][4 : bad rssi][5 : bad rssi][6 : bad rssi][7 : bad rssi][8 : bad rssi][9 : bad rssi][10 : bad rssi]
+04-04 21:37:44.092  1209  3173 D SemWifiUsabilityStatsMonitor: onWifiUsabilityStats - seqNum 1153, isSameBssidAndFreq true
+04-04 21:37:44.095  1741  1741 D NetworkController.WifiSignalController: notifyListener: visible=true, connected=true, inetCondition=1, isDefault=true, wifiTestReported=true, receivedInetCondition=-1, hideDuringMobileSwitching=false
+04-04 21:37:44.095  1209  1623 I SemWifiLinkQualityMonitor: Link Qos Query: 0.995 ms / 8.037 Mbps (72 / 0.031 / 7.000)
+04-04 21:37:44.283  2631   743 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+04-04 21:37:44.284  2631   743 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbyConnections.TxAdvertisement}
+04-04 21:37:44.457  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:44.457  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:44.457  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:44.590  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x10, addressType=1, address=0CF864_6, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:44.815   742   742 E audit   : type=1400 audit(1775327864.809:762): avc:  denied  { write } for  pid=2961 comm="ThreadPoolForeg" name="traced_producer" dev="tmpfs" ino=25171 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 SEPF_SM-N980F_12_0001 audit_filtered
+04-04 21:37:44.816   742   742 E audit   : type=1300 audit(1775327864.809:762): arch=c00000b7 syscall=203 success=no exit=-13 a0=91 a1=7ac785c3c0 a2=1e a3=ffffffff962eb38b items=0 ppid=762 pid=2961 auid=4294967295 uid=10236 gid=10236 euid=10236 suid=10236 fsuid=10236 egid=10236 sgid=10236 fsgid=10236 tty=(none) ses=4294967295 comm="ThreadPoolForeg" exe="/system/bin/app_process64" subj=u:r:gmscore_app:s0:c512,c768 key=(null)
+04-04 21:37:44.816   742   742 E audit   : type=1327 audit(1775327864.809:762): proctitle="com.google.android.gms"
+04-04 21:37:45.273  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:45.273  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:45.276  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:45.276  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:45.374  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:45.375  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-85, periodicAdvInt=0x0
+04-04 21:37:45.428  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 9- eventType=0x0, addressType=1, address=0976FA_F, primaryPhy=1, secondaryPhy=1, advertisingSid=0x2, txPower=127, rssi=-67, periodicAdvInt=0x0
+04-04 21:37:45.458  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:45.458  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:45.458  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511
+04-04 21:37:45.577  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:45.578  1209  1664 D NetdEventListenerService: DNS Requested by : 100, 10390
+04-04 21:37:46.168  2019  2155 D ScanFilter: manu data matches
+04-04 21:37:46.169  2019  2155 D BtGatt.GattService: onScanResult to scannerId: 10- eventType=0x1b, addressType=0, address=54BD79_D, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-80, periodicAdvInt=0x0
+04-04 21:37:46.425  1782  1782 I wpa_supplicant: Heartbeat 356
+04-04 21:37:46.458  1064  1705 I bauth_FPBAuthService: pcf : 0x1012, 0 ,3 ,0 ,0 ,0 ,0, 7.0.0.0
+04-04 21:37:46.459  1064  1705 I bauth_FPBAuthService: thread id : 3, preenroll_flag : 0, nd cnt : 0, cso : 0, et : 0
+04-04 21:37:46.459  1064  1705 I bauth_FPBAuthService: FPBAuthService, 11511

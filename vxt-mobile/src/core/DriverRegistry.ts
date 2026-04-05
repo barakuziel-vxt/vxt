@@ -44,6 +44,10 @@ class DriverRegistry {
     return this.active;
   }
 
+  has(type: DriverType): boolean {
+    return this.registry.has(type);
+  }
+
   listAvailable(): DriverType[] {
     return Array.from(this.registry.keys());
   }

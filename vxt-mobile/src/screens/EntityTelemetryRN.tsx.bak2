@@ -1,0 +1,680 @@
+/**
+ * EntityTelemetryRN — Hybrid telemetry page.
+ *
+ * When data source is 'driver':
+ *   Renders a native RN screen pulling data from the active driver
+ *   (offline-capable, no entity selector, no events).
+ *
+ * When data source is 'cloud' or 'local':
+ *   Loads the admin dashboard Entity Telemetry page inside a WebView.
+ *   Dashboard URL is derived from localUrl (same host, port 3002).
+ */
+import React, { useContext, useState, useMemo } from 'react';
+import {
+  AppState,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { WebView } from 'react-native-webview';
+import CorrelationChart from '../components/CorrelationChart';
+import type { ChartSeries } from '../components/CorrelationChart';
+import { DrawerContext } from '../context/DrawerContext';
+import { useDataSource } from '../hooks/useDataSource';
+import { driverManager } from '../core/DriverManager';
+import { useGatewayStore } from '../store/gatewayStore';
+import { METRIC_DEFS, formatMetricValue, buildDynamicDef, VC } from '../vitals/VitalsDefs';
+import type { MetricDef } from '../vitals/VitalsDefs';
+import type { SnapshotMap, HistoryMap } from '../core/types';
+
+const C = {
+  bg:          '#0d1117',
+  card:        '#161b22',
+  cardActive:  '#0d1f38',
+  border:      '#30363d',
+  textPrimary: '#e6edf3',
+  textMuted:   '#8b949e',
+  blue:        VC.blue,
+  red:         VC.red,
+  green:       VC.green,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function ago(ts: number | null): string {
+  if (!ts) return '—';
+  const diff = Date.now() - ts;
+  if (diff < 120_000)   return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
+  const d = new Date(ts);
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  if (d.toDateString() === new Date().toDateString()) return `today ${hh}:${mm}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+}
+
+/** Derive dashboard WebView URL from the local API URL */
+function deriveDashboardUrl(localUrl: string): string {
+  try {
+    const u = new URL(localUrl);
+    return `${u.protocol}//${u.hostname}:3002`;
+  } catch {
+    return 'http://192.168.1.22:3002';
+  }
+}
+
+// ─── MetricTile (same as HealthVitalsScreen) ──────────────────────────────
+
+interface MetricTileProps {
+  def: MetricDef;
+  value: number | null;
+  timestamp: number | null;
+  selected: boolean;
+  onPress(): void;
+}
+
+function MetricTile({ def, value, timestamp, selected, onPress }: MetricTileProps) {
+  const displayColor = value !== null ? def.rangeColor(value) : C.textMuted;
+  const displayVal   = value === null ? '—' : formatMetricValue(def, value);
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.tile, selected && { borderColor: def.color, backgroundColor: C.cardActive }]}
+      activeOpacity={0.75}
+    >
+      <View style={[styles.tileBar, { backgroundColor: def.color }]} />
+      <Text style={styles.tileLabel}>{def.label}</Text>
+      <Text style={[styles.tileValue, { color: displayColor }]}>
+        {displayVal}
+        {value !== null && def.unit ? <Text style={styles.tileUnit}> {def.unit}</Text> : null}
+      </Text>
+      <Text style={styles.tileTime}>{ago(timestamp)}</Text>
+      {selected && (
+        <View style={[styles.tileSelectedBadge, { backgroundColor: def.color + '33' }]}>
+          <Text style={[styles.tileSelectedText, { color: def.color }]}>in graph</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ─── Quick range presets ──────────────────────────────────────────────────
+
+const PRESETS = [
+  { label: '30m', ms: 30 * 60_000 },
+  { label: '1h',  ms: 3600_000 },
+  { label: '6h',  ms: 6 * 3600_000 },
+  { label: '12h', ms: 12 * 3600_000 },
+  { label: '24h', ms: 24 * 3600_000 },
+  { label: '7d',  ms: 7 * 86400_000 },
+  { label: '30d', ms: 30 * 86400_000 },
+];
+
+const REFRESH_INTERVAL_MS = 60_000;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DriverTelemetryView — native RN rendering for offline / driver mode
+// ═══════════════════════════════════════════════════════════════════════════
+
+function DriverTelemetryView() {
+  const { activeDriver } = useGatewayStore();
+  const driver = driverManager.get(activeDriver) ?? driverManager.getActive();
+
+  const [live,       setLive]       = useState<SnapshotMap>({});
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(METRIC_DEFS.filter(m => m.defaultOn).map(m => [m.key, true])),
+  );
+  const [startDate,    setStartDate]    = useState(() => new Date(Date.now() - 3_600_000));
+  const [endDate,      setEndDate]      = useState(() => new Date());
+  const [historyData,  setHistoryData]  = useState<HistoryMap>({});
+  const [historyLoad,  setHistoryLoad]  = useState(false);
+  const [historyErr,   setHistoryErr]   = useState<string | null>(null);
+  const [activePreset, setActivePreset] = useState('1h');
+
+  const [permGranted,    setPermGranted]    = useState<boolean | null>(null);
+  const [permBusy,       setPermBusy]       = useState(false);
+  const [hcNotInstalled, setHcNotInstalled] = useState(false);
+
+  const [chartW, setChartW] = useState(0);
+
+  // ── Fetch latest ─────────────────────────────────────────────────────
+  async function fetchLatest(d = driver) {
+    if (!d) return;
+    try {
+      const snapshot = await d.getLatest();
+      if (snapshot) setLive(snapshot);
+    } catch { /* keep stale */ }
+  }
+
+  // ── Fetch history ────────────────────────────────────────────────────
+  async function fetchHistory(d = driver) {
+    if (!d) return;
+    setHistoryLoad(true);
+    setHistoryErr(null);
+    try {
+      const data = await d.getHistory(startDate.getTime(), endDate.getTime());
+      if (Object.keys(data).length > 0) setHistoryData(data);
+    } catch (e: unknown) {
+      setHistoryErr(String(e));
+    } finally {
+      setHistoryLoad(false);
+    }
+  }
+
+  async function requestPerms(d = driver): Promise<boolean> {
+    if (!d) return false;
+    setPermBusy(true);
+    try { await d.requestPermissions(); return false; }
+    catch { return false; }
+    finally { setPermBusy(false); }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    const d = driverManager.get(activeDriver) ?? driverManager.getActive();
+    setPermGranted(null);
+    setLive({});
+    setHistoryData({});
+    setLoading(true);
+
+    void (async () => {
+      if (!d) { setLoading(false); return; }
+      const available = await d.isAvailable().catch(() => true);
+      if (!available) { setHcNotInstalled(true); setLoading(false); return; }
+      setHcNotInstalled(false);
+      const already = await d.checkPermissions().catch(() => false);
+      setPermGranted(already);
+      if (!already) { setLoading(false); return; }
+      await Promise.all([fetchLatest(d), fetchHistory(d)]);
+      setLoading(false);
+    })();
+
+    const id = setInterval(() => { fetchLatest(); }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDriver]);
+
+  React.useEffect(() => { fetchHistory(); }, [startDate, endDate]);
+
+  // Re-check on foreground return
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      const d = driverManager.get(activeDriver) ?? driverManager.getActive();
+      if (!d) return;
+      void (async () => {
+        const available = await d.isAvailable().catch(() => true);
+        if (!available) { setHcNotInstalled(true); return; }
+        setHcNotInstalled(false);
+        const granted = await d.checkPermissions().catch(() => false);
+        if (granted && !permGranted) {
+          setPermGranted(true);
+          setLoading(true);
+          await Promise.all([fetchLatest(d), fetchHistory(d)]);
+          setLoading(false);
+        } else if (granted) {
+          await Promise.all([fetchLatest(d), fetchHistory(d)]);
+        }
+      })();
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDriver, permGranted]);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await Promise.all([fetchLatest(), fetchHistory()]);
+    setRefreshing(false);
+  }
+
+  function applyPreset(p: typeof PRESETS[0]) {
+    const end   = new Date();
+    const start = new Date(end.getTime() - p.ms);
+    setEndDate(end);
+    setStartDate(start);
+    setActivePreset(p.label);
+  }
+
+  function toggleMetric(key: string) {
+    setSelectedMetrics(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // ── Derive displayed defs ───────────────────────────────────────────
+  const liveKeys    = Object.keys(live);
+  const catalogKeys = new Set(METRIC_DEFS.map(m => m.key));
+  const catalogDefs = METRIC_DEFS.filter(m => liveKeys.includes(m.key));
+  const extraDefs   = liveKeys
+    .filter(k => !catalogKeys.has(k))
+    .map((k, i) => buildDynamicDef(k, METRIC_DEFS.length + i));
+  const displayDefs: MetricDef[] = [...catalogDefs, ...extraDefs];
+
+  // ── Chart series ────────────────────────────────────────────────────
+  const chartData = useMemo(() => {
+    const from = startDate.getTime();
+    const to   = endDate.getTime();
+    if (to <= from) return null;
+    const candidates = displayDefs.filter(
+      m => selectedMetrics[m.key] && (historyData[m.key]?.length ?? 0) > 0,
+    );
+    if (candidates.length === 0) return null;
+
+    const NUM_BINS = 80;
+    const binW     = (to - from) / NUM_BINS;
+    const binTimes = Array.from({ length: NUM_BINS }, (_, i) => from + (i + 0.5) * binW);
+
+    const chartSeries: ChartSeries[] = [];
+    for (const def of candidates) {
+      const raw  = historyData[def.key] ?? [];
+      const sums = new Array<number>(NUM_BINS).fill(0);
+      const cnts = new Array<number>(NUM_BINS).fill(0);
+      for (const pt of raw) {
+        if (pt.ts < from || pt.ts > to) continue;
+        const idx = Math.min(Math.floor((pt.ts - from) / binW), NUM_BINS - 1);
+        sums[idx] += pt.v;
+        cnts[idx] += 1;
+      }
+      const values: (number | null)[] = sums.map((s, i) => cnts[i] > 0 ? s / cnts[i] : null);
+      let last: number | null = null;
+      for (let i = 0; i < NUM_BINS; i++) {
+        if (values[i] !== null) last = values[i];
+        else if (last !== null) values[i] = last;
+      }
+      const filled = values.filter((v): v is number => v !== null);
+      if (filled.length === 0) continue;
+      chartSeries.push({ key: def.key, def, values, rawMin: Math.min(...filled), rawMax: Math.max(...filled) });
+    }
+    if (chartSeries.length === 0) return null;
+
+    const unitSet   = new Set(chartSeries.map(s => s.def.unit));
+    const normalise = chartSeries.length > 1 && unitSet.size > 1;
+    return { chartSeries, binTimes, normalise };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyData, selectedMetrics, startDate, endDate]);
+
+  // ── Render ──────────────────────────────────────────────────────────
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.blue} colors={[C.blue]} />}
+    >
+      {/* No driver */}
+      {!driver && (
+        <View style={styles.noDataBox}>
+          <Text style={styles.noDataText}>
+            No data source selected.{'\n'}Open Driver Selection to enable a driver.
+          </Text>
+        </View>
+      )}
+
+      {/* Health Connect not installed */}
+      {driver && hcNotInstalled && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>
+            ⚠ Health Connect is not installed on this device.
+          </Text>
+        </View>
+      )}
+
+      {/* Permission banner */}
+      {driver && !hcNotInstalled && permGranted === false && !permBusy && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>
+            ⚠ Permissions not granted for {driver.displayName}.
+          </Text>
+          <TouchableOpacity
+            style={[styles.refreshBtn, { marginTop: 8, alignSelf: 'flex-start' }]}
+            onPress={() => requestPerms()}
+          >
+            <Text style={styles.refreshText}>Grant Permissions</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Loading */}
+      {loading && driver && (
+        <View style={styles.centeredRow}>
+          <ActivityIndicator color={C.blue} />
+          <Text style={[styles.subHeading, { marginLeft: 8 }]}>Loading {driver.displayName}…</Text>
+        </View>
+      )}
+
+      {/* Latest Values */}
+      {!loading && displayDefs.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📌 Latest Values</Text>
+            <Text style={styles.sectionSub}>Tap to show/hide in graph</Text>
+          </View>
+          <View style={styles.tileGrid}>
+            {displayDefs.map(def => {
+              const entry = live[def.key];
+              return (
+                <MetricTile
+                  key={def.key}
+                  def={def}
+                  value={entry?.value ?? null}
+                  timestamp={entry?.ts ?? null}
+                  selected={!!selectedMetrics[def.key]}
+                  onPress={() => toggleMetric(def.key)}
+                />
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {!loading && driver && displayDefs.length === 0 && permGranted !== false && (
+        <View style={styles.noDataBox}>
+          <Text style={styles.noDataText}>No readings available from {driver.displayName} yet.</Text>
+        </View>
+      )}
+
+      {/* History range */}
+      {driver && (
+        <View style={[styles.rangeCard, { marginTop: 20 }]}>
+          <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>📈 History Range</Text>
+          <View style={styles.presetRow}>
+            {PRESETS.map(p => (
+              <TouchableOpacity
+                key={p.label}
+                onPress={() => applyPreset(p)}
+                style={[styles.presetChip, p.label === activePreset && styles.presetChipActive]}
+              >
+                <Text style={[styles.presetText, p.label === activePreset && { color: C.bg }]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Chart */}
+      {chartData && chartData.chartSeries.length > 0 && (
+        <View style={styles.chartCard} onLayout={e => setChartW(e.nativeEvent.layout.width)}>
+          <View style={styles.chartLegend}>
+            {chartData.chartSeries.map(({ def, rawMin, rawMax }) => (
+              <View key={def.key} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: def.color }]} />
+                <Text style={[styles.legendLabel, { color: def.color }]}>
+                  {def.label}{def.unit ? ` (${def.unit})` : ''}
+                  {chartData.normalise ? `  ${rawMin.toFixed(0)}–${rawMax.toFixed(0)}` : ''}
+                </Text>
+              </View>
+            ))}
+            {chartData.normalise && (
+              <Text style={{ color: C.textMuted, fontSize: 10, marginTop: 2 }}>Y-axis: 0–100 % (normalised per metric)</Text>
+            )}
+          </View>
+          {historyErr && <View style={styles.errorBox}><Text style={styles.errorText}>{historyErr}</Text></View>}
+          {historyLoad && <View style={styles.centeredRow}><ActivityIndicator color={C.blue} /></View>}
+          {!historyLoad && chartW > 0 && (
+            <CorrelationChart
+              series={chartData.chartSeries}
+              binTimesMs={chartData.binTimes}
+              normalise={chartData.normalise}
+              width={chartW - 28}
+            />
+          )}
+        </View>
+      )}
+
+      <View style={{ height: 30 }} />
+    </ScrollView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WebViewTelemetry — cloud/local mode (admin dashboard in WebView)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function WebViewTelemetry({ dashboardUrl }: { dashboardUrl: string }) {
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const webViewUrl = `${dashboardUrl}/?embedded=true#telemetryRN`;
+
+  if (loadError) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorTitle}>Cannot load dashboard</Text>
+        <Text style={styles.errorDetail}>{webViewUrl}</Text>
+        <Text style={styles.errorDetail}>{loadError}</Text>
+        <Text style={styles.hintText}>
+          Make sure the admin dashboard is running{'\n'}
+          (start_all.ps1, or: cd admin-dashboard && npm run dev)
+        </Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => setLoadError(null)}>
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <WebView
+      source={{ uri: webViewUrl }}
+      style={styles.webView}
+      startInLoadingState
+      renderLoading={() => (
+        <View style={[StyleSheet.absoluteFill, styles.center]}>
+          <ActivityIndicator size="large" color={C.blue} />
+          <Text style={styles.centerText}>Loading dashboard…</Text>
+        </View>
+      )}
+      onError={e => setLoadError(e.nativeEvent.description || 'Connection failed')}
+      javaScriptEnabled
+      domStorageEnabled
+      allowsInlineMediaPlayback
+      mixedContentMode="compatibility"
+    />
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Main component — switches between driver (native) and cloud/local (WebView)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export default function EntityTelemetryRN() {
+  const { openDrawer } = useContext(DrawerContext);
+  const ds = useDataSource();
+
+  const isDriver = ds.type === 'driver';
+  const dashboardUrl = deriveDashboardUrl(ds.localUrl);
+
+  return (
+    <View style={styles.root}>
+      {/* ── Header bar ─────────────────────────────────────── */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={openDrawer} style={styles.hamburger}>
+          <Text style={styles.hamburgerText}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>📊 Entity Telemetry</Text>
+        {isDriver && (
+          <View style={styles.driverBadge}>
+            <Text style={styles.driverBadgeText}>Driver Mode</Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Content ────────────────────────────────────────── */}
+      {!ds.loaded ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.blue} />
+          <Text style={styles.centerText}>Loading config…</Text>
+        </View>
+      ) : isDriver ? (
+        <DriverTelemetryView />
+      ) : (
+        <WebViewTelemetry dashboardUrl={dashboardUrl} />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  hamburger: {
+    marginRight: 16,
+    padding: 4,
+  },
+  hamburgerText: {
+    color: C.textPrimary,
+    fontSize: 22,
+  },
+  headerTitle: {
+    color: C.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  driverBadge: {
+    backgroundColor: C.green + '22',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: C.green,
+  },
+  driverBadgeText: {
+    color: C.green,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: C.bg,
+    padding: 32,
+  },
+  centerText: {
+    marginTop: 12,
+    color: C.textMuted,
+    fontSize: 14,
+  },
+  errorTitle: {
+    color: '#ff4d4d',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  errorDetail: {
+    color: C.textMuted,
+    fontSize: 13,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  hintText: {
+    color: C.textPrimary,
+    fontSize: 14,
+    marginTop: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: C.blue,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // ── Driver mode styles ────────────────────────────────────────────────
+  content: { padding: 16, paddingBottom: 50 },
+  refreshBtn: { backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: 7 },
+  refreshText: { color: C.blue, fontWeight: '600', fontSize: 13 },
+  subHeading: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 12 },
+  sectionTitle:  { fontSize: 15, fontWeight: '700', color: C.textPrimary },
+  sectionSub:    { fontSize: 11, color: C.textMuted },
+
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    width: '31.5%',
+    backgroundColor: C.card,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    paddingHorizontal: 8,
+    paddingTop: 0,
+    paddingBottom: 8,
+    overflow: 'hidden',
+  },
+  tileBar:          { height: 3, borderRadius: 1, marginBottom: 7, marginHorizontal: -8 },
+  tileLabel:        { fontSize: 10, color: C.textMuted, marginBottom: 2 },
+  tileValue:        { fontSize: 21, fontWeight: '700' },
+  tileUnit:         { fontSize: 11, fontWeight: '400', color: C.textMuted },
+  tileTime:         { fontSize: 9, color: C.textMuted, marginTop: 1 },
+  tileSelectedBadge:{ alignSelf: 'flex-start', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, marginTop: 3 },
+  tileSelectedText: { fontSize: 9, fontWeight: '600' },
+
+  rangeCard: {
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 16,
+  },
+  presetRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.bg,
+  },
+  presetChipActive: { backgroundColor: C.blue, borderColor: C.blue },
+  presetText: { fontSize: 12, color: C.textPrimary, fontWeight: '500' },
+
+  chartCard: {
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 14,
+    overflow: 'visible',
+  },
+  chartLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot:   { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { fontSize: 11, fontWeight: '600' },
+
+  centeredRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  noDataBox:   { backgroundColor: C.card, borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: C.border },
+  noDataText:  { color: C.textMuted, fontSize: 13, textAlign: 'center' },
+  errorBox:    { backgroundColor: '#2d1215', borderRadius: 10, padding: 14, marginBottom: 12 },
+  errorText:   { color: C.red, fontSize: 13 },
+  permBanner:  { backgroundColor: '#2d1f00', borderRadius: 10, borderWidth: 1, borderColor: '#f0a500', padding: 12, marginBottom: 14 },
+  permBannerText: { color: '#f0c040', fontSize: 13, lineHeight: 19 },
+});
