@@ -15,7 +15,7 @@ import type { TransportStatus } from '../services/MqttTransport';
 // ─── Default config ────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: GatewayConfig = {
   iotHubConnectionString: IOT_HUB_CONNECTION_STRING,
-  activeDriver:     'HealthConnect',
+  activeDriver:     'SamsungHealth',
   sampleIntervalMs: 60000,  // 60 s → 1 frame/min, 60 frames/hr
   mqttQos:          1,
   userId:           DEFAULT_USER_ID,

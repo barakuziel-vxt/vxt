@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useGatewayStore } from '../store/gatewayStore';
+import { useUserProfile } from '../hooks/useUserProfile';
 import { DrawerContext } from '../context/DrawerContext';
 import type { TransportStatus } from '../services/MqttTransport';
 import type { ConnectionStatus } from '../core/types';
@@ -80,6 +81,7 @@ function ToggleRow({ label, sub, value, busy, onToggle }: ToggleRowProps) {
 // ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function GatewayStatusScreen() {
+  const [userProfile] = useUserProfile();
   const {
     driverRunning,
     gatewayRunning,
@@ -99,17 +101,26 @@ export default function GatewayStatusScreen() {
     stopGateway,
     clearError,
     resetLag,
+    updateConfig,
   } = useGatewayStore();
   const { openDrawer } = useContext(DrawerContext);
 
   const [togglingGateway, setTogglingGateway] = React.useState(false);
 
   // Auto-start the active driver when the screen first mounts
+  // Also sync userId from user profile
   const hasAutoStarted = React.useRef(false);
   React.useEffect(() => {
-    if (!hasAutoStarted.current && !driverRunning) {
+    if (!hasAutoStarted.current) {
       hasAutoStarted.current = true;
-      startDriver().catch(() => {});
+      // Sync userId from user profile to gateway config
+      if (userProfile.userId) {
+        updateConfig({ userId: userProfile.userId });
+      }
+      // Auto-start driver
+      if (!driverRunning) {
+        startDriver().catch(() => {});
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

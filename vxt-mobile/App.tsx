@@ -16,6 +16,9 @@ import { DrawerContext } from './src/context/DrawerContext';
 import GatewayStatusScreen from './src/screens/GatewayStatusScreen';
 import DriverSelectorScreen from './src/screens/DriverSelectorScreen';
 import HealthVitalsScreen from './src/screens/HealthVitalsScreen';
+import EntityTelemetryRN from './src/screens/EntityTelemetryRN';
+import DataSourceScreen from './src/screens/DataSourceScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
 import { driverManager } from './src/core/DriverManager';
 import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
@@ -33,7 +36,7 @@ driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'DataSource' | 'UserProfile';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -50,9 +53,12 @@ const C = {
 };
 
 const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
-  { key: 'Vitals',  label: 'Health Vitals',    icon: '💓' },
-  { key: 'Status',  label: 'VXT Gateway',       icon: '⚡' },
-  { key: 'Driver',  label: 'Driver Selection',  icon: '🔌' },
+  { key: 'Vitals',     label: 'Health Vitals',    icon: '💓' },
+  { key: 'Telemetry', label: 'Entity Telemetry', icon: '📊' },
+  { key: 'Status',    label: 'VXT Gateway',       icon: '⚡' },
+  { key: 'Driver',    label: 'Driver Selection',  icon: '🔌' },
+  { key: 'DataSource', label: 'Data Source',      icon: '🌐' },
+  { key: 'UserProfile', label: 'User Profile',    icon: '👤' },
 ];
 
 export default function App() {
@@ -66,7 +72,7 @@ export default function App() {
 
 function AppShell() {
   const insets = useSafeAreaInsets();
-  const [active, setActive]   = React.useState<Screen>('Vitals');
+  const [active, setActive]   = React.useState<Screen>('Telemetry');
   const [isOpen, setIsOpen]   = React.useState(false);
 
   const hiddenValue    = isRTL ? DRAWER_W : -DRAWER_W;
@@ -93,10 +99,14 @@ function AppShell() {
     closeDrawer();
   }
 
-  const ActiveScreen =
-    active === 'Vitals'  ? HealthVitalsScreen :
-    active === 'Status'  ? GatewayStatusScreen :
-    DriverSelectorScreen;
+  const ActiveScreen: React.ComponentType =
+    active === 'Vitals'      ? HealthVitalsScreen :
+    active === 'Telemetry'   ? EntityTelemetryRN :
+    active === 'Status'      ? GatewayStatusScreen :
+    active === 'Driver'      ? DriverSelectorScreen :
+    active === 'DataSource'  ? DataSourceScreen :
+    active === 'UserProfile' ? UserProfileScreen :
+    HealthVitalsScreen; // Default fallback
 
   return (
     <DrawerContext.Provider value={{ openDrawer }}>
