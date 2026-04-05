@@ -121,62 +121,86 @@ export default function EntityTelemetryRN() {
       return;
     }
 
-    // Handle driver data requests (only in driver mode)
-    if (!isDriver) return;
-
-    const driver = driverManager.get(activeDriver) ?? driverManager.getActive();
+    // Route to driver APIs or HTTP proxy depending on the selected data source
     let responseData: unknown = null;
 
     try {
-      switch (msg.type) {
-        case 'loadEntities': {
-          responseData = [{
-            entityId: 'driver',
-            entityFirstName: driver?.displayName || 'Driver',
-            entityLastName: '',
-            entityTypeId: 99,
-            entityTypeName: 'Driver',
-          }];
-          break;
+      if (isDriver) {
+        // ── Driver mode: call local device APIs ──────────────────────────────
+        const driver = driverManager.get(activeDriver) ?? driverManager.getActive();
+        switch (msg.type) {
+          case 'loadEntities': {
+            responseData = [{
+              entityId: 'driver',
+              entityFirstName: driver?.displayName || 'Driver',
+              entityLastName: '',
+              entityTypeId: 99,
+              entityTypeName: 'Driver',
+            }];
+            break;
+          }
+          case 'loadLatest': {
+            if (!driver) { responseData = []; break; }
+            const snapshot = await driver.getLatest();
+            responseData = snapshot ? snapshotToLatest(snapshot) : [];
+            break;
+          }
+          case 'loadRange': {
+            if (!driver) { responseData = []; break; }
+            const startMs = msg.params?.startDate
+              ? new Date(msg.params.startDate).getTime()
+              : Date.now() - 3_600_000;
+            const endMs = msg.params?.endDate
+              ? new Date(msg.params.endDate).getTime()
+              : Date.now();
+            const history: HistoryMap = await driver.getHistory(startMs, endMs);
+            responseData = historyToTelemetry(history);
+            break;
+          }
+          case 'loadEvents':       { responseData = []; break; }
+          case 'loadEventDetails': { responseData = {}; break; }
+          case 'loadScores':       { responseData = []; break; }
+          default: responseData = null;
         }
-
-        case 'loadLatest': {
-          if (!driver) { responseData = []; break; }
-          const snapshot = await driver.getLatest();
-          responseData = snapshot ? snapshotToLatest(snapshot) : [];
-          break;
+      } else {
+        // ── Cloud / Local mode: proxy via native fetch (no CORS restriction) ─
+        const apiBase = (ds.type === 'cloud' ? ds.cloudUrl : ds.localUrl).replace(/\/$/, '');
+        const { entityId = '', startDate = '', endDate = '', eventLogId = '', attributeCode = '' } = msg.params || {};
+        switch (msg.type) {
+          case 'loadEntities': {
+            const res = await fetch(`${apiBase}/entities`);
+            responseData = res.ok ? await res.json() : [];
+            break;
+          }
+          case 'loadLatest': {
+            const res = await fetch(`${apiBase}/api/telemetry/latest/${entityId}`);
+            responseData = res.ok ? await res.json() : [];
+            break;
+          }
+          case 'loadRange': {
+            const qs = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+            const res = await fetch(`${apiBase}/api/telemetry/range/${entityId}?${qs}`);
+            responseData = res.ok ? await res.json() : [];
+            break;
+          }
+          case 'loadEvents': {
+            const qs = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+            const res = await fetch(`${apiBase}/api/events/range/${entityId}?${qs}`);
+            responseData = res.ok ? await res.json() : [];
+            break;
+          }
+          case 'loadEventDetails': {
+            const res = await fetch(`${apiBase}/api/eventlog/${eventLogId}/details`);
+            responseData = res.ok ? await res.json() : {};
+            break;
+          }
+          case 'loadScores': {
+            const res = await fetch(`${apiBase}/api/entity-attributes/${attributeCode}/scores`);
+            responseData = res.ok ? await res.json() : [];
+            break;
+          }
+          default: responseData = null;
         }
-
-        case 'loadRange': {
-          if (!driver) { responseData = []; break; }
-          const startMs = msg.params?.startDate
-            ? new Date(msg.params.startDate).getTime()
-            : Date.now() - 3_600_000;
-          const endMs = msg.params?.endDate
-            ? new Date(msg.params.endDate).getTime()
-            : Date.now();
-          const history: HistoryMap = await driver.getHistory(startMs, endMs);
-          responseData = historyToTelemetry(history);
-          break;
-        }
-
-        case 'loadEvents': {
-          responseData = [];
-          break;
-        }
-
-        case 'loadEventDetails': {
-          responseData = {};
-          break;
-        }
-
-        case 'loadScores': {
-          responseData = [];
-          break;
-        }
-
-        default:
-          responseData = null;
       }
     } catch (e) {
       console.warn('[EntityTelemetryRN] Bridge error:', msg.type, e);
