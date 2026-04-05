@@ -252,8 +252,8 @@ class SamsungHealthModule(
         }
         val minV = dMin.dataList.firstOrNull()?.value ?: return@read null
         val maxV = dMax.dataList.firstOrNull()?.value ?: return@read null
-        // Use current time so delta-mode sees a fresh timestamp on each poll
-        val ts = Instant.now().toEpochMilli().toDouble()
+        // Use noon of today — daily aggregate; avoids displaying "just now"
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
         sample(((minV + maxV) / 2f).toDouble(), "bpm", ts)
     }
 
@@ -263,7 +263,7 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        val ts = Instant.now().toEpochMilli().toDouble()
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
         sample(v.toDouble(), "bpm", ts)
     }
 
@@ -273,7 +273,7 @@ class SamsungHealthModule(
             setLocalDateFilter(localDateLast(7)); setOrdering(Ordering.DESC)
         }
         val v = data.dataList.firstOrNull()?.value ?: return@read null
-        val ts = Instant.now().toEpochMilli().toDouble()
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
         sample(v.toDouble(), "bpm", ts)
     }
 
@@ -307,7 +307,8 @@ class SamsungHealthModule(
             setLocalTimeFilter(LocalTimeFilter.of(todayStart, now))
         }
         val total = data.dataList.firstOrNull()?.value ?: return@read null
-        sample(total.toDouble(), "steps", Instant.now().toEpochMilli().toDouble())
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli().toDouble()
+        sample(total.toDouble(), "steps", ts)
     }
 
     @ReactMethod fun getLatestAfib(promise: Promise) =
@@ -340,8 +341,8 @@ class SamsungHealthModule(
         // TOTAL_DURATION aggregate returns java.time.Duration — convert to decimal hours
         val dur = entry.value ?: return@read null
         val hours = dur.toMinutes() / 60.0
-        // Use current time so delta sends this metric on each poll
-        val ts = Instant.now().toEpochMilli().toDouble()
+        // Use noon of today as representative timestamp for last night's sleep
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
         sample(hours, "hrs", ts)
     }
 
@@ -357,7 +358,8 @@ class SamsungHealthModule(
         }
         val todayTotal = todayData.dataList.firstOrNull()?.value
         if (todayTotal != null && todayTotal.toDouble() > 0.0) {
-            return@read sample(todayTotal.toDouble(), "floors", Instant.now().toEpochMilli().toDouble())
+            val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli().toDouble()
+            return@read sample(todayTotal.toDouble(), "floors", ts)
         }
         // No floors today — look at the last 7 days via LocalTimeFilter
         val weekStart = LocalDateTime.now().minusDays(7)
@@ -365,7 +367,7 @@ class SamsungHealthModule(
             setLocalTimeFilter(LocalTimeFilter.of(weekStart, now))
         }
         val weekTotal = weekData.dataList.firstOrNull()?.value ?: return@read null
-        val ts = Instant.now().toEpochMilli().toDouble()
+        val ts = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli().toDouble()
         sample(weekTotal.toDouble(), "floors", ts)
     }
 

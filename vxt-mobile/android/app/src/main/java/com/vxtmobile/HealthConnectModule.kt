@@ -344,7 +344,8 @@ class HealthConnectModule(
         )).records
         val total = records.sumOf { it.count }
         if (total == 0L) return@read null
-        val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+        // Steps are a running daily total; use start of today so tile shows "today 00:00"
+        val latestTs = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
         sample(total.toDouble(), "steps", latestTs)
     }
 
@@ -505,23 +506,24 @@ class HealthConnectModule(
                 runCatching {
                     val records = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, filter)).records
                     val zone = ZoneId.systemDefault()
-                    // Collect all BPM values grouped by local date
-                    val byDay = sortedMapOf<java.time.LocalDate, MutableList<Long>>()
+                    // Collect (bpm, sampleTimestampMs) grouped by local date — preserve real timestamps
+                    val byDay = sortedMapOf<java.time.LocalDate, MutableList<Pair<Long, Long>>>()
                     for (rec in records) {
                         for (s in rec.samples) {
+                            val sMs = s.time.toEpochMilli()
                             val day = s.time.atZone(zone).toLocalDate()
-                            byDay.getOrPut(day) { mutableListOf() }.add(s.beatsPerMinute)
+                            byDay.getOrPut(day) { mutableListOf() }.add(Pair(s.beatsPerMinute, sMs))
                         }
                     }
                     val arrAvg = Arguments.createArray()
                     val arrMin = Arguments.createArray()
                     val arrMax = Arguments.createArray()
-                    for ((day, bpms) in byDay) {
-                        // Place point at noon of that day for clean chart display
-                        val ts = day.atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
-                        val avg = bpms.average()
-                        val min = bpms.min().toDouble()
-                        val max = bpms.max().toDouble()
+                    for ((_, pts) in byDay) {
+                        // Use actual last-sample timestamp of each day — guaranteed within queried range
+                        val ts = pts.maxOf { it.second }.toDouble()
+                        val avg = pts.map { it.first }.average()
+                        val min = pts.minOf { it.first }.toDouble()
+                        val max = pts.maxOf { it.first }.toDouble()
                         arrAvg.pushMap(Arguments.createMap().apply { putDouble("v", avg); putDouble("ts", ts) })
                         arrMin.pushMap(Arguments.createMap().apply { putDouble("v", min); putDouble("ts", ts) })
                         arrMax.pushMap(Arguments.createMap().apply { putDouble("v", max); putDouble("ts", ts) })
