@@ -144,13 +144,8 @@ export default function HealthVitalsScreen() {
     setHistoryErr(null);
     try {
       const data = await d.getHistory(startDate.getTime(), endDate.getTime());
-      setHistoryData(data);
-    } catch (e: any) {
-      setHistoryErr(String(e?.message ?? e));
-    } finally {
-      setHistoryLoad(false);
-    }
-  }
+      // Only update if we got actual data — don't wipe existing chart on empty response
+      if (Object.keys(data).length > 0) setHistoryData(data);
 
   // ── Request permissions — opens HC settings screen ──────────────────
   // After user toggles permissions in HC app and returns, the AppState
@@ -194,7 +189,7 @@ export default function HealthVitalsScreen() {
       setLoading(false);
     })();
 
-    const id = setInterval(() => { fetchLatest(); fetchHistory(); }, REFRESH_INTERVAL_MS);
+    const id = setInterval(() => { fetchLatest(); }, REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDriver]);

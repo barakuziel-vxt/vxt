@@ -260,24 +260,25 @@ class HealthConnectModule(
     @ReactMethod
     fun getLatestHrMin(promise: Promise) = read(promise, "HRMin") {
         // Query last 7 days of heart rate records to find the true recent minimum.
-        // (If query today only, data disappears after midnight.)
+        // Use the actual timestamp of the sample that had the minimum BPM.
         val records = client.readRecords(ReadRecordsRequest(
             HeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 500
         )).records
-        val min = records.flatMap { it.samples }.minOfOrNull { it.beatsPerMinute.toDouble() }
-            ?: return@read null
-        sample(min, "bpm", Instant.now().toEpochMilli())
+        val allSamples = records.flatMap { it.samples }
+        val minSample = allSamples.minByOrNull { it.beatsPerMinute } ?: return@read null
+        sample(minSample.beatsPerMinute.toDouble(), "bpm", minSample.time.toEpochMilli())
     }
 
     @ReactMethod
     fun getLatestHrMax(promise: Promise) = read(promise, "HRMax") {
         // Query last 7 days of heart rate records to find the true recent maximum.
+        // Use the actual timestamp of the sample that had the maximum BPM.
         val records = client.readRecords(ReadRecordsRequest(
             HeartRateRecord::class, since(7), ascendingOrder = false, pageSize = 500
         )).records
-        val max = records.flatMap { it.samples }.maxOfOrNull { it.beatsPerMinute.toDouble() }
-            ?: return@read null
-        sample(max, "bpm", Instant.now().toEpochMilli())
+        val allSamples = records.flatMap { it.samples }
+        val maxSample = allSamples.maxByOrNull { it.beatsPerMinute } ?: return@read null
+        sample(maxSample.beatsPerMinute.toDouble(), "bpm", maxSample.time.toEpochMilli())
     }
 
     // ── Blood Pressure ────────────────────────────────────────────────────────
@@ -343,7 +344,8 @@ class HealthConnectModule(
         )).records
         val total = records.sumOf { it.count }
         if (total == 0L) return@read null
-        sample(total.toDouble(), "steps", Instant.now().toEpochMilli())
+        val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+        sample(total.toDouble(), "steps", latestTs)
     }
 
     // ── Resting Heart Rate ────────────────────────────────────────────────────
@@ -404,7 +406,8 @@ class HealthConnectModule(
         )).records
         val total = records.sumOf { it.floors }
         if (total == 0.0) return@read null
-        sample(total, "floors", Instant.now().toEpochMilli())
+        val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+        sample(total, "floors", latestTs)
     }
 
     // ── Active Calories ───────────────────────────────────────────────────────
@@ -418,14 +421,18 @@ class HealthConnectModule(
             ActiveCaloriesBurnedRecord::class, since(7)
         )).records
         val total = records.sumOf { it.energy.inKilocalories }
-        if (total > 0.0) return@read sample(total, "kcal", Instant.now().toEpochMilli())
+        if (total > 0.0) {
+            val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+            return@read sample(total, "kcal", latestTs)
+        }
         // Fallback: Samsung Health writes TotalCaloriesBurned (not ActiveCaloriesBurned) — also last 7 days
         val totalRecords = client.readRecords(ReadRecordsRequest(
             TotalCaloriesBurnedRecord::class, since(7)
         )).records
         val totalKcal = totalRecords.sumOf { it.energy.inKilocalories }
         if (totalKcal == 0.0) return@read null
-        sample(totalKcal, "kcal", Instant.now().toEpochMilli())
+        val latestTsFallback = totalRecords.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+        sample(totalKcal, "kcal", latestTsFallback)
     }
 
     // ── Distance ──────────────────────────────────────────────────────────────
@@ -438,7 +445,8 @@ class HealthConnectModule(
         )).records
         val totalKm = records.sumOf { it.distance.inKilometers }
         if (totalKm == 0.0) return@read null
-        sample(totalKm, "km", Instant.now().toEpochMilli())
+        val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
+        sample(totalKm, "km", latestTs)
     }
 
     // ── VO₂ Max ───────────────────────────────────────────────────────────────
@@ -490,18 +498,30 @@ class HealthConnectModule(
                 val filter = TimeRangeFilter.between(from, to)
                 val result = WritableNativeMap()
 
-                // Heart Rate — expand each record's samples list for fine-grained resolution
+                // Heart Rate — daily min/max/avg aggregated across ALL samples in the range.
+                // Samsung Health syncs each HR measurement as a separate record with 1 sample,
+                // so per-record min/max == avg (all 3 lines look identical in the chart).
+                // Fix: group every sample by calendar day and compute true daily min/max/avg.
                 runCatching {
                     val records = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, filter)).records
+                    val zone = ZoneId.systemDefault()
+                    // Collect all BPM values grouped by local date
+                    val byDay = sortedMapOf<java.time.LocalDate, MutableList<Long>>()
+                    for (rec in records) {
+                        for (s in rec.samples) {
+                            val day = s.time.atZone(zone).toLocalDate()
+                            byDay.getOrPut(day) { mutableListOf() }.add(s.beatsPerMinute)
+                        }
+                    }
                     val arrAvg = Arguments.createArray()
                     val arrMin = Arguments.createArray()
                     val arrMax = Arguments.createArray()
-                    for (rec in records) {
-                        if (rec.samples.isEmpty()) continue
-                        val ts  = rec.endTime.toEpochMilli().toDouble()
-                        val avg = rec.samples.map { it.beatsPerMinute }.average()
-                        val min = rec.samples.minOf { it.beatsPerMinute }.toDouble()
-                        val max = rec.samples.maxOf { it.beatsPerMinute }.toDouble()
+                    for ((day, bpms) in byDay) {
+                        // Place point at noon of that day for clean chart display
+                        val ts = day.atStartOfDay(zone).plusHours(12).toInstant().toEpochMilli().toDouble()
+                        val avg = bpms.average()
+                        val min = bpms.min().toDouble()
+                        val max = bpms.max().toDouble()
                         arrAvg.pushMap(Arguments.createMap().apply { putDouble("v", avg); putDouble("ts", ts) })
                         arrMin.pushMap(Arguments.createMap().apply { putDouble("v", min); putDouble("ts", ts) })
                         arrMax.pushMap(Arguments.createMap().apply { putDouble("v", max); putDouble("ts", ts) })
