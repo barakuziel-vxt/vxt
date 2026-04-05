@@ -277,25 +277,83 @@ class SamsungHealthModule(
         sample(v.toDouble(), "bpm", ts)
     }
 
-    // ── readData() NOT AVAILABLE on this Samsung Health build ───────────────────
-    // Samsung Health 6.31.3.013 (bundled via OS update on Note20) is missing the
-    // internal readData dispatcher class (com.samsung.android.sdk.health.data.e).
-    // Update Samsung Health from Galaxy Store to get the full build.
+    // ── Blood Pressure, SpO2, Temperature, Glucose ─────────────────────────────
+    // These use readData() which requires Samsung Health ≥ full build from Galaxy Store.
+    // Older bundled builds (e.g. 6.31.3.013) may throw ClassNotFoundException — wrapped
+    // in runCatching so the tile is simply absent rather than crashing the batch poll.
 
-    @ReactMethod fun getLatestBloodPressure(promise: Promise) =
-        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+    @ReactMethod
+    fun getLatestBloodPressure(promise: Promise) = read(promise) {
+        runCatching {
+            val req = DataTypes.BLOOD_PRESSURE.readDataRequestBuilder
+                .setInstantTimeFilter(last24h()).setOrdering(Ordering.DESC).build()
+            val dp = store.readData(req).dataList.filterIsInstance<HealthDataPoint>().firstOrNull()
+            dp?.let {
+                val ts = (it.endTime ?: it.startTime)?.toEpochMilli()?.toDouble()
+                    ?: java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
+                val sbp = it.getValue(DataType.BloodPressureType.SYSTOLIC) ?: return@let null
+                sample(sbp.toDouble(), "mmHg", ts)
+            }
+        }.getOrNull()
+    }
 
-    @ReactMethod fun getLatestDiastolicBloodPressure(promise: Promise) =
-        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+    @ReactMethod
+    fun getLatestDiastolicBloodPressure(promise: Promise) = read(promise) {
+        runCatching {
+            val req = DataTypes.BLOOD_PRESSURE.readDataRequestBuilder
+                .setInstantTimeFilter(last24h()).setOrdering(Ordering.DESC).build()
+            val dp = store.readData(req).dataList.filterIsInstance<HealthDataPoint>().firstOrNull()
+            dp?.let {
+                val ts = (it.endTime ?: it.startTime)?.toEpochMilli()?.toDouble()
+                    ?: java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
+                val dbp = it.getValue(DataType.BloodPressureType.DIASTOLIC) ?: return@let null
+                sample(dbp.toDouble(), "mmHg", ts)
+            }
+        }.getOrNull()
+    }
 
-    @ReactMethod fun getLatestSpo2(promise: Promise) =
-        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+    @ReactMethod
+    fun getLatestSpo2(promise: Promise) = read(promise) {
+        runCatching {
+            val req = DataTypes.BLOOD_OXYGEN.readDataRequestBuilder
+                .setInstantTimeFilter(last24h()).setOrdering(Ordering.DESC).build()
+            val list = store.readData(req).dataList.filterIsInstance<OxygenSaturation>()
+            list.firstOrNull()?.let { s ->
+                val ts = (s.endTime ?: s.startTime)?.toEpochMilli()?.toDouble()
+                    ?: java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
+                sample(s.oxygenSaturation.toDouble(), "%", ts)
+            }
+        }.getOrNull()
+    }
 
-    @ReactMethod fun getLatestBodyTemperature(promise: Promise) =
-        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+    @ReactMethod
+    fun getLatestBodyTemperature(promise: Promise) = read(promise) {
+        runCatching {
+            val req = DataTypes.BODY_TEMPERATURE.readDataRequestBuilder
+                .setInstantTimeFilter(last24h()).setOrdering(Ordering.DESC).build()
+            val dp = store.readData(req).dataList.filterIsInstance<HealthDataPoint>().firstOrNull()
+            dp?.let {
+                val ts = (it.endTime ?: it.startTime)?.toEpochMilli()?.toDouble()
+                    ?: java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
+                val temp = it.getValue(DataType.BodyTemperatureType.BODY_TEMPERATURE) ?: return@let null
+                sample(temp.toDouble(), "°C", ts)
+            }
+        }.getOrNull()
+    }
 
-    @ReactMethod fun getLatestGlucose(promise: Promise) =
-        promise.reject("NO_DATA", "readData() not available — update Samsung Health from Galaxy Store")
+    @ReactMethod
+    fun getLatestGlucose(promise: Promise) = read(promise) {
+        runCatching {
+            val req = DataType.BloodGlucoseType().readDataRequestBuilder
+                .setInstantTimeFilter(last24h()).setOrdering(Ordering.DESC).build()
+            val list = store.readData(req).dataList.filterIsInstance<BloodGlucose>()
+            list.firstOrNull()?.let { bg ->
+                val ts = bg.timestamp?.toEpochMilli()?.toDouble()
+                    ?: java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).plusHours(12).toInstant().toEpochMilli().toDouble()
+                sample(bg.glucose.toDouble(), "mmol/L", ts)
+            }
+        }.getOrNull()
+    }
 
     // ── Step Count (55411-3) — aggregate total for today ──────────────────────
 
