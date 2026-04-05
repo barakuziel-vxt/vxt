@@ -193,7 +193,7 @@ export default function EntityTelemetryRNPage() {
       setLoading(true);
       setError(null);
       let data;
-      if (IS_EMBEDDED) {
+      if (IS_DRIVER_MODE) {
         data = await driverRequest('loadEntities');
         if (!data) data = [];
       } else {
@@ -222,8 +222,8 @@ export default function EntityTelemetryRNPage() {
       const end   = new Date(endDate).toISOString();
       console.log('[EntityTelemetryRNPage] Loading entity', selectedEntity, 'from', start, 'to', end);
 
-      if (IS_EMBEDDED) {
-        // Bridge: request data from RN (driver APIs or HTTP proxy)
+      if (IS_DRIVER_MODE) {
+        // Bridge: request data from RN driver APIs
         const [latest, tel, ev] = await Promise.all([
           driverRequest('loadLatest', { entityId: String(selectedEntity) }),
           driverRequest('loadRange',  { entityId: String(selectedEntity), startDate: start, endDate: end }),
@@ -274,11 +274,6 @@ export default function EntityTelemetryRNPage() {
     if (IS_DRIVER_MODE) return; // events not available from driver
     try {
       setEventDetailsLoading(true);
-      if (IS_EMBEDDED) {
-        const data = await driverRequest('loadEventDetails', { eventLogId: String(eventLogId) });
-        if (data) setSelectedEventLog(data);
-        return;
-      }
       const res = await fetch(`${BASE}/api/eventlog/${eventLogId}/details`, { headers: { 'Content-Type': 'application/json' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -325,14 +320,6 @@ export default function EntityTelemetryRNPage() {
         } catch (e) {
           console.warn('Could not parse analysisMetadata:', e);
         }
-      }
-
-      if (IS_EMBEDDED) {
-        const scores = await driverRequest('loadScores', { attributeCode });
-        detailToShow.scores = scores || [];
-        detailToShow.isPythonAnalysis = false;
-        setSelectedScoreDetail(detailToShow);
-        return;
       }
 
       const response = await fetch(`${BASE}/api/entity-attributes/${attributeCode}/scores`);
