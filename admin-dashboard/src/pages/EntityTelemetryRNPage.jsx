@@ -66,7 +66,25 @@ window.__driverBridgeCallback = function(response) {
   }
 };
 
-function driverRequest(type, params = {}) {
+/** Wait up to 3s for the RN WebView bridge to become available */
+function waitForBridge(timeout = 3000) {
+  return new Promise((resolve, reject) => {
+    if (window.ReactNativeWebView) { resolve(); return; }
+    const start = Date.now();
+    const iv = setInterval(() => {
+      if (window.ReactNativeWebView) {
+        clearInterval(iv);
+        resolve();
+      } else if (Date.now() - start > timeout) {
+        clearInterval(iv);
+        reject(new Error('ReactNativeWebView bridge not available'));
+      }
+    }, 50);
+  });
+}
+
+async function driverRequest(type, params = {}) {
+  await waitForBridge();
   return new Promise((resolve) => {
     const id = `req_${++_reqCounter}`;
     _pendingRequests[id] = resolve;
