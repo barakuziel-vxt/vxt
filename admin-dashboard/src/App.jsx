@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import EntityCategoryPage from './pages/EntityCategoryPage';
 import EntityTypePage from './pages/EntityTypePage';
@@ -14,8 +14,16 @@ import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 import CustomerGeofencePage from './pages/CustomerGeofencePage';
 import EntityTelemetryRNPage from './pages/EntityTelemetryRNPage';
+import ReportManuallyPage from './pages/ReportManuallyPage';
+import GatewayConfigPage from './pages/GatewayConfigPage';
 
 export default function App() {
+  // Listen for in-page navigation events (e.g., from ReportManuallyPage link to GatewayConfig)
+  useEffect(() => {
+    const handler = (e) => setCurrentPage(e.detail);
+    window.addEventListener('vxt:navigate', handler);
+    return () => window.removeEventListener('vxt:navigate', handler);
+  }, []);
   // Support URL hash navigation (e.g. #telemetryRN) and embedded mode (?embedded=true)
   const urlParams = new URLSearchParams(window.location.search);
   const embedded = urlParams.get('embedded') === 'true';
@@ -48,6 +56,10 @@ export default function App() {
         return <EntityTelemetryAnalyticsPage />;
       case 'telemetryRN':
         return <EntityTelemetryRNPage />;
+      case 'reportManually':
+        return <ReportManuallyPage />;
+      case 'gatewayConfig':
+        return <GatewayConfigPage />;
       case 'protocol':
         return <ProtocolPage />;
       case 'protocolAttribute':
@@ -195,6 +207,22 @@ export default function App() {
               onClick={() => handlePageChange('telemetryRN')}
             >
               📱 Entity Telemetry
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'reportManually' ? 'active' : ''}`}
+              onClick={() => handlePageChange('reportManually')}
+            >
+              📝 Report Manually
+            </button>
+          </div>
+
+          <div className="nav-section">
+            <h3>Gateway</h3>
+            <button
+              className={`nav-button ${currentPage === 'gatewayConfig' ? 'active' : ''}`}
+              onClick={() => handlePageChange('gatewayConfig')}
+            >
+              ⚡ Gateway Config
             </button>
           </div>
 

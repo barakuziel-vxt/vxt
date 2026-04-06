@@ -2,7 +2,34 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()],
+  base: './',
+  plugins: [
+    react(),
+    // Required for Android WebView + file:// loading:
+    // Vite injects type="module" and crossorigin on scripts — both break file://
+    // loading. We strip them and add defer so the script runs after DOM is ready
+    // (type="module" defers automatically; plain scripts don't).
+    {
+      name: 'android-webview-compat',
+      apply: 'build',
+      transformIndexHtml(html) {
+        return html
+          .replace(/<script type="module" crossorigin/g, '<script defer')
+          .replace(/<script type="module"/g, '<script defer')
+          .replace(/ crossorigin/g, '');
+      },
+    },
+  ],
+  build: {
+    modulePreload: false,
+    rollupOptions: {
+      output: {
+        format: 'iife',
+        name: 'VXTApp',
+        inlineDynamicImports: true,
+      },
+    },
+  },
   server: {
     port: 3002,
     host: '0.0.0.0',
