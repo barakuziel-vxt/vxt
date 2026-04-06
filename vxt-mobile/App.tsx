@@ -59,7 +59,7 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'ReportManually', label: 'Report Manually',  icon: '📝' },
   { key: 'Status',         label: 'VXT Gateway',      icon: '⚡' },
   { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
-  { key: 'DataSource',     label: 'Data Endpoints',   icon: '🌐' },
+  { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
   { key: 'UserProfile',    label: 'User Profile',     icon: '👤' },
 ];
 

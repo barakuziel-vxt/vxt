@@ -117,14 +117,14 @@ export default function DataSourceScreen() {
           <Text style={styles.menuBtnText}>☰</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.heading}>Data Endpoints</Text>
+          <Text style={styles.heading}>API Endpoints</Text>
           <Text style={styles.subHeading}>Where to pull entity telemetry from</Text>
         </View>
       </View>
 
       {/* Options */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Select Source</Text>
+        <Text style={styles.sectionTitle}>Select API Endpoint</Text>
       </View>
 
       <OptionCard
