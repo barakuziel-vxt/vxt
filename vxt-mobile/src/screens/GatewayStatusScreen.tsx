@@ -340,8 +340,10 @@ export default function GatewayStatusScreen() {
           <Text style={styles.troubleshootText}>
             ✓ Verify Kafka broker is running at {activeConfig.kafkaBootstrap}{'\n'}
             ✓ Confirm consumer (run_consumer_local.py) is running{'\n'}
-            ✓ Check topic exists: <code>kafka-topics.sh --list --bootstrap-server {activeConfig.kafkaBootstrap}</code>{'\n'}
-            ✓ View messages: <code>kafka-console-consumer.sh --topic {activeConfig.kafkaTopic} --from-beginning --bootstrap-server {activeConfig.kafkaBootstrap}</code>{'\n'}
+            ✓ Check topic exists:{'\n'}
+            {"   kafka-topics.sh --list --bootstrap-server " + activeConfig.kafkaBootstrap}{'\n'}
+            ✓ View messages:{'\n'}
+            {"   kafka-console-consumer.sh --topic " + activeConfig.kafkaTopic + " --bootstrap-server " + activeConfig.kafkaBootstrap}{'\n'}
             ✓ Enable verbose logging in device console (Android Studio Logcat)
           </Text>
         </View>
