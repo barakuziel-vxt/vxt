@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useGatewayStore } from '../store/gatewayStore';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -102,6 +103,7 @@ export default function GatewayStatusScreen() {
     clearError,
     resetLag,
     updateConfig,
+    config: activeConfig,
   } = useGatewayStore();
   const { openDrawer } = useContext(DrawerContext);
 
@@ -145,7 +147,7 @@ export default function GatewayStatusScreen() {
           <Text style={styles.menuBtnText}>☰</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.heading}>VXT Gateway</Text>
+          <Text style={styles.heading}>Event Hub</Text>
           <Text style={styles.subHeading}>Telemetry pipeline status</Text>
         </View>
       </View>
@@ -161,11 +163,11 @@ export default function GatewayStatusScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Azure IoT Hub</Text>
+          <Text style={styles.cardLabel}>{activeConfig.gatewayType === 'kafka' ? 'Kafka Broker' : 'Azure Event Hub'}</Text>
           <Text style={[styles.cardValue, { color: statusColor(transportStatus) }]}>
             {capitalize(transportStatus)}
           </Text>
-          <Text style={styles.cardSub}>MQTT / TLS</Text>
+          <Text style={styles.cardSub}>{activeConfig.gatewayType === 'kafka' ? 'Native Protocol' : 'MQTT / TLS'}</Text>
         </View>
 
         <View style={styles.card}>
@@ -205,11 +207,71 @@ export default function GatewayStatusScreen() {
         </View>
       )}
 
-      {/* ── Gateway toggle ────────────────────────────────────────────── */}
+      {/* ── Gateway type selector ─────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { marginTop: 16 }]}>GATEWAY TYPE</Text>
+      <View style={styles.gatewayTypeRow}>
+        <TouchableOpacity
+          onPress={() => updateConfig({ gatewayType: 'iothub' })}
+          style={[
+            styles.gatewayTypeBtn,
+            { borderColor: activeConfig.gatewayType === 'iothub' ? C.blue : C.border, backgroundColor: activeConfig.gatewayType === 'iothub' ? C.blue + '11' : 'transparent' }
+          ]}
+        >
+          <Text style={[styles.gatewayTypeBtnLabel, { color: activeConfig.gatewayType === 'iothub' ? C.blue : C.textMuted }]}>☁️ Azure Event Hub</Text>
+          <Text style={styles.gatewayTypeBtnSub}>MQTT via IoT Hub</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => updateConfig({ gatewayType: 'kafka' })}
+          style={[
+            styles.gatewayTypeBtn,
+            { borderColor: activeConfig.gatewayType === 'kafka' ? C.green : C.border, backgroundColor: activeConfig.gatewayType === 'kafka' ? C.green + '11' : 'transparent' }
+          ]}
+        >
+          <Text style={[styles.gatewayTypeBtnLabel, { color: activeConfig.gatewayType === 'kafka' ? C.green : C.textMuted }]}>🔴 Kafka Broker</Text>
+          <Text style={styles.gatewayTypeBtnSub}>Native Kafka Protocol</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Kafka configuration fields ───────────────────────────────── */}
+      {activeConfig.gatewayType === 'kafka' && (
+        <View style={styles.kafkaConfigSection}>
+          <Text style={[styles.sectionLabel, { marginTop: 12 }]}>KAFKA CONFIGURATION</Text>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Bootstrap Server</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="192.168.1.22:9092"
+              placeholderTextColor={C.textMuted}
+              value={activeConfig.kafkaBootstrap}
+              onChangeText={(val) => updateConfig({ kafkaBootstrap: val })}
+            />
+            <Text style={styles.formHint}>Default: 192.168.1.22:9092 (Redpanda on network)</Text>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Topic Name</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="iot-telemetry"
+              placeholderTextColor={C.textMuted}
+              value={activeConfig.kafkaTopic}
+              onChangeText={(val) => updateConfig({ kafkaTopic: val })}
+            />
+            <Text style={styles.formHint}>Default: iot-telemetry</Text>
+          </View>
+
+          <View style={styles.kafkaInfoBox}>
+            <Text style={styles.kafkaInfoText}>ℹ️ Messages are published in Junction format using native Kafka protocol (not MQTT). Ensure consumer (run_consumer_local.py) is running.</Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── Event Hub Gateway toggle ────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { marginTop: 16 }]}>CLOUD PUBLISHING</Text>
       <ToggleRow
-        label="Azure IoT Gateway"
-        sub={gatewayRunning ? 'Live telemetry streaming to Azure IoT Hub' : 'Offline — data buffered in Samsung Health'}
+        label="Event Hub Gateway"
+        sub={gatewayRunning ? 'Live telemetry streaming active' : 'Offline — data buffered locally'}
         value={gatewayRunning}
         busy={togglingGateway}
         onToggle={handleGatewayToggle}
@@ -232,13 +294,32 @@ export default function GatewayStatusScreen() {
           <Text style={styles.infoValue}>60 s</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>IoT Hub device</Text>
-          <Text style={styles.infoValue}>TestDevice</Text>
+          <Text style={styles.infoLabel}>Active driver</Text>
+          <Text style={styles.infoValue}>{activeDriver}</Text>
         </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Hub</Text>
-          <Text style={styles.infoValue}>VXT-IoT-Hub</Text>
-        </View>
+        {activeConfig.gatewayType === 'kafka' ? (
+          <>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Kafka Bootstrap</Text>
+              <Text style={styles.infoValue}>{activeConfig.kafkaBootstrap}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Topic</Text>
+              <Text style={styles.infoValue}>{activeConfig.kafkaTopic}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Hub</Text>
+              <Text style={styles.infoValue}>Azure IoT Hub</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Protocol</Text>
+              <Text style={styles.infoValue}>MQTT</Text>
+            </View>
+          </>
+        )}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Buffer strategy</Text>
           <Text style={styles.infoValue}>Local queue / driver history</Text>
@@ -340,6 +421,68 @@ const styles = StyleSheet.create({
   },
   infoLabel: { color: C.textMuted, fontSize: 13 },
   infoValue: { color: C.textPrimary, fontSize: 13, fontWeight: '500' },
+
+  // ── Gateway type selector ──
+  gatewayTypeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  gatewayTypeBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    padding: 12,
+  },
+  gatewayTypeBtnLabel: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  gatewayTypeBtnSub: { fontSize: 11, color: C.textMuted },
+
+  // ── Kafka configuration ──
+  kafkaConfigSection: {
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 16,
+  },
+  formGroup: {
+    marginBottom: 12,
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.textMuted,
+    marginBottom: 6,
+  },
+  textInput: {
+    backgroundColor: C.bg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    color: C.textPrimary,
+    padding: 10,
+    fontSize: 13,
+    fontFamily: 'monospace',
+    marginBottom: 4,
+  },
+  formHint: {
+    fontSize: 11,
+    color: C.textMuted,
+    marginTop: 4,
+  },
+  kafkaInfoBox: {
+    backgroundColor: '#1a2e1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.green + '44',
+    padding: 10,
+    marginTop: 8,
+  },
+  kafkaInfoText: {
+    fontSize: 12,
+    color: C.green,
+  },
 });
 
 

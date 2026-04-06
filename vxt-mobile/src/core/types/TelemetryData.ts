@@ -96,8 +96,14 @@ export interface GatewayConfig {
   activeDriver: DriverType;
   /** Sampling interval in milliseconds */
   sampleIntervalMs: number;
+  /** Gateway type: 'iothub' (Azure) or 'kafka' (Redpanda/Confluent) */
+  gatewayType: 'iothub' | 'kafka';
   /** IoT Hub device connection string */
   iotHubConnectionString: string;
+  /** Kafka bootstrap servers (e.g., '192.168.1.22:9092') */
+  kafkaBootstrap: string;
+  /** Kafka topic name (default: 'iot-telemetry') */
+  kafkaTopic: string;
   /** MQTT QoS level (0 = at-most-once, 1 = at-least-once) */
   mqttQos: 0 | 1;
   /** User/entity ID forwarded as entityId in every telemetry frame */

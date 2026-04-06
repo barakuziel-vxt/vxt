@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules } from 'react-native';
 import { driverRegistry } from '../core/DriverRegistry';
 import { MqttTransport } from './MqttTransport';
+import { KafkaTransport } from './KafkaTransport';
 import type { TelemetryData, GatewayConfig, ConnectionStatus } from '../core/types';
 import type { TransportStatus } from './MqttTransport';
 
@@ -38,7 +39,7 @@ type HistoryMap = Record<string, HistorySample[]>; // keyed by LOINC code
  *   stopDriver()   → Stops driver (implies stopGateway first)
  */
 export class GatewayService {
-  private transport:     MqttTransport | null = null;
+  private transport:     MqttTransport | KafkaTransport | null = null;
   private running        = false;
   private driverActive   = false;
   private framesSent     = 0;
@@ -130,10 +131,20 @@ export class GatewayService {
     // Ensure driver is running first
     if (!this.driverActive) await this.startDriver(config);
 
-    this.transport = new MqttTransport(
-      { connectionString: config.iotHubConnectionString, offlineQueueLimit: 200, keepalive: 60 },
-      { onStatusChange: s => this.onTransportStatus?.(s) },
-    );
+    // Create transport based on gateway type
+    if (config.gatewayType === 'kafka') {
+      this.transport = new KafkaTransport(
+        { bootstrap: config.kafkaBootstrap, topic: config.kafkaTopic, offlineQueueLimit: 200 },
+        { onStatusChange: s => this.onTransportStatus?.(s) },
+      );
+    } else {
+      // default: Azure IoT Hub via MQTT
+      this.transport = new MqttTransport(
+        { connectionString: config.iotHubConnectionString, offlineQueueLimit: 200, keepalive: 60 },
+        { onStatusChange: s => this.onTransportStatus?.(s) },
+      );
+    }
+
     await this.transport.connect();
     this.running = true;
     this.framesSent = 0;

@@ -17,6 +17,9 @@ const DEFAULT_CONFIG: GatewayConfig = {
   iotHubConnectionString: IOT_HUB_CONNECTION_STRING,
   activeDriver:     'SamsungHealth',
   sampleIntervalMs: 60000,  // 60 s → 1 frame/min, 60 frames/hr
+  gatewayType:      'iothub',
+  kafkaBootstrap:   '192.168.1.22:9092',
+  kafkaTopic:       'iot-telemetry',
   mqttQos:          1,
   userId:           DEFAULT_USER_ID,
 };
