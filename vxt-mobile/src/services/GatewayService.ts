@@ -47,6 +47,8 @@ export class GatewayService {
   private syncingBacklog = false;
   private backlogTotal   = 0;
   private backlogSynced  = 0;
+  private logs: Array<{ ts: string; msg: string; level: string }> = [];
+  private maxLogs        = 100; // Keep last 100 log entries
 
   private onFrameSent?:       (total: number) => void;
   private onTransportStatus?: (s: TransportStatus) => void;
@@ -64,6 +66,21 @@ export class GatewayService {
   getLastSentTs()    { return this.lastSentTs; }
   getBacklogTotal()  { return this.backlogTotal; }
   getBacklogSynced() { return this.backlogSynced; }
+  getLogs()          { return [...this.logs]; }
+  getTransportStats() {
+    if (this.transport instanceof KafkaTransport) {
+      return (this.transport as any).getStats?.();
+    }
+    return null;
+  }
+
+  private addLog(msg: string, level: 'info' | 'warn' | 'error' = 'info'): void {
+    const ts = new Date().toISOString();
+    this.logs.push({ ts, msg, level });
+    if (this.logs.length > this.maxLogs) {
+      this.logs.shift();
+    }
+  }
 
   setCallbacks(cbs: {
     onFrameSent?:       (total: number) => void;
@@ -131,23 +148,38 @@ export class GatewayService {
     // Ensure driver is running first
     if (!this.driverActive) await this.startDriver(config);
 
+    this.addLog(`Starting gateway with type: ${config.gatewayType}`, 'info');
+
     // Create transport based on gateway type
     if (config.gatewayType === 'kafka') {
+      this.addLog(`Connecting to Kafka broker: ${config.kafkaBootstrap} / topic: ${config.kafkaTopic}`, 'info');
       this.transport = new KafkaTransport(
         { bootstrap: config.kafkaBootstrap, topic: config.kafkaTopic, offlineQueueLimit: 200 },
-        { onStatusChange: s => this.onTransportStatus?.(s) },
+        { 
+          onStatusChange: s => {
+            this.addLog(`Kafka transport status: ${s}`, s === 'connected' ? 'info' : s === 'error' ? 'error' : 'warn');
+            this.onTransportStatus?.(s);
+          },
+          onLog: (msg, level) => this.addLog(msg, level),
+        },
       );
     } else {
       // default: Azure IoT Hub via MQTT
+      this.addLog(`Connecting to Azure IoT Hub`, 'info');
       this.transport = new MqttTransport(
         { connectionString: config.iotHubConnectionString, offlineQueueLimit: 200, keepalive: 60 },
-        { onStatusChange: s => this.onTransportStatus?.(s) },
+        { onStatusChange: s => {
+            this.addLog(`MQTT transport status: ${s}`, s === 'connected' ? 'info' : s === 'error' ? 'error' : 'warn');
+            this.onTransportStatus?.(s);
+          },
+        },
       );
     }
 
     await this.transport.connect();
     this.running = true;
     this.framesSent = 0;
+    this.addLog(`Gateway started successfully`, 'info');
 
     // Reload persisted lastSentTs (may have advanced while driver was solo)
     const raw = await AsyncStorage.getItem(LAST_SENT_TS_KEY);

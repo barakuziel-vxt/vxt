@@ -108,6 +108,7 @@ export default function GatewayStatusScreen() {
   const { openDrawer } = useContext(DrawerContext);
 
   const [togglingGateway, setTogglingGateway] = React.useState(false);
+  const [showDiagnostics, setShowDiagnostics] = React.useState(false);
 
   // Auto-start the active driver when the screen first mounts
   // Also sync userId from user profile
@@ -284,6 +285,65 @@ export default function GatewayStatusScreen() {
           <TouchableOpacity onPress={clearError} style={styles.dismissBtn}>
             <Text style={styles.dismissText}>Dismiss</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Diagnostics toggle ────────────────────────────────────────– */}
+      {activeConfig.gatewayType === 'kafka' && (
+        <TouchableOpacity
+          onPress={() => setShowDiagnostics(!showDiagnostics)}
+          style={[styles.diagnosticsToggle, { borderColor: showDiagnostics ? C.blue : C.border }]}
+        >
+          <Text style={[styles.diagnosticsToggleText, { color: showDiagnostics ? C.blue : C.textMuted }]}>
+            {showDiagnostics ? '▼' : '▶'} Kafka Diagnostics
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ── Kafka diagnostics panel ───────────────────────────────────- */}
+      {activeConfig.gatewayType === 'kafka' && showDiagnostics && (
+        <View style={styles.diagnosticsPanel}>
+          <Text style={styles.diagnosticsTitle}>Kafka Gateway Diagnostics</Text>
+          
+          <View style={styles.diagnosticsRow}>
+            <Text style={styles.diagnosticsLabel}>Bootstrap Server</Text>
+            <Text style={styles.diagnosticsValue}>{activeConfig.kafkaBootstrap}</Text>
+          </View>
+          
+          <View style={styles.diagnosticsRow}>
+            <Text style={styles.diagnosticsLabel}>Topic</Text>
+            <Text style={styles.diagnosticsValue}>{activeConfig.kafkaTopic}</Text>
+          </View>
+          
+          <View style={styles.diagnosticsRow}>
+            <Text style={styles.diagnosticsLabel}>Connection Status</Text>
+            <Text style={[styles.diagnosticsValue, { color: statusColor(transportStatus) }]}>
+              {capitalize(transportStatus)}
+            </Text>
+          </View>
+          
+          <View style={styles.diagnosticsRow}>
+            <Text style={styles.diagnosticsLabel}>Gateway Running</Text>
+            <Text style={[styles.diagnosticsValue, { color: gatewayRunning ? C.green : C.red }]}>
+              {gatewayRunning ? 'ON' : 'OFF'}
+            </Text>
+          </View>
+          
+          <View style={styles.diagnosticsRow}>
+            <Text style={styles.diagnosticsLabel}>Frames Queued</Text>
+            <Text style={styles.diagnosticsValue}>? (check app logs for details)</Text>
+          </View>
+          
+          <Text style={[styles.diagnosticsTitle, { marginTop: 12, fontSize: 12 }]}>
+            📋 Troubleshooting Tips
+          </Text>
+          <Text style={styles.troubleshootText}>
+            ✓ Verify Kafka broker is running at {activeConfig.kafkaBootstrap}{'\n'}
+            ✓ Confirm consumer (run_consumer_local.py) is running{'\n'}
+            ✓ Check topic exists: <code>kafka-topics.sh --list --bootstrap-server {activeConfig.kafkaBootstrap}</code>{'\n'}
+            ✓ View messages: <code>kafka-console-consumer.sh --topic {activeConfig.kafkaTopic} --from-beginning --bootstrap-server {activeConfig.kafkaBootstrap}</code>{'\n'}
+            ✓ Enable verbose logging in device console (Android Studio Logcat)
+          </Text>
         </View>
       )}
 
@@ -482,6 +542,60 @@ const styles = StyleSheet.create({
   kafkaInfoText: {
     fontSize: 12,
     color: C.green,
+  },
+
+  // ── Diagnostics ──
+  diagnosticsToggle: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  diagnosticsToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  diagnosticsPanel: {
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.blue + '44',
+    padding: 14,
+    marginBottom: 16,
+  },
+  diagnosticsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.blue,
+    marginBottom: 10,
+  },
+  diagnosticsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  diagnosticsLabel: {
+    fontSize: 12,
+    color: C.textMuted,
+  },
+  diagnosticsValue: {
+    fontSize: 12,
+    color: C.textPrimary,
+    fontWeight: '500',
+    fontFamily: 'monospace',
+    maxWidth: '50%',
+    textAlign: 'right',
+  },
+  troubleshootText: {
+    fontSize: 11,
+    color: C.textMuted,
+    lineHeight: 16,
+    marginTop: 8,
+    fontFamily: 'monospace',
   },
 });
 
