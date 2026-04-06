@@ -214,8 +214,9 @@ def send_alert_notification(entity_id: str, event_id: int, event_criteria: list,
         
     Returns:
         dict: Results with cumulative_score, probability, details
-    ""
+    """
     try:
+        risk_level = (function_params or {}).get('risk_level', 'MEDIUM')
         logger.info(f"Sending alert notifications for entity {entity_id}, risk level {risk_level}")
         
         channels = function_params.get('channels', ['email', 'sms'])

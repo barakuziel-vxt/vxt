@@ -2146,6 +2146,133 @@ def delete_entity(id: str):
 
 
 # ============================================================================
+# MANUAL REPORT ENDPOINT
+# Accepts a manual telemetry measurement and publishes it to the configured
+# gateway: Kafka (local Redpanda) or Azure IoT Hub (Device REST API).
+# ============================================================================
+
+import hmac as _hmac
+import hashlib as _hashlib
+import base64 as _base64
+import urllib.parse as _urlparse
+import time as _time_module
+import requests as _requests
+
+def _build_iothub_sas(resource_uri: str, key: str, expiry_s: int = 3600) -> str:
+    expiry = int(_time_module.time()) + expiry_s
+    str_to_sign = f"{_urlparse.quote_plus(resource_uri)}\n{expiry}"
+    key_bytes = _base64.b64decode(key)
+    sig = _base64.b64encode(
+        _hmac.new(key_bytes, str_to_sign.encode('utf-8'), _hashlib.sha256).digest()
+    ).decode()
+    return (
+        f"SharedAccessSignature sr={_urlparse.quote_plus(resource_uri)}"
+        f"&sig={_urlparse.quote_plus(sig)}&se={expiry}"
+    )
+
+@app.post("/api/manual-report")
+def post_manual_report(data: dict):
+    """
+    Publish a manual telemetry measurement to the configured gateway.
+
+    Body fields:
+      entityId, entityTypeAttributeCode, value, timestamp, source,
+      gatewayType ('kafka' | 'iothub'),
+      kafkaBootstrap, kafkaTopic  (for kafka),
+      iotHubConnectionString      (for iothub),
+      _dryRun (bool, optional)    — test connection only, do not send data.
+    """
+    try:
+        entity_id  = str(data.get('entityId', ''))
+        attr_code  = str(data.get('entityTypeAttributeCode', ''))
+        value      = data.get('value', 0)
+        timestamp  = data.get('timestamp') or datetime.utcnow().isoformat() + 'Z'
+        source     = data.get('source', 'Manual')
+        gw_type    = data.get('gatewayType', 'kafka')
+        dry_run    = bool(data.get('_dryRun', False))
+
+        if dry_run:
+            # Connection test — just validate config without sending
+            if gw_type == 'kafka':
+                bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
+                try:
+                    from confluent_kafka.admin import AdminClient
+                    admin = AdminClient({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 5000})
+                    admin.list_topics(timeout=5)
+                    return {"message": f"Kafka reachable at {bootstrap}"}
+                except ImportError:
+                    raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
+                except Exception as e:
+                    raise HTTPException(status_code=503, detail=f"Kafka unreachable: {e}")
+            else:
+                conn_str = data.get('iotHubConnectionString', '')
+                if not conn_str:
+                    raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+                parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
+                hostname = parts.get('HostName', '')
+                if not hostname:
+                    raise HTTPException(status_code=400, detail="Invalid connection string — HostName missing")
+                return {"message": f"IoT Hub hostname: {hostname} — config looks valid"}
+
+        # ── Build message payload ──────────────────────────────────────────
+        if gw_type == 'kafka':
+            # Junction format — auto-detected by consumer via 'user' + 'event_type' keys.
+            # event_type IS the entityTypeAttributeCode (LOINC code), value goes in data.manual.summary.
+            message = {
+                "user":       {"user_id": entity_id},
+                "event_type": attr_code,
+                "timestamp":  timestamp,
+                "data": {
+                    "manual": {
+                        "summary": {"value": value}
+                    }
+                },
+            }
+            bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
+            topic     = data.get('kafkaTopic', 'iot-telemetry')
+            try:
+                from confluent_kafka import Producer
+            except ImportError:
+                raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
+            producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
+            producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=entity_id.encode('utf-8'))
+            producer.flush(timeout=10)
+            return {"message": f"Published to Kafka topic '{topic}' on {bootstrap}"}
+
+        else:  # iothub
+            conn_str = data.get('iotHubConnectionString', '')
+            if not conn_str:
+                raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+            parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
+            hostname  = parts.get('HostName', '')
+            device_id = parts.get('DeviceId', '')
+            sak       = parts.get('SharedAccessKey', '')
+            if not hostname or not device_id or not sak:
+                raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
+
+            # TelemetryData format (matches what MqttTransport sends from the mobile app)
+            message = {
+                "deviceId":  entity_id,
+                "timestamp": timestamp,
+                "values":    {attr_code: value},
+                "source":    source,
+            }
+            resource_uri = f"{hostname}/devices/{device_id}"
+            sas_token    = _build_iothub_sas(resource_uri, sak)
+            url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
+            headers = {"Authorization": sas_token, "Content-Type": "application/json"}
+            resp = _requests.post(url, headers=headers, data=json.dumps(message), timeout=15)
+            if resp.status_code not in (200, 204):
+                raise HTTPException(status_code=502, detail=f"IoT Hub returned {resp.status_code}: {resp.text}")
+            return {"message": f"Published to Azure IoT Hub device '{device_id}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # TELEMETRY AND EVENTS ANALYTICS ENDPOINTS
 # ============================================================================
 
@@ -2174,9 +2301,9 @@ def get_latest_telemetry(entity_id: str):
             pa.protocolAttributeCode,
             pa.description,
             ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
-          FROM dbo.EntityTelemetry et
-          JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-          LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+          FROM dbo.EntityTelemetry et WITH (NOLOCK)
+          JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+          LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
           WHERE et.entityId = ?
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
@@ -2279,16 +2406,17 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             raise HTTPException(status_code=400, detail="Invalid entity_id")
         
         # Use ? placeholder with varargs execute (matches working endpoint pattern)
+        # TOP 20000 = safety cap so COLUMNSTORE scan doesn't block uvicorn for minutes
         query = """
-        SELECT
+        SELECT TOP 20000
             et.entityTypeAttributeId,
             eta.entityTypeAttributeCode,
             et.numericValue,
             et.endTimestampUTC,
             et.latitude,
             et.longitude
-        FROM dbo.EntityTelemetry et
-        JOIN dbo.EntityTypeAttribute eta ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+        FROM dbo.EntityTelemetry et WITH (NOLOCK)
+        JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
         WHERE et.entityId = ?
           AND et.endTimestampUTC >= ?
           AND et.endTimestampUTC <= ?
@@ -2374,9 +2502,9 @@ def get_events_range(entity_id: str, startDate: str, endDate: str):
             el.probability,
             el.triggeredAt,
             COUNT(DISTINCT eld.eventLogDetailsId) as detailCount
-        FROM dbo.EventLog el
-        LEFT JOIN dbo.Event e ON el.eventId = e.eventId
-        LEFT JOIN dbo.EventLogDetails eld ON el.eventLogId = eld.eventLogId
+        FROM dbo.EventLog el WITH (NOLOCK)
+        LEFT JOIN dbo.Event e WITH (NOLOCK) ON el.eventId = e.eventId
+        LEFT JOIN dbo.EventLogDetails eld WITH (NOLOCK) ON el.eventLogId = eld.eventLogId
         WHERE el.entityId = ?
           AND el.triggeredAt >= ?
           AND el.triggeredAt <= ?
@@ -2439,8 +2567,8 @@ async def get_eventlog_details(eventlog_id: int):
             el.AnalysisWindowInMin,
             el.processingTimeMs,
             el.analysisMetadata
-        FROM dbo.EventLog el
-        LEFT JOIN dbo.Event e ON el.eventId = e.eventId
+        FROM dbo.EventLog el WITH (NOLOCK)
+        LEFT JOIN dbo.Event e WITH (NOLOCK) ON el.eventId = e.eventId
         WHERE el.eventLogId = ?
         """
         
@@ -2467,9 +2595,9 @@ async def get_eventlog_details(eventlog_id: int):
             eld.entityTelemetryId,
             pa.protocolAttributeCode,
             pa.description
-        FROM dbo.EventLogDetails eld
-        LEFT JOIN dbo.EntityTypeAttribute eta ON eld.entityTypeAttributeId = eta.entityTypeAttributeId
-        LEFT JOIN dbo.ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+        FROM dbo.EventLogDetails eld WITH (NOLOCK)
+        LEFT JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON eld.entityTypeAttributeId = eta.entityTypeAttributeId
+        LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
           AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
         WHERE eld.eventLogId = ?
         ORDER BY eta.entityTypeAttributeName

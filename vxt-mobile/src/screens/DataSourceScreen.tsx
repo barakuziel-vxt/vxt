@@ -117,7 +117,7 @@ export default function DataSourceScreen() {
           <Text style={styles.menuBtnText}>☰</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.heading}>Data Source</Text>
+          <Text style={styles.heading}>Data Endpoints</Text>
           <Text style={styles.subHeading}>Where to pull entity telemetry from</Text>
         </View>
       </View>

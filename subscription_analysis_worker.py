@@ -624,6 +624,16 @@ class SubscriptionAnalysisWorker:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
+    # Fallback map: functionName → module.function when analyzePath is NULL in DB
+    FUNCTION_PATH_FALLBACK = {
+        'detect_anomaly':              'analysis_functions.detect_anomaly',
+        'analyze_trend':               'analysis_functions.analyze_trend',
+        'execute_custom_model':        'analysis_functions.execute_custom_model',
+        'send_alert_notification':     'analysis_functions.send_alert_notification',
+        'detect_drift':                'drift_detector.detect_entity_drift',
+        'detect_correlation_shift':    'multivariate_correlation_shift.detect_correlation_shift',
+    }
+
     def execute_python_analysis(self, subscription, criteria, telemetry, triggered_at, analysis_window_min):
         """
         Execute Python or TSQL analysis function with provided data
@@ -633,9 +643,17 @@ class SubscriptionAnalysisWorker:
             function_name = subscription['functionName']
             entity_id = subscription['entityId']
             event_id = subscription['eventId']
-            
+
+            if not analyze_path:
+                analyze_path = self.FUNCTION_PATH_FALLBACK.get(function_name)
+                if analyze_path:
+                    logger.warning(f"analyzePath is NULL for '{function_name}' — using fallback: {analyze_path}")
+                else:
+                    logger.error(f"Missing analyzePath for subscription '{function_name}' (entityId={entity_id})")
+                    return None
+
             logger.info(f"Executing analysis function: {function_name} ({analyze_path})")
-            
+
             if '.' not in analyze_path:
                 logger.error(f"Invalid function path format: {analyze_path}")
                 return None
@@ -645,8 +663,7 @@ class SubscriptionAnalysisWorker:
                 return self.execute_tsql_analysis(analyze_path, entity_id, event_id, criteria, telemetry)
             
             # Otherwise try to execute as Python function
-            module_name, func_name = analyze_path.rsplit('.', 1)
-            
+            module_name, func_name = analyze_path.rsplit('.', 1)            
             # Dynamically import and execute
             module = __import__(module_name, fromlist=[func_name])
             analysis_func = getattr(module, func_name, None)
@@ -682,7 +699,9 @@ class SubscriptionAnalysisWorker:
             logger.error(f"Failed to import module '{module_name}': {e}")
             return None
         except Exception as e:
-            logger.error(f"Error executing function '{func_name}' from module '{module_name}': {e}")
+            _fn = locals().get('func_name', '<unknown>')
+            _mn = locals().get('module_name', '<unknown>')
+            logger.error(f"Error executing function '{_fn}' from module '{_mn}': {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None

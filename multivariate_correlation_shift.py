@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 def detect_correlation_shift(
     entity_id: str,
-    attribute_codes: List[str],
-    current_telemetry: List[Dict],
-    baseline_telemetry: List[Dict],
-    params: Dict
+    attribute_codes: List[str] = None,
+    current_telemetry: List[Dict] = None,
+    baseline_telemetry: List[Dict] = None,
+    params: Dict = None,
+    **kwargs
 ) -> Dict:
     """
     Detects correlation shifts between two attributes by comparing recent correlation
@@ -47,7 +48,58 @@ def detect_correlation_shift(
             "details": dict with analysis info
         }
     """
-    
+    # Apply defaults for optional args
+    if attribute_codes is None:
+        attribute_codes = []
+    if current_telemetry is None:
+        current_telemetry = []
+    if baseline_telemetry is None:
+        baseline_telemetry = []
+    if params is None:
+        params = {}
+
+    # Extract attribute_codes: function_params takes priority (specific 2-code config),
+    # falling back to event_criteria only when exactly 2 codes are listed there.
+    if not attribute_codes:
+        function_params = kwargs.get('function_params', {})
+        attribute_codes = function_params.get('attribute_codes', [])
+
+    if not attribute_codes:
+        # event_criteria contains ALL attributes for the event — only use if exactly 2
+        event_criteria = kwargs.get('event_criteria', [])
+        ec_codes = [c['attributeCode'] for c in event_criteria if c.get('attributeCode')]
+        if len(ec_codes) == 2:
+            attribute_codes = ec_codes
+        elif ec_codes:
+            logger.warning(
+                f"multivariate_correlation_shift: event_criteria has {len(ec_codes)} attributes "
+                f"— need exactly 2. Set attribute_codes in functionParams for this subscription. Skipping."
+            )
+            return {
+                "status": "success", "is_alert": False, "score": 0, "cumulative_score": 0,
+                "baseline_correlation": None, "current_correlation": None, "correlation_shift": 0,
+                "direction_change": "none", "confidence": 0.0,
+                "current_samples": 0, "baseline_samples": 0,
+                "details": [], "probability": 0.0
+            }
+        else:
+            logger.warning("multivariate_correlation_shift: no attribute_codes provided and no event_criteria. Skipping.")
+            return {
+                "status": "success", "is_alert": False, "score": 0, "cumulative_score": 0,
+                "baseline_correlation": None, "current_correlation": None, "correlation_shift": 0,
+                "direction_change": "none", "confidence": 0.0,
+                "current_samples": 0, "baseline_samples": 0,
+                "details": [], "probability": 0.0
+            }
+
+    # Use telemetry_data kwarg if current/baseline not passed directly
+    if not current_telemetry and not baseline_telemetry:
+        telemetry_data = kwargs.get('telemetry_data', [])
+        if telemetry_data:
+            mid = len(telemetry_data) // 2
+            current_telemetry = telemetry_data[mid:]
+            baseline_telemetry = telemetry_data[:mid]
+
     # Extract parameters with defaults
     sensitivity_threshold = float(params.get('sensitivity_threshold', 0.25))
     min_data_points = int(params.get('min_data_points', 10))
@@ -57,18 +109,12 @@ def detect_correlation_shift(
     sensitivity_threshold = max(0.1, min(0.5, sensitivity_threshold))
     
     if len(attribute_codes) != 2:
-        logger.error(f"Multivariate correlation requires exactly 2 attributes, got {len(attribute_codes)}")
+        logger.warning(f"Multivariate correlation requires exactly 2 attributes, got {len(attribute_codes)}. Skipping.")
         return {
-            "is_alert": False,
-            "score": 0,
-            "baseline_correlation": None,
-            "current_correlation": None,
-            "correlation_shift": 0,
-            "direction_change": "none",
-            "confidence": 0.0,
-            "current_samples": 0,
-            "baseline_samples": 0,
-            "details": {"error": "Invalid attribute count"}
+            "status": "success", "is_alert": False, "score": 0, "cumulative_score": 0, "probability": 0.0,
+            "baseline_correlation": None, "current_correlation": None, "correlation_shift": 0,
+            "direction_change": "none", "confidence": 0.0, "current_samples": 0, "baseline_samples": 0,
+            "details": []
         }
     
     attr1_code, attr2_code = attribute_codes[0], attribute_codes[1]
@@ -114,16 +160,12 @@ def detect_correlation_shift(
                 f"current={len(current_attr1_values)}, baseline={len(baseline_attr1_values)}"
             )
             return {
-                "is_alert": False,
-                "score": 0,
-                "baseline_correlation": None,
-                "current_correlation": None,
-                "correlation_shift": 0,
-                "direction_change": "none",
-                "confidence": 0.0,
+                "status": "success", "is_alert": False, "score": 0, "cumulative_score": 0, "probability": 0.0,
+                "baseline_correlation": None, "current_correlation": None, "correlation_shift": 0,
+                "direction_change": "none", "confidence": 0.0,
                 "current_samples": len(current_attr1_values),
                 "baseline_samples": len(baseline_attr1_values),
-                "details": {"reason": "Insufficient data points"}
+                "details": []
             }
         
         # Calculate Pearson correlation coefficients
@@ -134,16 +176,14 @@ def detect_correlation_shift(
         if np.isnan(baseline_corr) or np.isnan(current_corr):
             logger.warning(f"NaN correlation detected for entity {entity_id}")
             return {
-                "is_alert": False,
-                "score": 0,
+                "status": "success", "is_alert": False, "score": 0, "cumulative_score": 0, "probability": 0.0,
                 "baseline_correlation": baseline_corr if not np.isnan(baseline_corr) else None,
                 "current_correlation": current_corr if not np.isnan(current_corr) else None,
                 "correlation_shift": 0,
-                "direction_change": "none",
-                "confidence": 0.0,
+                "direction_change": "none", "confidence": 0.0,
                 "current_samples": len(current_attr1_values),
                 "baseline_samples": len(baseline_attr1_values),
-                "details": {"reason": "Constant values detected"}
+                "details": []
             }
         
         # Calculate correlation shift (absolute change)
@@ -170,8 +210,11 @@ def detect_correlation_shift(
         confidence = min(1.0, (len(current_attr1_values) + len(baseline_attr1_values)) / 100.0)
         
         result = {
+            "status": "success",
             "is_alert": is_alert,
             "score": float(score),
+            "cumulative_score": float(score),
+            "probability": float(confidence),
             "baseline_correlation": float(baseline_corr),
             "current_correlation": float(current_corr),
             "correlation_shift": float(correlation_shift),
@@ -201,14 +244,9 @@ def detect_correlation_shift(
     except Exception as e:
         logger.error(f"Error in correlation shift detection: {str(e)}", exc_info=True)
         return {
-            "is_alert": False,
-            "score": 0,
-            "baseline_correlation": None,
-            "current_correlation": None,
-            "correlation_shift": 0,
-            "direction_change": "none",
-            "confidence": 0.0,
-            "current_samples": 0,
-            "baseline_samples": 0,
-            "details": {"error": str(e)}
+            "status": "error",
+            "is_alert": False, "score": 0, "cumulative_score": 0, "probability": 0.0,
+            "baseline_correlation": None, "current_correlation": None, "correlation_shift": 0,
+            "direction_change": "none", "confidence": 0.0, "current_samples": 0, "baseline_samples": 0,
+            "details": []
         }

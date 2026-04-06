@@ -18,6 +18,7 @@ import { convertValue, getUnit } from '../utils/unitConversion';
 import LocationMap from '../components/LocationMap';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { bridgeRequest, waitForBridge } from '../utils/bridge';
 
 const C = {
   bg: '#0d1117',
@@ -33,7 +34,7 @@ const CHART_COLORS = [
   '#ff4d4d', '#8884d8', '#f5a623', '#50e3c2',
 ];
 
-// ─── Driver mode detection & bridge ─────────────────────────────────────────
+// ─── Embedded / driver mode detection ───────────────────────────────────────
 
 /** True when page is loaded inside the RN WebView with mode=driver */
 const IS_DRIVER_MODE = (() => {
@@ -51,53 +52,8 @@ const IS_EMBEDDED = (() => {
   } catch { return false; }
 })();
 
-/**
- * Send a request to the React Native bridge and wait for the response.
- * The RN side calls window.__driverBridgeCallback({id, data}) to resolve.
- */
-const _pendingRequests = {};
-let _reqCounter = 0;
-
-window.__driverBridgeCallback = function(response) {
-  const { id, data } = typeof response === 'string' ? JSON.parse(response) : response;
-  if (_pendingRequests[id]) {
-    _pendingRequests[id](data);
-    delete _pendingRequests[id];
-  }
-};
-
-/** Wait up to 3s for the RN WebView bridge to become available */
-function waitForBridge(timeout = 3000) {
-  return new Promise((resolve, reject) => {
-    if (window.ReactNativeWebView) { resolve(); return; }
-    const start = Date.now();
-    const iv = setInterval(() => {
-      if (window.ReactNativeWebView) {
-        clearInterval(iv);
-        resolve();
-      } else if (Date.now() - start > timeout) {
-        clearInterval(iv);
-        reject(new Error('ReactNativeWebView bridge not available'));
-      }
-    }, 50);
-  });
-}
-
-async function driverRequest(type, params = {}) {
-  await waitForBridge();
-  return new Promise((resolve) => {
-    const id = `req_${++_reqCounter}`;
-    _pendingRequests[id] = resolve;
-    window.ReactNativeWebView.postMessage(JSON.stringify({ id, type, params }));
-    // Timeout after 10s to avoid hanging
-    setTimeout(() => {
-      if (_pendingRequests[id]) {
-        _pendingRequests[id](null);
-        delete _pendingRequests[id];
-      }
-    }, 10000);
-  });
-}
+// driverRequest is the shared bridgeRequest (alias for readability)
+const driverRequest = bridgeRequest;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -475,7 +431,7 @@ export default function EntityTelemetryRNPage() {
               value={selectedEntity ?? ''}
               onChange={e => setSelectedEntity(e.target.value)}
               disabled={loading}
-              style={{ flex: 1, padding: '5px 6px', backgroundColor: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: '4px', fontSize: '12px', minWidth: 0 }}
+              style={{ flex: 1, padding: '5px 10px', backgroundColor: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: '4px', fontSize: '12px', minWidth: 0 }}
             >
               <option value="">-- Entity --</option>
               {entities.map(e => (
@@ -496,17 +452,17 @@ export default function EntityTelemetryRNPage() {
           <button
             onClick={() => { setLoading(true); loadData(); }}
             disabled={loading}
-            style={{ padding: '5px 10px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}
+            style={{ padding: '5px 10px', backgroundColor: '#5a6a8a', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}
             title="Refresh data"
           >
             🔄 {loading ? '...' : 'Refresh'}
           </button>
         </div>
       ) : (
-        // PC admin dashboard: entity selector + buttons (no titles)
+        // PC admin dashboard: entity selector (left, dynamic width) + buttons (right)
         <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {!IS_DRIVER_MODE && (
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: '0 0 auto', minWidth: 0, maxWidth: '300px' }}>
               <select
                 value={selectedEntity ?? ''}
                 onChange={e => setSelectedEntity(e.target.value)}
@@ -522,6 +478,7 @@ export default function EntityTelemetryRNPage() {
               </select>
             </div>
           )}
+          <div style={{ flex: 1 }} />
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
             <button
               onClick={exportToPDF}
@@ -548,31 +505,28 @@ export default function EntityTelemetryRNPage() {
       <div id="telemetry-rn-content" style={IS_EMBEDDED ? { padding: 0 } : undefined}>
 
       {/* ── Filter Section (Compact, left-aligned) ── */}
-      <div className="filter-section" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '6px', padding: IS_EMBEDDED ? '4px 4px' : '8px 10px', alignItems: 'flex-end', backgroundColor: IS_EMBEDDED ? '#0d1117' : undefined, margin: IS_EMBEDDED ? '4px 0 0 0' : undefined, borderRadius: IS_EMBEDDED ? 0 : undefined }}> 
-        <div className="filter-group" style={{ flex: '1 1 auto', minWidth: 0 }}>
-          <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-            From
-            <input 
-              type="datetime-local" 
-              value={startDate} 
-              onChange={e => setStartDate(e.target.value)}
-              disabled={loading}
-              style={{ flex: 1, minWidth: 0, fontSize: '12px', padding: '4px 4px' }}
-            />
-          </label>
+      <div className="filter-section" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '6px', padding: IS_EMBEDDED ? '4px 4px' : '8px 10px', alignItems: 'center', backgroundColor: IS_EMBEDDED ? '#0d1117' : undefined, margin: IS_EMBEDDED ? '4px 0 0 0' : undefined, borderRadius: IS_EMBEDDED ? 0 : undefined }}> 
+        <label style={{ fontSize: IS_EMBEDDED ? '11px' : '12px', fontWeight: '500', color: '#aaa', marginRight: IS_EMBEDDED ? '3px' : '6px', whiteSpace: 'nowrap' }}>Range:</label>
+        <div className="filter-group" style={{ flex: IS_EMBEDDED ? '1 1 auto' : '0 0 auto', minWidth: 0 }}>
+          <input 
+            type="datetime-local" 
+            value={startDate} 
+            onChange={e => setStartDate(e.target.value)}
+            disabled={loading}
+            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
+            title="Start date and time"
+          />
         </div>
 
-        <div className="filter-group" style={{ flex: '1 1 auto', minWidth: 0 }}>
-          <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-            To
-            <input 
-              type="datetime-local" 
-              value={endDate} 
-              onChange={e => setEndDate(e.target.value)}
-              disabled={loading}
-              style={{ flex: 1, minWidth: 0, fontSize: '12px', padding: '4px 4px' }}
-            />
-          </label>
+        <div className="filter-group" style={{ flex: IS_EMBEDDED ? '1 1 auto' : '0 0 auto', minWidth: 0 }}>
+          <input 
+            type="datetime-local" 
+            value={endDate} 
+            onChange={e => setEndDate(e.target.value)}
+            disabled={loading}
+            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
+            title="End date and time"
+          />
         </div>
       </div>
 

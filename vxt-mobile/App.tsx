@@ -17,6 +17,7 @@ import GatewayStatusScreen from './src/screens/GatewayStatusScreen';
 import DriverSelectorScreen from './src/screens/DriverSelectorScreen';
 import HealthVitalsScreen from './src/screens/HealthVitalsScreen';
 import EntityTelemetryRN from './src/screens/EntityTelemetryRN';
+import ReportManuallyRN from './src/screens/ReportManuallyRN';
 import DataSourceScreen from './src/screens/DataSourceScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 import { driverManager } from './src/core/DriverManager';
@@ -36,7 +37,7 @@ driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'DataSource' | 'UserProfile';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -53,12 +54,13 @@ const C = {
 };
 
 const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
-  { key: 'Vitals',     label: 'Health Vitals',    icon: '💓' },
-  { key: 'Telemetry', label: 'Entity Telemetry', icon: '📊' },
-  { key: 'Status',    label: 'VXT Gateway',       icon: '⚡' },
-  { key: 'Driver',    label: 'Driver Selection',  icon: '🔌' },
-  { key: 'DataSource', label: 'Data Source',      icon: '🌐' },
-  { key: 'UserProfile', label: 'User Profile',    icon: '👤' },
+  { key: 'Vitals',         label: 'Health Vitals',    icon: '💓' },
+  { key: 'Telemetry',      label: 'Entity Telemetry', icon: '📊' },
+  { key: 'ReportManually', label: 'Report Manually',  icon: '📝' },
+  { key: 'Status',         label: 'VXT Gateway',      icon: '⚡' },
+  { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
+  { key: 'DataSource',     label: 'Data Endpoints',   icon: '🌐' },
+  { key: 'UserProfile',    label: 'User Profile',     icon: '👤' },
 ];
 
 export default function App() {
@@ -100,12 +102,13 @@ function AppShell() {
   }
 
   const ActiveScreen: React.ComponentType =
-    active === 'Vitals'      ? HealthVitalsScreen :
-    active === 'Telemetry'   ? EntityTelemetryRN :
-    active === 'Status'      ? GatewayStatusScreen :
-    active === 'Driver'      ? DriverSelectorScreen :
-    active === 'DataSource'  ? DataSourceScreen :
-    active === 'UserProfile' ? UserProfileScreen :
+    active === 'Vitals'         ? HealthVitalsScreen :
+    active === 'Telemetry'      ? EntityTelemetryRN :
+    active === 'ReportManually' ? ReportManuallyRN :
+    active === 'Status'         ? GatewayStatusScreen :
+    active === 'Driver'         ? DriverSelectorScreen :
+    active === 'DataSource'     ? DataSourceScreen :
+    active === 'UserProfile'    ? UserProfileScreen :
     HealthVitalsScreen; // Default fallback
 
   return (
