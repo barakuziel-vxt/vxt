@@ -4,12 +4,12 @@
 Write-Host "Starting YachtSense AI Infrastructure..." -ForegroundColor Cyan
 
 # 1. Create Kafka Topic
-Write-Host "[1/4] Configuring Kafka Topics..." -ForegroundColor Yellow
+#Write-Host "[1/4] Configuring Kafka Topics..." -ForegroundColor Yellow
 # Create Kafka functions
-.\.venv\Scripts\python.exe create_generate_terra_json_function.py
+#.\.venv\Scripts\python.exe create_generate_terra_json_function.py
 
 # 2. Launch Backend Services in separate windows
-Write-Host "[2/4] Launching Subscription Analysis Worker..." -ForegroundColor Yellow
+Write-Host "[1/4] Launching Subscription Analysis Worker..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe subscription_analysis_worker.py" -WindowStyle Normal
 
 Write-Host "[2.5/4] Launching Consumer (uses same logic as Azure Function) and Simulators..." -ForegroundColor Yellow
@@ -17,9 +17,9 @@ Write-Host "[2.5/4] Launching Consumer (uses same logic as Azure Function) and S
 # One consumer on iot-telemetry topic — mirrors single Azure Function in production (auto-detects SignalK + Junction)
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_consumer_local.py" -WindowStyle Normal
 # Launch Simulators
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
+#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
+#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
+#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
 
 # 3. Launch FastAPI Web Server
 Write-Host "[3/4] Starting FastAPI API..." -ForegroundColor Yellow

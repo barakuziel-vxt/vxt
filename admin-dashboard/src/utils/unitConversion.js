@@ -135,7 +135,7 @@ const SOURCE_UNIT_ASSUMPTIONS = {
  */
 const INTEGER_DISPLAY_ATTRIBUTES = new Set([
   // Heart rate metrics - LOINC codes
-  '8867-4', '8639-3', '8638-5', '59408-5',
+  '8867-4', '8639-3', '8638-5',
   // Heart rate metrics - attribute names
   'AvgHR', 'MaxHR', 'MinHR', 'RestingHR', 'RHR', 'HeartRate',
   
@@ -149,8 +149,8 @@ const INTEGER_DISPLAY_ATTRIBUTES = new Set([
   // Temperature - attribute names
   'BodyTemp', 'Temperature',
   
-  // Oxygen Saturation - LOINC code
-  '2708-6',
+  // Oxygen Saturation - LOINC codes
+  '2708-6', '59408-5',
   // Oxygen Saturation - attribute names
   'OxygenSat', 'SpO2',
   
@@ -234,7 +234,6 @@ const DISPLAY_UNIT_PREFERENCES = {
   '8867-4': 'bpm',              // Heart rate (LOINC)
   '8639-3': 'bpm',              // Heart rate maximum (LOINC)
   '8638-5': 'bpm',              // Heart rate minimum (LOINC)
-  '59408-5': 'bpm',             // Heart rate (general LOINC)
   
   // Heart Rate metrics - BY NAME (fallback)
   'AvgHR': 'bpm',                // Average heart rate
@@ -263,6 +262,7 @@ const DISPLAY_UNIT_PREFERENCES = {
   
   // Oxygen Saturation - BY LOINC CODE
   '2708-6': '%',                 // Oxygen saturation (LOINC)
+  '59408-5': '%',                // Oxygen saturation in arterial blood by pulse oximetry (LOINC)
   
   // Oxygen Saturation - BY NAME
   'OxygenSat': '%',              // Oxygen saturation

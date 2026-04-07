@@ -85,12 +85,9 @@ export default function EntityTelemetryAnalyticsPage() {
       setEntities(data);
       setError(null);
       if (data.length > 0) {
-        // Prefer yacht/maritime entities (entityTypeId != 1) over health providers
-        // entityTypeId = 1 is Person (health vitals), others are vessels
-        const yachtEntity = data.find(e => e.entityTypeId !== 1);
-        const defaultEntityId = yachtEntity ? yachtEntity.entityId : data[0].entityId;
-        console.log(`Setting default entity to: ${defaultEntityId}`);
-        setSelectedEntity(defaultEntityId);
+        const preferred = data.find(e => e.entityFirstName === 'Shula') ?? data[0];
+        console.log(`Setting default entity to: ${preferred.entityId}`);
+        setSelectedEntity(preferred.entityId);
       }
     } catch (err) {
       console.error('Error loading entities:', err);

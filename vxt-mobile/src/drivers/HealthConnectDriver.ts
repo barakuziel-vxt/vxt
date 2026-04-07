@@ -218,15 +218,8 @@ export class HealthConnectDriver extends BaseDriver {
 
     if (Object.keys(measurements).length === 0) return null;
 
-    const latestTs = Math.max(
-      ...candidates
-        .map(([, r]) => r)
-        .filter(r => r.status === 'fulfilled')
-        .map(r => (r as PromiseFulfilledResult<RawHCSample>).value?.timestamp ?? 0),
-    );
-
     return {
-      timestamp:    new Date(latestTs || Date.now()).toISOString(),
+      timestamp:    new Date().toISOString(),
       sourceDriver: 'HealthConnect',
       entityId:     this.userId,
       measurements,

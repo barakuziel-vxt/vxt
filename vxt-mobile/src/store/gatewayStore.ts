@@ -1,4 +1,5 @@
 ﻿import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverRegistry } from '../core/DriverRegistry';
 import { driverManager } from '../core/DriverManager';
 import { gatewayService } from '../services/GatewayService';
@@ -15,11 +16,39 @@ import type { TransportStatus } from '../services/MqttTransport';
 // ─── Default config ────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: GatewayConfig = {
   iotHubConnectionString: IOT_HUB_CONNECTION_STRING,
-  activeDriver:     'SamsungHealth',
+  activeDriver:     'HealthConnect',
   sampleIntervalMs: 60000,  // 60 s → 1 frame/min, 60 frames/hr
+  gatewayType:      'iothub',
+  kafkaBootstrap:   '192.168.1.22:9092',
+  kafkaTopic:       'iot-telemetry',
   mqttQos:          1,
   userId:           DEFAULT_USER_ID,
 };
+
+const GATEWAY_CONFIG_KEY = 'vxt_gateway_config';
+
+/** Load gateway config from AsyncStorage, fallback to DEFAULT_CONFIG */
+async function loadGatewayConfig(): Promise<GatewayConfig> {
+  try {
+    const stored = await AsyncStorage.getItem(GATEWAY_CONFIG_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_CONFIG, ...parsed };
+    }
+  } catch (e) {
+    console.warn('[gatewayStore] Failed to load config from storage:', e);
+  }
+  return DEFAULT_CONFIG;
+}
+
+/** Save gateway config to AsyncStorage */
+async function saveGatewayConfig(config: GatewayConfig): Promise<void> {
+  try {
+    await AsyncStorage.setItem(GATEWAY_CONFIG_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.warn('[gatewayStore] Failed to save config to storage:', e);
+  }
+}
 
 /** Human-readable lag string, e.g. "2 h 15 min" or "47 min" */
 function formatLag(ms: number): string {
@@ -92,6 +121,16 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   backlogTotal:     0,
   lastError:        null,
   config:           DEFAULT_CONFIG,
+
+  // ── Initialize config from storage on first access ───────────────────
+  ...(() => {
+    loadGatewayConfig().then(cfg => {
+      useGatewayStore.setState({ config: cfg });
+    }).catch(e => {
+      console.error('[gatewayStore] Failed to load config:', e);
+    });
+    return {};
+  })(),
 
   // ── Start Driver only (no MQTT) ───────────────────────────────────────
   async startDriver() {
@@ -205,7 +244,12 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   },
 
   updateConfig(patch: Partial<GatewayConfig>) {
-    set(s => ({ config: { ...s.config, ...patch } }));
+    const newConfig = { ...get().config, ...patch };
+    set({ config: newConfig });
+    // Persist to AsyncStorage
+    saveGatewayConfig(newConfig).catch(e => {
+      console.error('[gatewayStore] Failed to persist config:', e);
+    });
   },
 
   clearError() {
