@@ -1139,7 +1139,8 @@ def update_entity_type_attribute(id: int, data: dict):
             UPDATE EntityTypeAttribute
             SET entityTypeId = ?, protocolId = ?, entityTypeAttributeCode = ?, 
                 entityTypeAttributeName = ?, entityTypeAttributeTimeAspect = ?, 
-                entityTypeAttributeUnit = ?, active = ?
+                entityTypeAttributeUnit = ?, active = ?, defaultInGraph = ?, 
+                providerId = ?, providerEventType = ?
             WHERE entityTypeAttributeId = ?
         """, (
             data.get("entityTypeId"),
@@ -1149,6 +1150,9 @@ def update_entity_type_attribute(id: int, data: dict):
             data.get("entityTypeAttributeTimeAspect", "Pt"),
             data.get("entityTypeAttributeUnit"),
             data.get("active", "Y"),
+            data.get("defaultInGraph", "N"),
+            data.get("providerId"),
+            data.get("providerEventType"),
             id
         ))
         conn.commit()
