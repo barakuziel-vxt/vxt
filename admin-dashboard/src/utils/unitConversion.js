@@ -293,6 +293,7 @@ const DISPLAY_UNIT_PREFERENCES = {
   
   // Blood Cell Count - BY LOINC CODE
   '11524-6': '%',                // Basophil count (percentage) (LOINC)
+  '11524-8': '#/μL',             // Basophil count (absolute) (LOINC)
   '13132-6': '%',                // Monocyte count (percentage) (LOINC)
   
   // Heart Rate Variability - BY LOINC CODE

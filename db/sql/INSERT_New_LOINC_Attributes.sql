@@ -2,7 +2,9 @@
 -- LOINC Codes:
 --   8601-7 (Body Height)
 --   11524-6 (Basophil count percentage)
+--   11524-8 (Basophil count absolute)
 --   13132-6 (Monocyte count percentage)
+--   42303-8 (Diabetes screening test)
 
 -- ============================================================================
 -- INSERT statements for ProviderEvent table (Junction provider)
@@ -36,6 +38,20 @@ SELECT
     N'["basophilPercent","timestamp"]'
 WHERE NOT EXISTS (SELECT 1 FROM ProviderEvent WHERE providerId = (SELECT providerId FROM Provider WHERE providerName = 'Junction') AND protocolAttributeCode = '11524-6');
 
+-- Basophil Count Absolute (11524-8)
+INSERT INTO ProviderEvent (providerId, providerEventType, providerEventDescription, providerNamespace, providerEventName, providerVersion, protocolAttributeCode, payloadSchema, requiredFields)
+SELECT 
+    (SELECT providerId FROM Provider WHERE providerName = 'Junction'),
+    'blood.basophil.count.update',
+    'Absolute basophil count in blood',
+    'blood',
+    'basophil_count',
+    '1.0',
+    '11524-8',
+    N'{"type":"object","properties":{"basophilCount":{"type":"number","description":"Basophil count"},"unit":{"type":"string","enum":["#/μL","K/μL"]},"timestamp":{"type":"string","format":"date-time"},"source":{"type":"string"}}}',
+    N'["basophilCount","unit","timestamp"]'
+WHERE NOT EXISTS (SELECT 1 FROM ProviderEvent WHERE providerId = (SELECT providerId FROM Provider WHERE providerName = 'Junction') AND protocolAttributeCode = '11524-8');
+
 -- Monocyte Count Percentage (13132-6)
 INSERT INTO ProviderEvent (providerId, providerEventType, providerEventDescription, providerNamespace, providerEventName, providerVersion, protocolAttributeCode, payloadSchema, requiredFields)
 SELECT 
@@ -49,6 +65,20 @@ SELECT
     N'{"type":"object","properties":{"monocytePercent":{"type":"number","description":"Monocyte percentage"},"unit":{"type":"string","enum":["%"]},"timestamp":{"type":"string","format":"date-time"},"source":{"type":"string"}}}',
     N'["monocytePercent","timestamp"]'
 WHERE NOT EXISTS (SELECT 1 FROM ProviderEvent WHERE providerId = (SELECT providerId FROM Provider WHERE providerName = 'Junction') AND protocolAttributeCode = '13132-6');
+
+-- Diabetes Screening Test (42303-8)
+INSERT INTO ProviderEvent (providerId, providerEventType, providerEventDescription, providerNamespace, providerEventName, providerVersion, protocolAttributeCode, payloadSchema, requiredFields)
+SELECT 
+    (SELECT providerId FROM Provider WHERE providerName = 'Junction'),
+    'clinical.diabetes.screening.update',
+    'Diabetes mellitus screening test recommendation',
+    'clinical',
+    'diabetes_screening',
+    '1.0',
+    '42303-8',
+    N'{"type":"object","properties":{"status":{"type":"string","description":"Screening status"},"timestamp":{"type":"string","format":"date-time"},"source":{"type":"string"}}}',
+    N'["status","timestamp"]'
+WHERE NOT EXISTS (SELECT 1 FROM ProviderEvent WHERE providerId = (SELECT providerId FROM Provider WHERE providerName = 'Junction') AND protocolAttributeCode = '42303-8');
 
 -- ============================================================================
 -- INSERT statements for EntityTypeAttribute table (Person entity, Protocol 1)
@@ -90,6 +120,24 @@ SELECT
     'N'
 WHERE NOT EXISTS (SELECT 1 FROM EntityTypeAttribute WHERE entityTypeAttributeCode = '11524-6' AND entityTypeId = 1);
 
+-- Basophil Count Absolute (11524-8)
+INSERT INTO EntityTypeAttribute (entityTypeId, protocolId, entityTypeAttributeCode, entityTypeAttributeName, entityTypeAttributeTimeAspect, entityTypeAttributeUnit, providerId, providerEventType, active, createDate, lastUpdateTimestamp, lastUpdateUser, defaultInGraph)
+SELECT 
+    1,
+    1,
+    '11524-8',
+    'Basophil Count',
+    'Pt',
+    '#/μL',
+    (SELECT providerId FROM Provider WHERE providerName = 'Junction'),
+    'blood.basophil.count.update',
+    'Y',
+    CAST(GETDATE() AS DATETIME2),
+    CAST(GETDATE() AS DATETIME2),
+    'sa',
+    'N'
+WHERE NOT EXISTS (SELECT 1 FROM EntityTypeAttribute WHERE entityTypeAttributeCode = '11524-8' AND entityTypeId = 1);
+
 -- Monocyte Count Percentage (13132-6)
 INSERT INTO EntityTypeAttribute (entityTypeId, protocolId, entityTypeAttributeCode, entityTypeAttributeName, entityTypeAttributeTimeAspect, entityTypeAttributeUnit, providerId, providerEventType, active, createDate, lastUpdateTimestamp, lastUpdateUser, defaultInGraph)
 SELECT 
@@ -107,6 +155,24 @@ SELECT
     'sa',
     'N'
 WHERE NOT EXISTS (SELECT 1 FROM EntityTypeAttribute WHERE entityTypeAttributeCode = '13132-6' AND entityTypeId = 1);
+
+-- Diabetes Screening Test (42303-8)
+INSERT INTO EntityTypeAttribute (entityTypeId, protocolId, entityTypeAttributeCode, entityTypeAttributeName, entityTypeAttributeTimeAspect, entityTypeAttributeUnit, providerId, providerEventType, active, createDate, lastUpdateTimestamp, lastUpdateUser, defaultInGraph)
+SELECT 
+    1,
+    1,
+    '42303-8',
+    'Diabetes Screening',
+    'Pt',
+    'text',
+    (SELECT providerId FROM Provider WHERE providerName = 'Junction'),
+    'clinical.diabetes.screening.update',
+    'Y',
+    CAST(GETDATE() AS DATETIME2),
+    CAST(GETDATE() AS DATETIME2),
+    'sa',
+    'N'
+WHERE NOT EXISTS (SELECT 1 FROM EntityTypeAttribute WHERE entityTypeAttributeCode = '42303-8' AND entityTypeId = 1);
 
 -- ============================================================================
 -- INSERT statements for ProtocolAttribute table (Protocol 1 - Health/Vitals)
@@ -150,6 +216,25 @@ SELECT
     'Hematology'
 WHERE NOT EXISTS (SELECT 1 FROM ProtocolAttribute WHERE protocolId = 1 AND protocolAttributeCode = '11524-6');
 
+-- Basophil Count Absolute (11524-8)
+INSERT INTO ProtocolAttribute (protocolId, protocolAttributeCode, protocolAttributeName, description, unit, dataType, jsonPath, rangeMin, rangeMax, active, createDate, lastUpdateTimestamp, lastUpdateUser, component)
+SELECT 
+    1,
+    '11524-8',
+    'Basophil Count',
+    'Absolute basophil count in blood',
+    '#/μL',
+    'Qn',
+    '$.loincCode_11524_8',
+    0,
+    100,
+    'Y',
+    CAST(GETDATE() AS DATETIME2),
+    CAST(GETDATE() AS DATETIME2),
+    'sa',
+    'Hematology'
+WHERE NOT EXISTS (SELECT 1 FROM ProtocolAttribute WHERE protocolId = 1 AND protocolAttributeCode = '11524-8');
+
 -- Monocyte Count Percentage (13132-6)
 INSERT INTO ProtocolAttribute (protocolId, protocolAttributeCode, protocolAttributeName, description, unit, dataType, jsonPath, rangeMin, rangeMax, active, createDate, lastUpdateTimestamp, lastUpdateUser, component)
 SELECT 
@@ -168,6 +253,23 @@ SELECT
     'sa',
     'Hematology'
 WHERE NOT EXISTS (SELECT 1 FROM ProtocolAttribute WHERE protocolId = 1 AND protocolAttributeCode = '13132-6');
+
+-- Diabetes Screening Test (42303-8)
+INSERT INTO ProtocolAttribute (protocolId, protocolAttributeCode, protocolAttributeName, description, unit, dataType, jsonPath, active, createDate, lastUpdateTimestamp, lastUpdateUser, component)
+SELECT 
+    1,
+    '42303-8',
+    'Diabetes Screening Test',
+    'Diabetes mellitus screening test recommendation',
+    'text',
+    'Nom',
+    '$.loincCode_42303_8',
+    'Y',
+    CAST(GETDATE() AS DATETIME2),
+    CAST(GETDATE() AS DATETIME2),
+    'sa',
+    'Clinical Screening'
+WHERE NOT EXISTS (SELECT 1 FROM ProtocolAttribute WHERE protocolId = 1 AND protocolAttributeCode = '42303-8');
 
 -- ============================================================================
 -- AFib Enum Values (LOINC 80358-0) - Already exists, no insert needed
