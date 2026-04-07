@@ -742,16 +742,14 @@ export const getUnit = (attributeCode) => {
 
 /**
  * Formats a value for display with appropriate unit
+ * Skip unit display for enum values (e.g., AFib shows "Detected", not "Detected text")
  * @param {number} value - The raw sensor value
  * @param {string} attributeCode - The attribute identifier
  * @param {string} sourceUnit - The unit the value is in from the API
- * @returns {string} - Formatted string like "3.1 Bar" or "12.45 V"
+ * @returns {string} - Formatted string like "3.1 Bar" or "12.45 V" or "Detected" (for enums)
  */
 export const formatValueWithUnit = (value, attributeCode, sourceUnit) => {
-  const converted = convertValue(value, attributeCode, sourceUnit);
-  const unit = getUnit(attributeCode);
-  return unit ? `${converted} ${unit}` : `${converted}`;
-};
+  const converted = convertValue(value, attributeCode, sourceUnit);\n  \n  // If converted value is a string (enum result), skip unit display\n  if (typeof converted === 'string') {\n    return converted;\n  }\n  \n  const unit = getUnit(attributeCode);\n  return unit ? `${converted} ${unit}` : `${converted}`;\n};
 
 /**
  * Batch convert multiple telemetry entries
