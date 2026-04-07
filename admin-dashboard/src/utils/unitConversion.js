@@ -652,13 +652,19 @@ const convertBetweenUnits = (value, sourceUnit, targetUnit) => {
 
 
 /**
- * Get the preferred display unit for an attribute
+ * Gets the display unit for an attribute
+ * Returns empty string for enum attributes (unit shouldn't be displayed)
  * Checks exact match first, then pattern match
  * @param {string} attributeCode - The attribute identifier
- * @returns {string} - The preferred display unit (e.g., 'Bar', '°C', 'V')
+ * @returns {string} - The preferred display unit (e.g., 'Bar', '°C', 'V') or empty string for enums
  */
 const getDisplayUnit = (attributeCode) => {
   if (!attributeCode) return '';
+  
+  // Don't display unit for enum attributes
+  if (ENUM_MAPPINGS[attributeCode]) {
+    return '';
+  }
   
   // 1. Check for exact match
   if (DISPLAY_UNIT_PREFERENCES[attributeCode]) {
@@ -693,8 +699,17 @@ export const convertValue = (value, attributeCode, sourceUnit) => {
   }
 
   // Check for enum mapping first (for categorical attributes like AFib)
-  if (ENUM_MAPPINGS[attributeCode] && ENUM_MAPPINGS[attributeCode][value] !== undefined) {
-    return ENUM_MAPPINGS[attributeCode][value];
+  const enumMapping = ENUM_MAPPINGS[attributeCode];
+  if (enumMapping) {
+    // Try direct lookup first (handles number values)
+    if (enumMapping[value] !== undefined) {
+      return enumMapping[value];
+    }
+    // Try parsing as number if value is string (handles "1" → 1)
+    const numValue = Number(value);
+    if (!isNaN(numValue) && enumMapping[numValue] !== undefined) {
+      return enumMapping[numValue];
+    }
   }
 
   // Get target display unit for this attribute
