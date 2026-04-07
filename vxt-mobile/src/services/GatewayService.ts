@@ -152,9 +152,14 @@ export class GatewayService {
 
     // Create transport based on gateway type
     if (config.gatewayType === 'kafka') {
+      // Derive API base URL from bootstrap server (e.g., "192.168.1.22:9092" → "http://192.168.1.22:8000")
+      const bootstrapHost = config.kafkaBootstrap.split(':')[0] || '192.168.1.22';
+      const apiBase = `http://${bootstrapHost}:8000`;
+      
       this.addLog(`Connecting to Kafka broker: ${config.kafkaBootstrap} / topic: ${config.kafkaTopic}`, 'info');
+      this.addLog(`Using REST API at: ${apiBase}`, 'info');
       this.transport = new KafkaTransport(
-        { bootstrap: config.kafkaBootstrap, topic: config.kafkaTopic, offlineQueueLimit: 200 },
+        { bootstrap: config.kafkaBootstrap, topic: config.kafkaTopic, offlineQueueLimit: 200, apiBase },
         { 
           onStatusChange: s => {
             this.addLog(`Kafka transport status: ${s}`, s === 'connected' ? 'info' : s === 'error' ? 'error' : 'warn');

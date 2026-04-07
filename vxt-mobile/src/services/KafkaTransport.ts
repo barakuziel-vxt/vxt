@@ -18,6 +18,7 @@ interface KafkaTransportConfig {
   topic: string;          // "iot-telemetry"
   clientId?: string;      // optional client identifier
   offlineQueueLimit?: number;
+  apiBase?: string;       // REST API base URL (e.g., "http://192.168.1.22:8000")
 }
 
 interface KafkaTransportCallbacks {
@@ -57,14 +58,37 @@ export class KafkaTransport {
       this.errorCount = 0;
       this.lastError = null;
       
-      // For React Native, we use a simplified approach:
-      // In production, this would require:
-      // 1. Native Kafka client module (via react-native modules)
-      // 2. Or HTTP REST proxy to a Kafka REST API
-      // 3. Or WebSocket bridge to a local proxy
-      
-      // For now, simulate successful connection for local testing
-      // Real implementation would establish TCP/TLS connection to bootstrap server
+      // If REST API is configured, test connectivity
+      if (this.config.apiBase) {
+        try {
+          this.log(`Testing REST API connectivity at ${this.config.apiBase}/api/manual-report...`, 'info');
+          const testRes = await fetch(`${this.config.apiBase}/api/manual-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              entityId: 'test',
+              entityTypeAttributeCode: 'test',
+              value: 0,
+              timestamp: new Date().toISOString(),
+              source: 'ConnectionTest',
+              gatewayType: 'kafka',
+              kafkaBootstrap: this.config.bootstrap,
+              kafkaTopic: this.config.topic,
+              _dryRun: true,
+            }),
+          });
+
+          if (!testRes.ok) {
+            const errText = await testRes.text().catch(() => testRes.statusText);
+            throw new Error(`API returned ${testRes.status}: ${errText}`);
+          }
+
+          this.log(`REST API connectivity verified`, 'info');
+        } catch (apiErr) {
+          this.log(`REST API test failed: ${String(apiErr)}`, 'warn');
+          // Continue anyway - maybe API is temporarily down
+        }
+      }
       
       // Simulate connection delay
       await new Promise(r => setTimeout(r, 500));
@@ -90,7 +114,11 @@ export class KafkaTransport {
 
   publish(frame: TelemetryData): boolean {
     if (this.status === 'connected') {
-      return this.sendFrame(frame);
+      // Start async send without blocking
+      this.sendFrameAsync(frame).catch(err => 
+        this.log(`Async publish error: ${String(err)}`, 'error')
+      );
+      return true;
     } else {
       // Queue for later when connected
       if (this.offlineQueue.length < this.maxQueueSize) {
@@ -103,33 +131,71 @@ export class KafkaTransport {
     }
   }
 
-  private sendFrame(frame: TelemetryData): boolean {
+  private async sendFrameAsync(frame: TelemetryData): Promise<void> {
     try {
-      // Format frame as JSON (Kafka message payload)
-      const payload = {
-        timestamp:    frame.timestamp,
-        entityId:     frame.entityId,
-        sourceDriver: frame.sourceDriver,
-        measurements: frame.measurements,
-        metadata:     frame.metadata,
-      };
+      // Convert TelemetryData to Junction format (same as /api/manual-report expects)
+      // Iterate over measurements and send each one as a separate report
+      const measurements = frame.measurements || {};
+      const entityId = frame.entityId || 'unknown';
       
-      const message = JSON.stringify(payload);
-      const bytes = new TextEncoder().encode(message).length;
+      if (Object.keys(measurements).length === 0) {
+        this.log(`Skipping empty frame for entity ${entityId}`, 'warn');
+        return;
+      }
 
-      // In a real implementation, this would:
-      // 1. Serialize to Kafka protocol binary format
-      // 2. Compute CRC32 for message integrity
-      // 3. Send via TCP socket to broker
-      // 4. Handle acknowledgments (acks=1 or acks=all)
-      
-      // Log successful publish
+      for (const [loincCode, value] of Object.entries(measurements)) {
+        if (typeof value !== 'number') {
+          this.log(`Skipping non-numeric value for ${loincCode}: ${typeof value}`, 'warn');
+          continue;
+        }
+        
+        const reportData = {
+          entityId,
+          entityTypeAttributeCode: loincCode,
+          value,
+          timestamp: frame.timestamp || new Date().toISOString(),
+          source: frame.sourceDriver || 'Driver',
+          gatewayType: 'kafka',
+          kafkaBootstrap: this.config.bootstrap,
+          kafkaTopic: this.config.topic,
+        };
+
+        // Send via REST API endpoint
+        if (!this.config.apiBase) {
+          this.log(`No API base configured, skipping REST call for ${loincCode}`, 'warn');
+          throw new Error('API base not configured');
+        }
+
+        try {
+          const endpoint = `${this.config.apiBase}/api/manual-report`;
+          this.log(`Sending ${loincCode}=${value} to ${endpoint}...`, 'info');
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reportData),
+          });
+
+          if (!res.ok) {
+            const errText = await res.text().catch(() => res.statusText);
+            throw new Error(`HTTP ${res.status}: ${errText}`);
+          }
+
+          this.log(`Successfully published ${loincCode}=${value}`, 'info');
+        } catch (fetchErr) {
+          const errMsg = String(fetchErr);
+          this.log(`REST API error for ${loincCode}: ${errMsg}`, 'error');
+          throw fetchErr;
+        }
+      }
+
+      // Log successful publish only after all measurements sent
       this.frameCount += 1;
+      const measurements_count = Object.keys(measurements).length;
       this.log(
-        `Published frame #${this.frameCount} to topic '${this.config.topic}' (${bytes} bytes, entity=${frame.entityId})`,
+        `Published frame #${this.frameCount} to topic '${this.config.topic}' (${measurements_count} measurements, entity=${entityId})`,
         'info'
       );
-      return true;
     } catch (err) {
       this.errorCount += 1;
       const errMsg = String(err);
@@ -138,7 +204,7 @@ export class KafkaTransport {
         `Publish error #${this.errorCount}: ${errMsg}`,
         'error'
       );
-      return false;
+      throw err;
     }
   }
 
@@ -151,11 +217,13 @@ export class KafkaTransport {
 
     let flushed = 0;
     for (const frame of queued) {
-      if (!this.sendFrame(frame)) {
+      try {
+        await this.sendFrameAsync(frame);
+        flushed += 1;
+      } catch (err) {
         this.log(`Failed to flush queued frame, stopping flush (flushed ${flushed}/${queued.length})`, 'warn');
         break;
       }
-      flushed += 1;
       // Small delay between messages
       await new Promise(r => setTimeout(r, 10));
     }

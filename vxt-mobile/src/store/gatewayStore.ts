@@ -15,7 +15,7 @@ import type { TransportStatus } from '../services/MqttTransport';
 // ─── Default config ────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: GatewayConfig = {
   iotHubConnectionString: IOT_HUB_CONNECTION_STRING,
-  activeDriver:     'SamsungHealth',
+  activeDriver:     'HealthConnect',
   sampleIntervalMs: 60000,  // 60 s → 1 frame/min, 60 frames/hr
   gatewayType:      'iothub',
   kafkaBootstrap:   '192.168.1.22:9092',
