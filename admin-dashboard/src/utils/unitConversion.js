@@ -253,8 +253,13 @@ const DISPLAY_UNIT_PREFERENCES = {
   'SystolicBP': 'mmHg',          // Systolic blood pressure
   'DiastolicBP': 'mmHg',         // Diastolic blood pressure
   
+  // Resting Heart Rate - BY LOINC CODE
+  '8418-4': 'bpm',               // Resting heart rate (LOINC)
+  
+  // Body Height - BY LOINC CODE
+  '8601-7': 'cm',                // Body height (LOINC)
+  
   // Temperature - BY LOINC CODE
-  '8418-4': '°C',                // Body temperature (LOINC)
   
   // Temperature - BY NAME
   'BodyTemp': '°C',              // Body temperature
