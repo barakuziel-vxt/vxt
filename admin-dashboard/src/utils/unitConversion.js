@@ -749,7 +749,16 @@ export const getUnit = (attributeCode) => {
  * @returns {string} - Formatted string like "3.1 Bar" or "12.45 V" or "Detected" (for enums)
  */
 export const formatValueWithUnit = (value, attributeCode, sourceUnit) => {
-  const converted = convertValue(value, attributeCode, sourceUnit);\n  \n  // If converted value is a string (enum result), skip unit display\n  if (typeof converted === 'string') {\n    return converted;\n  }\n  \n  const unit = getUnit(attributeCode);\n  return unit ? `${converted} ${unit}` : `${converted}`;\n};
+  const converted = convertValue(value, attributeCode, sourceUnit);
+  
+  // If converted value is a string (enum result), skip unit display
+  if (typeof converted === 'string') {
+    return converted;
+  }
+  
+  const unit = getUnit(attributeCode);
+  return unit ? `${converted} ${unit}` : `${converted}`;
+};
 
 /**
  * Batch convert multiple telemetry entries
