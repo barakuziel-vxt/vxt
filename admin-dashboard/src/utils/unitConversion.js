@@ -291,6 +291,10 @@ const DISPLAY_UNIT_PREFERENCES = {
   'Glucose': 'mg/dL',            // Blood glucose generic
   'BloodGlucose': 'mg/dL',       // Blood glucose
   
+  // Blood Cell Count - BY LOINC CODE
+  '11524-6': '%',                // Basophil count (percentage) (LOINC)
+  '13132-6': '%',                // Monocyte count (percentage) (LOINC)
+  
   // Heart Rate Variability - BY LOINC CODE
   '80404-7': 'ms',               // HRV - Standard deviation of NN intervals (LOINC)
   
@@ -298,18 +302,57 @@ const DISPLAY_UNIT_PREFERENCES = {
   'HRV_RMSSD': 'ms',             // HRV - Root Mean Square of Successive Differences
   'HRV': 'ms',                   // Heart rate variability
   
-  // ECG & Cardiac - BY LOINC CODE
-  '80358-0': 'text',             // Atrial fibrillation (LOINC)
+  // ECG & Cardiac - BY LOINC CODE (Enum values handled in convertValue function)
+  '80358-0': 'text',             // Atrial fibrillation (LOINC) - enum: 0=Inconclusive, 1=Detected, 2=Not Detected, 3=Low/High HR
   
-  // ECG & Cardiac - BY NAME
+  // ECG & Cardiac - BY NAME (Enum values handled in convertValue function)
   'ECGClassification': 'text',   // ECG classification (no conversion)
-  'AfibResult': 'text',          // Atrial fibrillation result (no conversion)
-  'AFib': 'text',                // Atrial fibrillation (shorthand)
+  'AfibResult': 'text',          // Atrial fibrillation result - enum conversion applied
+  'AFib': 'text',                // Atrial fibrillation (shorthand) - enum conversion applied
   
   // Other common health metrics
   'BMI': 'kg/m²',                // Body Mass Index
   'BloodPressure': 'mmHg',       // Generic blood pressure
   'HeartRateVariability': 'ms',  // Heart rate variability
+};
+
+/**
+ * Enum mappings for categorical attributes
+ * Maps numeric/string values to human-readable enums
+ * Used for attributes like AFib result, ECG classification, etc.
+ */
+const ENUM_MAPPINGS = {
+  // Atrial Fibrillation Result - LOINC 80358-0
+  '80358-0': {
+    0: 'Inconclusive',
+    1: 'Detected',
+    2: 'Not Detected',
+    3: 'Low/High HR',
+    'Inconclusive': 0,
+    'Detected': 1,
+    'Not Detected': 2,
+    'Low/High HR': 3,
+  },
+  'AfibResult': {
+    0: 'Inconclusive',
+    1: 'Detected',
+    2: 'Not Detected',
+    3: 'Low/High HR',
+    'Inconclusive': 0,
+    'Detected': 1,
+    'Not Detected': 2,
+    'Low/High HR': 3,
+  },
+  'AFib': {
+    0: 'Inconclusive',
+    1: 'Detected',
+    2: 'Not Detected',
+    3: 'Low/High HR',
+    'Inconclusive': 0,
+    'Detected': 1,
+    'Not Detected': 2,
+    'Low/High HR': 3,
+  },
 };
 
 /**
@@ -647,6 +690,11 @@ const getDisplayUnit = (attributeCode) => {
 export const convertValue = (value, attributeCode, sourceUnit) => {
   if (value === null || value === undefined) {
     return value;
+  }
+
+  // Check for enum mapping first (for categorical attributes like AFib)
+  if (ENUM_MAPPINGS[attributeCode] && ENUM_MAPPINGS[attributeCode][value] !== undefined) {
+    return ENUM_MAPPINGS[attributeCode][value];
   }
 
   // Get target display unit for this attribute
