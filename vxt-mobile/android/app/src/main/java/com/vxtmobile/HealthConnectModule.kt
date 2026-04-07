@@ -338,14 +338,14 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestStepCount(promise: Promise) = read(promise, "Steps") {
-        // Query last 7 days to get most recent step data (survives midnight boundary)
+        // Query last 24 hours for daily step total
         val records = client.readRecords(ReadRecordsRequest(
-            StepsRecord::class, since(7)
+            StepsRecord::class, since(1)
         )).records
         val total = records.sumOf { it.count }
         if (total == 0L) return@read null
-        // Steps are a running daily total; use start of today so tile shows "today 00:00"
-        val latestTs = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        // Use the timestamp of the most recent record (actual measurement time from Health Connect)
+        val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
         sample(total.toDouble(), "steps", latestTs)
     }
 
@@ -401,12 +401,13 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestFloorsClimbed(promise: Promise) = read(promise, "Floors") {
-        // Query last 7 days to fetch most recent floors data (survives midnight)
+        // Query last 24 hours for daily floors total
         val records = client.readRecords(ReadRecordsRequest(
-            FloorsClimbedRecord::class, since(7)
+            FloorsClimbedRecord::class, since(1)
         )).records
         val total = records.sumOf { it.floors }
         if (total == 0.0) return@read null
+        // Use the timestamp of the most recent floors record (when was the last floor climbing recorded)
         val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
         sample(total, "floors", latestTs)
     }
@@ -417,21 +418,23 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestActiveCalories(promise: Promise) = read(promise, "Calories") {
-        // Query last 7 days for active calories (survives midnight)
+        // Query last 24 hours for daily active calorie total
         val records = client.readRecords(ReadRecordsRequest(
-            ActiveCaloriesBurnedRecord::class, since(7)
+            ActiveCaloriesBurnedRecord::class, since(1)
         )).records
         val total = records.sumOf { it.energy.inKilocalories }
         if (total > 0.0) {
+            // Use the timestamp of the most recent record (when was the last calorie sample recorded)
             val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
             return@read sample(total, "kcal", latestTs)
         }
-        // Fallback: Samsung Health writes TotalCaloriesBurned (not ActiveCaloriesBurned) — also last 7 days
+        // Fallback: Samsung Health writes TotalCaloriesBurned (not ActiveCaloriesBurned) — last 24 hours
         val totalRecords = client.readRecords(ReadRecordsRequest(
-            TotalCaloriesBurnedRecord::class, since(7)
+            TotalCaloriesBurnedRecord::class, since(1)
         )).records
         val totalKcal = totalRecords.sumOf { it.energy.inKilocalories }
         if (totalKcal == 0.0) return@read null
+        // Use the timestamp of the most recent total calories record
         val latestTsFallback = totalRecords.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
         sample(totalKcal, "kcal", latestTsFallback)
     }
@@ -441,11 +444,13 @@ class HealthConnectModule(
 
     @ReactMethod
     fun getLatestDistance(promise: Promise) = read(promise, "Distance") {
+        // Query last 24 hours for daily distance total
         val records = client.readRecords(ReadRecordsRequest(
-            DistanceRecord::class, since(7)
+            DistanceRecord::class, since(1)
         )).records
         val totalKm = records.sumOf { it.distance.inKilometers }
         if (totalKm == 0.0) return@read null
+        // Use the timestamp of the most recent distance record (actual end time of the last distance measurement)
         val latestTs = records.maxOfOrNull { it.endTime.toEpochMilli() } ?: Instant.now().toEpochMilli()
         sample(totalKm, "km", latestTs)
     }

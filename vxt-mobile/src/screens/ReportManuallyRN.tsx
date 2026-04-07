@@ -7,7 +7,7 @@
  * Bridge messages handled:
  *   loadEntities   — fetch /entities from API (or driver stub)
  *   loadAttributes — fetch /entitytypeattributes from API
- *   submitManualReport — connect MqttTransport → publish → disconnect
+ *   submitManualReport — Kafka: REST API to backend; IoT Hub: direct MQTT publish
  */
 import React, { useContext, useRef, useState } from 'react';
 import {
@@ -52,7 +52,7 @@ function _delay(ms: number): Promise<void> {
 export default function ReportManuallyRN() {
   const { openDrawer }      = useContext(DrawerContext);
   const ds                  = useDataSource();
-  const { activeDriver, gatewayConfig } = useGatewayStore();
+  const { activeDriver, config: gatewayConfig } = useGatewayStore();
   const webViewRef          = useRef<WebView>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [webViewKey, setWebViewKey] = useState(0);
@@ -116,6 +116,12 @@ export default function ReportManuallyRN() {
             break;
           }
 
+          if (!gatewayConfig) {
+            responseData = { error: 'Gateway configuration not loaded. Please try again.' };
+            console.error('[ReportManuallyRN] gatewayConfig is missing');
+            break;
+          }
+
           try {
             // Check actual gateway type configuration (with fallback to default)
             const isKafkaGateway = gatewayConfig?.gatewayType === 'kafka';
@@ -163,18 +169,21 @@ export default function ReportManuallyRN() {
 
               responseData = { success: true, message: 'Published to Kafka via REST API' };
             } else {
-              // ── Route to Azure IoT Hub via MQTT (default) ───────────────
-              console.log('[ReportManuallyRN] MQTT route (Azure IotHub)');
+              // ── Route to Azure IoT Hub via direct MQTT ──────────────────
+              console.log('[ReportManuallyRN] MQTT route (Azure IoT Hub)');
+
+              const connStr = gatewayConfig.iotHubConnectionString || IOT_HUB_CONNECTION_STRING;
 
               const telemetry = {
-                deviceId:  d.entityId,
-                timestamp: d.timestamp || new Date().toISOString(),
-                values:    { [d.entityTypeAttributeCode]: d.value },
-                source:    (d.source || 'Manual') as any,
+                sourceDriver: 'Manual',
+                entityId:     d.entityId,
+                timestamp:    d.timestamp || new Date().toISOString(),
+                measurements: { [d.entityTypeAttributeCode]: parseFloat(d.value) || d.value },
+                metadata:     { platform: 'android', source: 'ManualReport' },
               };
 
               console.log('[ReportManuallyRN] Creating MQTT transport...');
-              const transport = new MqttTransport({ connectionString: IOT_HUB_CONNECTION_STRING });
+              const transport = new MqttTransport({ connectionString: connStr });
 
               console.log('[ReportManuallyRN] Connecting to MQTT...');
               await transport.connect();
