@@ -159,6 +159,7 @@ class SimpleEventProcessor:
         """
         self.stats['events_processed'] += 1
         inserted_count = 0
+        inserted_codes = []  # Track attribute codes that were successfully inserted
 
         try:
             if not isinstance(event, dict):
@@ -262,6 +263,7 @@ class SimpleEventProcessor:
                         write_cursor.execute(ins_sql, tuple(ins_params))
 
                         inserted_count += 1
+                        inserted_codes.append(evt.attr_code)  # Track the attribute code
                         self.stats['records_inserted'] += 1
 
                     except Exception as e:
@@ -279,10 +281,11 @@ class SimpleEventProcessor:
                 conn.close()
 
             entity_ids = {e.entity_id for e in normalized_events}
+            codes_str = ', '.join(inserted_codes) if inserted_codes else 'none'
             logger.info(
                 f"[PROC] Entities={entity_ids} | "
                 f"parsed={len(normalized_events)} events={self.stats['events_processed']} "
-                f"inserted={inserted_count}"
+                f"inserted={inserted_count} codes=[{codes_str}]"
             )
 
         except Exception as e:
