@@ -97,11 +97,16 @@ export class SamsungHealthDriver extends BaseDriver {
 
   // Sampling interval: default 5 s (overridable via GatewayConfig)
   constructor(
-    private readonly userId: string,
+    private userId: string,
     private readonly sampleIntervalMs: number = 5000,
   ) {
     super();
     configuredUserId = userId;
+  }
+
+  setUserId(id: string): void {
+    this.userId = id;
+    configuredUserId = id;
   }
 
   // ─── Availability & Permissions ────────────────────────────────────────────

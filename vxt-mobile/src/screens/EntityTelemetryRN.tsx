@@ -92,12 +92,8 @@ export default function EntityTelemetryRN() {
   const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver = ds.type === 'driver';
-  const dashboardUrl = deriveDashboardUrl(ds.localUrl);
-  // Driver mode: load from bundled APK asset (no network needed)
-  // Local/Cloud mode: load from the running dashboard on the network
-  const webViewUrl = isDriver
-    ? `file:///android_asset/www/index.html?embedded=true&mode=driver&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}#telemetryRN`
-    : `${dashboardUrl}/?embedded=true&dsType=${ds.type}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
+  // All modes: load from bundled APK assets (bridge proxies API calls)
+  const webViewUrl = `file:///android_asset/www/index.html?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
 
   // ── Bridge: handle requests from WebView ─────────────────────────────────────
   async function handleBridgeMessage(event: WebViewMessageEvent) {

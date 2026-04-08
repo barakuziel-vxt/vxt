@@ -1,0 +1,11 @@
+{
+  "name": "signalk-xdr-parser",
+  "version": "1.0.0",
+  "description": "SignalK plugin that parses NMEA0183 XDR transducer sentences for engine, tank, and electrical monitoring",
+  "main": "index.js",
+  "keywords": [
+    "signalk-node-server-plugin"
+  ],
+  "author": "VXT",
+  "license": "Apache-2.0"
+}

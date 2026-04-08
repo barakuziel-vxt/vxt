@@ -58,11 +58,9 @@ export default function ReportManuallyRN() {
   const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver     = ds.type === 'driver';
-  const dashboardUrl = deriveDashboardUrl(ds.localUrl);
 
-  const webViewUrl = isDriver
-    ? `file:///android_asset/www/index.html?embedded=true&mode=driver&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}#reportManually`
-    : `${dashboardUrl}/?embedded=true&dsType=${ds.type}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#reportManually`;
+  // All modes: load from bundled APK assets (bridge proxies API calls)
+  const webViewUrl = `file:///android_asset/www/index.html?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#reportManually`;
 
   // ── Bridge message handler ────────────────────────────────────────────────
   async function handleBridgeMessage(event: WebViewMessageEvent) {

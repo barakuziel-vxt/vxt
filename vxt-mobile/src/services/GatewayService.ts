@@ -106,6 +106,11 @@ export class GatewayService {
     const driver = driverRegistry.getActive();
     if (!driver) throw new Error('No active driver registered');
 
+    // Sync userId from gateway config into the active driver
+    if (config.userId && typeof (driver as any).setUserId === 'function') {
+      (driver as any).setUserId(config.userId);
+    }
+
     await driver.initialize();
     this.onDriverStatus?.('connecting');
 
@@ -213,12 +218,12 @@ export class GatewayService {
   // ── Backlog sync ────────────────────────────────────────────────────────────
 
   private async syncBacklog(config: GatewayConfig): Promise<void> {
+    // ── Samsung Health: use native module for years of local history ─────
     const { SamsungHealthModule } = NativeModules as {
       SamsungHealthModule?: {
         fetchAllHistory(fromMs: number, toMs: number): Promise<HistoryMap>;
       };
     };
-    if (!SamsungHealthModule?.fetchAllHistory) return;
 
     const now  = Date.now();
     const from = this.lastSentTs > 0
@@ -227,6 +232,95 @@ export class GatewayService {
 
     if (now - from < 5_000) return; // lag < 5 s → no backlog
 
+    // Try Samsung Health native module first (has years of data)
+    if (config.activeDriver === 'SamsungHealth' && SamsungHealthModule?.fetchAllHistory) {
+      await this.syncSamsungBacklog(SamsungHealthModule, config, from, now);
+      return;
+    }
+
+    // Generic backlog: use the active driver's getHistory() (e.g. SignalK ring buffer)
+    const driver = driverRegistry.getActive();
+    if (!driver) return;
+
+    this.syncingBacklog = true;
+    let history: HistoryMap = {};
+    try {
+      history = await driver.getHistory(from, now);
+    } catch (e) {
+      console.warn('[GatewayService] getHistory failed:', e);
+      this.syncingBacklog = false;
+      return;
+    }
+
+    if (Object.keys(history).length === 0) {
+      this.syncingBacklog = false;
+      return;
+    }
+
+    // Group all readings into 1-minute time buckets
+    const buckets = new Map<number, TelemetryData['measurements']>();
+    for (const [key, samples] of Object.entries(history)) {
+      for (const { v, ts } of samples) {
+        const bucket = Math.floor(ts / 60_000) * 60_000;
+        if (!buckets.has(bucket)) buckets.set(bucket, {});
+        if (buckets.get(bucket)![key] == null) {
+          buckets.get(bucket)![key] = v;
+        }
+      }
+    }
+
+    const sorted = [...buckets.entries()].sort(([a], [b]) => a - b);
+    this.backlogTotal  = sorted.length;
+    this.backlogSynced = 0;
+    this.onBacklogProgress?.(0, this.backlogTotal);
+    console.log(`[GatewayService] generic backlog: ${sorted.length} frames to send`);
+
+    for (let i = 0; i < sorted.length; i += CHUNK_SIZE) {
+      if (!this.running) break;
+
+      const chunk   = sorted.slice(i, i + CHUNK_SIZE);
+      let chunkMaxTs = this.lastSentTs;
+
+      for (const [bucketTs, measurements] of chunk) {
+        if (Object.keys(measurements).length === 0) continue;
+        const frame: TelemetryData = {
+          timestamp:    new Date(bucketTs).toISOString(),
+          sourceDriver: config.activeDriver,
+          entityId:     config.userId,
+          measurements,
+          metadata:     { platform: 'android', backfill: true },
+        };
+        if (this.transport?.publish(frame)) {
+          this.framesSent += 1;
+          this.onFrameSent?.(this.framesSent);
+          if (bucketTs > chunkMaxTs) chunkMaxTs = bucketTs;
+        }
+      }
+
+      if (chunkMaxTs > this.lastSentTs) {
+        this.lastSentTs = chunkMaxTs;
+        await AsyncStorage.setItem(LAST_SENT_TS_KEY, String(chunkMaxTs));
+        this.onLastSentTs?.(this.lastSentTs);
+      }
+
+      this.backlogSynced = Math.min(i + CHUNK_SIZE, sorted.length);
+      this.onBacklogProgress?.(this.backlogSynced, this.backlogTotal);
+
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    this.syncingBacklog = false;
+    this.onBacklogProgress?.(this.backlogTotal, this.backlogTotal);
+    console.log('[GatewayService] generic backlog sync complete');
+  }
+
+  /** Samsung Health specific backlog sync using native module */
+  private async syncSamsungBacklog(
+    SamsungHealthModule: { fetchAllHistory(fromMs: number, toMs: number): Promise<HistoryMap> },
+    config: GatewayConfig,
+    from: number,
+    now: number,
+  ): Promise<void> {
     this.syncingBacklog = true;
     let history: HistoryMap = {};
     try {

@@ -25,14 +25,15 @@ import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
 import { SignalKDriver } from './src/drivers/SignalKDriver';
 import { AppleHealthDriver } from './src/drivers/AppleHealthDriver';
-import { DEFAULT_USER_ID } from './src/config/secrets';
 
 // ─── Driver bootstrap (runs once at module load) ────────────────────────────
+// userId is set to '' here — the real value is loaded from User Profile
+// and pushed to the active driver via setUserId() when startDriver() runs.
 if (Platform.OS === 'android') {
-  driverManager.register(new SamsungHealthDriver(DEFAULT_USER_ID, 60_000));
-  driverManager.register(new HealthConnectDriver(DEFAULT_USER_ID, 60_000));
+  driverManager.register(new SamsungHealthDriver('', 60_000));
+  driverManager.register(new HealthConnectDriver('', 60_000));
 }
-driverManager.register(new SignalKDriver('vessel', 60_000));
+driverManager.register(new SignalKDriver('', 60_000));
 driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
