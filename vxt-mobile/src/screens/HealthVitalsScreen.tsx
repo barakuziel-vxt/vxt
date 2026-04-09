@@ -123,7 +123,7 @@ export default function HealthVitalsScreen() {
   // ── Permissions state ────────────────────────────────────────────────
   const [permGranted,     setPermGranted]     = React.useState<boolean | null>(null);
   const [permBusy,        setPermBusy]        = React.useState(false);
-  const [hcNotInstalled,  setHcNotInstalled]  = React.useState(false);
+  const [fetchError,      setFetchError]      = React.useState<string | null>(null);
 
   // ── Layout state ──────────────────────────────────────────────────────
   const [chartW, setChartW] = React.useState(0);
@@ -132,9 +132,20 @@ export default function HealthVitalsScreen() {
   async function fetchLatest(d = driver) {
     if (!d) return;
     try {
+      console.log(`[HealthVitals] fetchLatest from ${d.displayName}…`);
       const snapshot = await d.getLatest();
-      if (snapshot) setLive(snapshot);
-    } catch { /* keep stale values */ }
+      if (snapshot && Object.keys(snapshot).length > 0) {
+        console.log(`[HealthVitals] got ${Object.keys(snapshot).length} keys`);
+        setLive(snapshot);
+        setFetchError(null);
+      } else {
+        console.warn(`[HealthVitals] ${d.displayName} returned empty snapshot`);
+      }
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      console.error(`[HealthVitals] fetchLatest error (${d.displayName}):`, msg);
+      setFetchError(msg);
+    }
   }
 
   // ── Fetch history ─────────────────────────────────────────────────────
@@ -172,20 +183,29 @@ export default function HealthVitalsScreen() {
   React.useEffect(() => {
     const d = driverManager.get(activeDriver) ?? driverManager.getActive();
     setPermGranted(null);
+    setFetchError(null);
     setLive({});
     setHistoryData({});
     setLoading(true);
 
     void (async () => {
       if (!d) { setLoading(false); return; }
-      // Check if the driver/hardware is installed at all (e.g. Health Connect app)
-      const available = await d.isAvailable().catch(() => true);
-      if (!available) {
-        setHcNotInstalled(true);
+
+      // Non-health drivers (e.g. SignalK): skip availability & permission checks
+      if (d.capabilities?.requiresHealthPermissions === false) {
+        setPermGranted(true);
+        await Promise.all([fetchLatest(d), fetchHistory(d)]);
         setLoading(false);
         return;
       }
-      setHcNotInstalled(false);
+
+      // Health-data drivers: check platform availability & permissions
+      const available = await d.isAvailable().catch(() => true);
+      if (!available) {
+        setFetchError(`${d.displayName} is not available on this device.`);
+        setLoading(false);
+        return;
+      }
       const already = await d.checkPermissions().catch(() => false);
       setPermGranted(already);
       // Do NOT auto-request here — HC throttles the dialog if shown more than once
@@ -210,9 +230,16 @@ export default function HealthVitalsScreen() {
       const d = driverManager.get(activeDriver) ?? driverManager.getActive();
       if (!d) return;
       void (async () => {
+        // Non-health drivers: just refresh data
+        if (d.capabilities?.requiresHealthPermissions === false) {
+          await Promise.all([fetchLatest(d), fetchHistory(d)]);
+          return;
+        }
         const available = await d.isAvailable().catch(() => true);
-        if (!available) { setHcNotInstalled(true); return; }
-        setHcNotInstalled(false);
+        if (!available) {
+          setFetchError(`${d.displayName} is not available on this device.`);
+          return;
+        }
         const granted = await d.checkPermissions().catch(() => false);
         if (granted && !permGranted) {
           setPermGranted(true);
@@ -339,29 +366,15 @@ export default function HealthVitalsScreen() {
         </View>
       )}
 
-      {/* Health Connect not installed banner */}
-      {driver && hcNotInstalled && (
-        <View style={styles.permBanner}>
-          <Text style={styles.permBannerText}>
-            ⚠ Health Connect is not installed on this device.{'\n'}It is required to read health data from your wearables.
-          </Text>
-          <TouchableOpacity
-            style={[styles.refreshBtn, { marginTop: 8, alignSelf: 'flex-start' }]}
-            onPress={() => {
-              const { Linking } = require('react-native');
-              Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata');
-            }}
-          >
-            <Text style={styles.refreshText}>Install Health Connect</Text>
-          </TouchableOpacity>
-          <Text style={[styles.permBannerText, { marginTop: 6, fontSize: 11 }]}>
-            After installing, return here and pull down to refresh.
-          </Text>
+      {/* Driver error banner */}
+      {driver && fetchError && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>⚠ {driver.displayName}: {fetchError}</Text>
         </View>
       )}
 
       {/* Permission banner */}
-      {driver && !hcNotInstalled && permGranted === false && !permBusy && (
+      {driver && !fetchError && permGranted === false && !permBusy && (
         <View style={styles.permBanner}>
           <Text style={styles.permBannerText}>
             ⚠ Permissions not granted for {driver.displayName}.
@@ -408,9 +421,11 @@ export default function HealthVitalsScreen() {
         </>
       )}
 
-      {!loading && driver && displayDefs.length === 0 && permGranted !== false && (
+      {!loading && driver && displayDefs.length === 0 && permGranted !== false && !fetchError && (
         <View style={styles.noDataBox}>
-          <Text style={styles.noDataText}>No readings available from {driver.displayName} yet.</Text>
+          <Text style={styles.noDataText}>
+            No telemetry received from {driver.displayName} in the selected date range.
+          </Text>
         </View>
       )}
 

@@ -58,6 +58,8 @@ export interface MetricDef {
   format?:      (v: number) => string;
   /** True = Samsung Health SDK 1.1.0 cannot supply this metric — hide tile on Samsung provider */
   samsungUnavailable?: boolean;
+  /** True = hide this metric from map location extraction (e.g., position attributes) */
+  hideInMap?: boolean;
 }
 
 // ─── Catalog ──────────────────────────────────────────────────────────────
@@ -103,6 +105,31 @@ export const METRIC_DEFS: MetricDef[] = [
   // ── Not in SDK 1.1.0 (hide on Samsung Health provider) ────────────────────
   { key: '80404-7', label: 'HRV (rMSSD)',      unit: 'ms',     color: VC.rose,      defaultOn: false, rangeColor: neutralColor, samsungUnavailable: true },
   { key: '9303-9',  label: 'Respiration Rate', unit: 'br/min', color: VC.muted,     defaultOn: false, rangeColor: neutralColor, samsungUnavailable: true },
+
+  // ── SignalK Maritime Attributes ─────────────────────────────────────────────
+  { key: 'navigation.speedOverGround',         label: 'SOG',           unit: 'kn',    color: VC.blue,      defaultOn: true,  rangeColor: neutralColor },
+  { key: 'navigation.courseOverGroundTrue',    label: 'COG',           unit: '°',     color: VC.blue,      defaultOn: false, rangeColor: neutralColor },
+  { key: 'navigation.headingTrue',             label: 'Heading',       unit: '°',     color: VC.blue,      defaultOn: false, rangeColor: neutralColor },
+  { key: 'environment.depth.belowTransducer',  label: 'Depth',         unit: 'm',     color: VC.teal,      defaultOn: true,  rangeColor: neutralColor },
+  { key: 'environment.wind.speedApparent',     label: 'Wind Spd',      unit: 'm/s',   color: VC.yellow,    defaultOn: true,  rangeColor: neutralColor },
+  { key: 'environment.wind.angleApparent',     label: 'Wind Angle',    unit: '°',     color: VC.yellow,    defaultOn: false, rangeColor: neutralColor },
+  { key: 'environment.water.temperature',      label: 'Water Temp',    unit: '°C',    color: VC.skyblue,   defaultOn: false, rangeColor: tempColor },
+
+  // ── Position (used by LocationMap for map display) ─────────────────────────
+  // flattenSignalK extracts these from navigation.position.value.{latitude,longitude}
+  // getHistory extracts them from position objects {latitude, longitude}
+  // LocationMap finds keys containing 'latitude'/'longitude' with numeric values
+  { key: 'navigation.position.value.latitude', label: 'Latitude',      unit: '°',     color: VC.green,     defaultOn: false, rangeColor: neutralColor },
+  { key: 'navigation.position.value.longitude',label: 'Longitude',     unit: '°',     color: VC.green,     defaultOn: false, rangeColor: neutralColor },
+  
+  // ── Engine & Yacht Health Attributes ──────────────────────────────────────
+  { key: 'engine.RPM',                        label: 'Engine RPM',    unit: 'rpm',   color: VC.orange,    defaultOn: false, rangeColor: neutralColor },
+  { key: 'engine.hours',                      label: 'Engine Hours',  unit: 'h',     color: VC.muted,     defaultOn: false, rangeColor: neutralColor },
+  { key: 'engine.oilPressure',                label: 'Oil Pressure',  unit: 'PSI',   color: VC.orange,    defaultOn: false, rangeColor: neutralColor },
+  { key: 'engine.coolantTemp',                label: 'Coolant Temp',  unit: '°C',    color: VC.coral,     defaultOn: false, rangeColor: tempColor },
+  { key: 'tanks.fuel.level',                  label: 'Fuel Level',    unit: '%',     color: VC.gold,      defaultOn: false, rangeColor: neutralColor },
+  { key: 'tanks.water.level',                 label: 'Water Level',   unit: '%',     color: VC.skyblue,   defaultOn: false, rangeColor: neutralColor },
+  { key: 'electrical.battery.voltage',        label: 'Battery Volt',  unit: 'V',     color: VC.yellow,    defaultOn: false, rangeColor: neutralColor },
 ];
 
 /** Look up a MetricDef by key.  Returns undefined if the key is from a REST
@@ -118,12 +145,25 @@ export function formatMetricValue(def: MetricDef, value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-/** Build a MetricDef on the fly for unknown keys coming from REST sources */
+/** Build a MetricDef on the fly for unknown keys coming from REST sources.
+ *  Converts camelCase paths to Title Case labels:
+ *  e.g. "engine.coolantTemp" → "Coolant Temp"
+ */
 export function buildDynamicDef(key: string, index: number): MetricDef {
   const palette = [VC.orange, VC.teal, VC.green, VC.purple, VC.red, VC.yellow, VC.blue];
+  
+  // Extract the last segment after a dot (e.g., "navigation.speedOverGround" → "speedOverGround")
+  const lastSegment = key.includes('.') ? key.split('.').pop() || key : key;
+  
+  // Convert camelCase to Title Case (e.g., "speedOverGround" → "Speed Over Ground")
+  const label = lastSegment
+    .replace(/([A-Z])/g, ' $1')  // Insert space before uppercase letters
+    .trim()
+    .replace(/^./, c => c.toUpperCase());  // Capitalize first letter
+  
   return {
     key,
-    label:      key,
+    label,
     unit:       '',
     color:      palette[index % palette.length],
     defaultOn:  false,

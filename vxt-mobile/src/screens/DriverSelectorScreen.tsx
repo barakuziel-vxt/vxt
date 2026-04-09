@@ -119,7 +119,7 @@ export default function DriverSelectorScreen() {
   // SignalK URL management
   const signalKDriverRef = driverManager.get('SignalK' as DriverType) as any;
   const [signalKUrl, setSignalKUrl] = React.useState<string>(
-    signalKDriverRef?.getBaseUrl?.() ?? 'http://localhost:3000'
+    signalKDriverRef?.getBaseUrl?.() ?? 'http://halos.local:3000'
   );
   const [urlSaved, setUrlSaved] = React.useState(false);
 

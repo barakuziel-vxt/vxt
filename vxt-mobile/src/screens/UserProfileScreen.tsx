@@ -8,8 +8,9 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useUserProfile, saveUserProfile } from '../hooks/useUserProfile';
+import { useUserProfile } from '../hooks/useUserProfile';
 import { DrawerContext } from '../context/DrawerContext';
+import { useGatewayStore } from '../store/gatewayStore';
 
 const C = {
   bg:          '#0d1117',
@@ -31,6 +32,16 @@ export default function UserProfileScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const { openDrawer } = useContext(DrawerContext);
 
+  // Sync local state when AsyncStorage finishes loading the saved profile
+  React.useEffect(() => {
+    if (profile.loaded) {
+      setFullName(profile.fullName);
+      setUserId(profile.userId);
+      setEmail(profile.email);
+      setPhone(profile.phone);
+    }
+  }, [profile.loaded]);
+
   const handleSave = async () => {
     if (!fullName.trim() || !userId.trim() || !email.trim() || !phone.trim()) {
       Alert.alert('Validation Error', 'All fields are required');
@@ -39,8 +50,10 @@ export default function UserProfileScreen() {
 
     setIsSaving(true);
     try {
-      await saveUserProfile(fullName, userId, email, phone);
-      updateProfile({ fullName, userId, email, phone, loaded: true });
+      // updateProfile now properly awaits the async save to AsyncStorage
+      await updateProfile({ fullName, userId, email, phone, loaded: true });
+      // Sync userId to gateway config so the gateway sends frames with the correct entity ID
+      useGatewayStore.getState().updateConfig({ userId });
       Alert.alert('Success', 'User profile saved successfully');
     } catch (e) {
       Alert.alert('Error', 'Failed to save profile: ' + (e instanceof Error ? e.message : String(e)));
@@ -56,10 +69,10 @@ export default function UserProfileScreen() {
         text: 'Reset to Defaults',
         style: 'destructive',
         onPress: () => {
-          setFullName('Shula Uziel');
-          setUserId('033114870');
-          setEmail('shula.uziel@gmail.com');
-          setPhone('0526122302');
+          setFullName('');
+          setUserId('');
+          setEmail('');
+          setPhone('');
         },
       },
     ]);

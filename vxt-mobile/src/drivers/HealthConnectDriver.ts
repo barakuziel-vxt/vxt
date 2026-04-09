@@ -78,11 +78,16 @@ export class HealthConnectDriver extends BaseDriver {
   private lastTimestamp: Record<string, number> = {};
 
   constructor(
-    private readonly userId:          string,
+    private userId:          string,
     private readonly sampleIntervalMs: number = 60_000,
   ) {
     super();
     configuredUserId = userId;
+  }
+
+  setUserId(id: string): void {
+    this.userId = id;
+    configuredUserId = id;
   }
 
   // ─── Availability & Permissions ──────────────────────────────────────────

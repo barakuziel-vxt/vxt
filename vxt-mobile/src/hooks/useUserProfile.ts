@@ -20,10 +20,10 @@ const KEY_EMAIL = '@vxt_user_email';
 const KEY_PHONE = '@vxt_user_phone';
 
 const DEFAULTS = {
-  fullName: 'Shula Uziel',
-  userId: '033114870',
-  email: 'shula.uziel@gmail.com',
-  phone: '0526122302',
+  fullName: '',
+  userId: '',
+  email: '',
+  phone: '',
 };
 
 export async function loadUserProfile(): Promise<UserProfile> {
@@ -49,12 +49,18 @@ export async function saveUserProfile(
   email: string,
   phone: string,
 ): Promise<void> {
-  await Promise.all([
-    AsyncStorage.setItem(KEY_FULL_NAME, fullName),
-    AsyncStorage.setItem(KEY_USER_ID, userId),
-    AsyncStorage.setItem(KEY_EMAIL, email),
-    AsyncStorage.setItem(KEY_PHONE, phone),
-  ]);
+  try {
+    await Promise.all([
+      AsyncStorage.setItem(KEY_FULL_NAME, fullName),
+      AsyncStorage.setItem(KEY_USER_ID, userId),
+      AsyncStorage.setItem(KEY_EMAIL, email),
+      AsyncStorage.setItem(KEY_PHONE, phone),
+    ]);
+    console.log('[useUserProfile] Saved to AsyncStorage:', { userId, email, fullName });
+  } catch (err) {
+    console.error('[useUserProfile] Failed to save to AsyncStorage:', err);
+    throw err;
+  }
 }
 
 export function useUserProfile(): [UserProfile, (profile: UserProfile) => void] {
@@ -67,13 +73,18 @@ export function useUserProfile(): [UserProfile, (profile: UserProfile) => void] 
   });
 
   useEffect(() => {
-    loadUserProfile().then(setProfile);
+    loadUserProfile().then(p => {
+      console.log('[useUserProfile] Loaded from AsyncStorage:', { userId: p.userId, email: p.email });
+      setProfile(p);
+    });
   }, []);
 
-  const updateProfile = (newProfile: UserProfile) => {
-    saveUserProfile(newProfile.fullName, newProfile.userId, newProfile.email, newProfile.phone);
+  // IMPORTANT: The returned updateProfile function must be called with await
+  // to ensure async save completes before state updates
+  const updateProfile = async (newProfile: UserProfile) => {
+    await saveUserProfile(newProfile.fullName, newProfile.userId, newProfile.email, newProfile.phone);
     setProfile(newProfile);
   };
 
-  return [profile, updateProfile];
+  return [profile, updateProfile as any];
 }

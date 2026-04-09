@@ -6,6 +6,7 @@ import { gatewayService } from '../services/GatewayService';
 import { SamsungHealthDriver }  from '../drivers/SamsungHealthDriver';
 import { HealthConnectDriver }  from '../drivers/HealthConnectDriver';
 import { IOT_HUB_CONNECTION_STRING, DEFAULT_USER_ID } from '../config/secrets';
+import { loadUserProfile } from '../hooks/useUserProfile';
 import type {
   DriverType,
   GatewayConfig,
@@ -104,6 +105,9 @@ function ensureLagTicker(getState: () => GatewayState) {
   }, 30_000);
 }
 
+// ─── Config-ready promise (resolves when AsyncStorage config + profile are loaded) ──
+let _configReady: Promise<void>;
+
 // ─── Store implementation ──────────────────────────────────────────────────
 
 export const useGatewayStore = create<GatewayState>((set, get) => ({
@@ -124,7 +128,10 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
 
   // ── Initialize config from storage on first access ───────────────────
   ...(() => {
-    loadGatewayConfig().then(cfg => {
+    _configReady = Promise.all([loadGatewayConfig(), loadUserProfile()]).then(([cfg, profile]) => {
+      // User Profile userId takes precedence over stored gateway config
+      if (profile.userId) cfg.userId = profile.userId;
+      console.log('[gatewayStore] Config loaded, userId:', cfg.userId);
       useGatewayStore.setState({ config: cfg });
     }).catch(e => {
       console.error('[gatewayStore] Failed to load config:', e);
@@ -134,6 +141,8 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
 
   // ── Start Driver only (no MQTT) ───────────────────────────────────────
   async startDriver() {
+    // Wait for async config + profile load to complete (prevents race condition)
+    await _configReady;
     const { driverRunning, config } = get();
     if (driverRunning) return;
 
@@ -143,6 +152,13 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
           const driver = new HealthConnectDriver(config.userId, config.sampleIntervalMs);
           driverRegistry.register('HealthConnect', driver);
           await driverRegistry.setActive('HealthConnect');
+        } else if (config.activeDriver === 'SignalK') {
+          // Reuse the singleton instance already registered in driverManager
+          const skDriver = driverManager.get('SignalK');
+          if (skDriver) {
+            if (!driverRegistry.has('SignalK')) driverRegistry.register('SignalK', skDriver);
+            await driverRegistry.setActive('SignalK');
+          }
         } else {
           const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
           driverRegistry.register('SamsungHealth', driver);
@@ -220,8 +236,13 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
         driverRegistry.register('SamsungHealth', new SamsungHealthDriver(config.userId, config.sampleIntervalMs));
       } else if (type === 'HealthConnect') {
         driverRegistry.register('HealthConnect', new HealthConnectDriver(config.userId, config.sampleIntervalMs));
+      } else if (type === 'SignalK') {
+        const skDriver = driverManager.get('SignalK');
+        if (skDriver) {
+          driverRegistry.register('SignalK', skDriver);
+        }
       } else {
-        // SignalK / AppleHealth: managed via driverManager only
+        // AppleHealth: managed via driverManager only
         set({ activeDriver: type, config: { ...config, activeDriver: type } });
         return;
       }
@@ -250,6 +271,14 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
     saveGatewayConfig(newConfig).catch(e => {
       console.error('[gatewayStore] Failed to persist config:', e);
     });
+    // If userId changed and a driver is running, push it to the active driver
+    if (patch.userId) {
+      const driver = driverRegistry.getActive();
+      if (driver && typeof (driver as any).setUserId === 'function') {
+        (driver as any).setUserId(patch.userId);
+        console.log('[gatewayStore] Synced userId to running driver:', patch.userId);
+      }
+    }
   },
 
   clearError() {
