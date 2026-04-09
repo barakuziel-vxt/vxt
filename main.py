@@ -23,7 +23,10 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from datetime import datetime
+from collections import defaultdict
 import os
 from mssql_python import connect
 import json
@@ -3490,6 +3493,487 @@ def delete_customer_geofence_criteria(id: int):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── EntityIoTDevice CRUD ────────────────────────────────────────────────────
+
+@app.get("/entityiotdevices")
+def get_entity_iot_devices(entityId: str = None):
+    """Get IoT device registrations, optionally filtered by entityId"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        if entityId:
+            cur.execute("""
+                SELECT entityIoTDeviceId, entityId, deviceId, iotHubHostname,
+                       connectionString, deviceTwinDesired, deviceTwinReported,
+                       lastTwinSyncUTC, provisioningStatus, active,
+                       createDate, lastUpdateTimestamp, lastUpdateUser
+                FROM EntityIoTDevice
+                WHERE entityId = ?
+                ORDER BY createDate DESC
+            """, (entityId,))
+        else:
+            cur.execute("""
+                SELECT entityIoTDeviceId, entityId, deviceId, iotHubHostname,
+                       connectionString, deviceTwinDesired, deviceTwinReported,
+                       lastTwinSyncUTC, provisioningStatus, active,
+                       createDate, lastUpdateTimestamp, lastUpdateUser
+                FROM EntityIoTDevice
+                ORDER BY createDate DESC
+            """)
+
+        rows = cur.fetchall()
+        devices = []
+        for row in rows:
+            devices.append({
+                "entityIoTDeviceId": row[0],
+                "entityId": row[1],
+                "deviceId": row[2],
+                "iotHubHostname": row[3],
+                "connectionString": row[4],
+                "deviceTwinDesired": row[5],
+                "deviceTwinReported": row[6],
+                "lastTwinSyncUTC": str(row[7]) if row[7] else None,
+                "provisioningStatus": row[8],
+                "active": row[9],
+                "createDate": str(row[10]) if row[10] else None,
+                "lastUpdateTimestamp": str(row[11]) if row[11] else None,
+                "lastUpdateUser": row[12],
+            })
+
+        cur.close()
+        return_db_connection(conn)
+        return devices
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/entityiotdevices/{id}")
+def get_entity_iot_device(id: int):
+    """Get a specific IoT device by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT entityIoTDeviceId, entityId, deviceId, iotHubHostname,
+                   connectionString, deviceTwinDesired, deviceTwinReported,
+                   lastTwinSyncUTC, provisioningStatus, active,
+                   createDate, lastUpdateTimestamp, lastUpdateUser
+            FROM EntityIoTDevice
+            WHERE entityIoTDeviceId = ?
+        """, (id,))
+        row = cur.fetchone()
+        cur.close()
+        return_db_connection(conn)
+
+        if not row:
+            raise HTTPException(status_code=404, detail="IoT device not found")
+
+        return {
+            "entityIoTDeviceId": row[0],
+            "entityId": row[1],
+            "deviceId": row[2],
+            "iotHubHostname": row[3],
+            "connectionString": row[4],
+            "deviceTwinDesired": row[5],
+            "deviceTwinReported": row[6],
+            "lastTwinSyncUTC": str(row[7]) if row[7] else None,
+            "provisioningStatus": row[8],
+            "active": row[9],
+            "createDate": str(row[10]) if row[10] else None,
+            "lastUpdateTimestamp": str(row[11]) if row[11] else None,
+            "lastUpdateUser": row[12],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/entityiotdevices")
+def create_entity_iot_device(device: dict):
+    """Create a new IoT device registration"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO EntityIoTDevice (entityId, deviceId, iotHubHostname, provisioningStatus, active)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            device.get("entityId"),
+            device.get("deviceId"),
+            device.get("iotHubHostname", "VXT-IoT-Hub.azure-devices.net"),
+            device.get("provisioningStatus", "Pending"),
+            device.get("active", "Y"),
+        ))
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "IoT device created successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/entityiotdevices/{id}")
+def update_entity_iot_device(id: int, device: dict):
+    """Update an IoT device registration"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE EntityIoTDevice
+            SET entityId = ?, deviceId = ?, iotHubHostname = ?,
+                provisioningStatus = ?, active = ?,
+                lastUpdateTimestamp = GETDATE()
+            WHERE entityIoTDeviceId = ?
+        """, (
+            device.get("entityId"),
+            device.get("deviceId"),
+            device.get("iotHubHostname"),
+            device.get("provisioningStatus"),
+            device.get("active", "Y"),
+            id,
+        ))
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "IoT device updated successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/entityiotdevices/{id}")
+def delete_entity_iot_device(id: int):
+    """Delete an IoT device registration"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM EntityIoTDevice
+            WHERE entityIoTDeviceId = ?
+        """, (id,))
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "IoT device deleted successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── Device Twin API (merged from vxt-cloud-api) ─────────────────────────────
+
+class DeviceRegisterRequest(BaseModel):
+    entityId: str
+    deviceId: str
+
+
+def _query_as_dicts(conn, sql: str, params: tuple = ()) -> list:
+    """Execute SQL and return rows as list of dicts using an existing connection."""
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    columns = [desc[0] for desc in cur.description]
+    rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+    cur.close()
+    return rows
+
+
+def _get_device_config(entity_id: str) -> dict:
+    """Fetch telemetry tiers, alarm scores, and geofences for a device."""
+    conn = get_db_connection()
+    try:
+        # 1. Resolve entityTypeId and customerId
+        device_rows = _query_as_dicts(conn, """
+            SELECT e.entityTypeId, ce.customerId
+            FROM Entity e
+            JOIN CustomerEntities ce ON ce.entityId = e.entityId AND ce.active = 'Y'
+            WHERE e.entityId = ? AND e.active = 'Y'
+        """, (entity_id,))
+        if not device_rows:
+            return {"telemetry": {}, "alarms": {}, "geofences": []}
+
+        entity_type_id = device_rows[0]["entityTypeId"]
+        customer_id = device_rows[0]["customerId"]
+
+        # 2. Telemetry – tiered SignalK paths
+        attr_rows = _query_as_dicts(conn, """
+            SELECT entityTypeAttributeCode, entityTypeAttributeTimeAspect
+            FROM EntityTypeAttribute
+            WHERE entityTypeId = ? AND active = 'Y'
+        """, (entity_type_id,))
+
+        tiered_paths = defaultdict(list)
+        for row in attr_rows:
+            tier = str(row["entityTypeAttributeTimeAspect"])
+            path = row["entityTypeAttributeCode"]
+            tiered_paths[tier].append(path)
+        telemetry = dict(tiered_paths)
+
+        # 3. Alarms – score ranges per path
+        score_rows = _query_as_dicts(conn, """
+            SELECT a.entityTypeAttributeCode,
+                   s.MinValue, s.MaxValue, s.Score
+            FROM EntityTypeAttributeScore s
+            JOIN EntityTypeAttribute a
+                 ON a.entityTypeAttributeId = s.EntityTypeAttributeId
+            WHERE a.entityTypeId = ? AND a.active = 'Y' AND s.active = 'Y'
+            ORDER BY a.entityTypeAttributeCode, s.MinValue
+        """, (entity_type_id,))
+
+        alarms = defaultdict(list)
+        for row in score_rows:
+            # Azure IoT Hub twin forbids dots in property names;
+            # replace '.' with '/' so edge module can convert back.
+            path = row["entityTypeAttributeCode"].replace(".", "/")
+            alarms[path].append({
+                "min": float(row["MinValue"]),
+                "max": float(row["MaxValue"]),
+                "score": int(row["Score"]),
+            })
+        alarms = dict(alarms)
+
+        # 4. Geofences
+        geo_rows = _query_as_dicts(conn, """
+            SELECT g.customerGeofenceCriteriaId,
+                   g.geofenceName, g.geoType, g.coordinates
+            FROM CustomerGeofenceCriteria g
+            WHERE g.customerId = ? AND g.active = 'Y'
+        """, (customer_id,))
+
+        geofences = []
+        for row in geo_rows:
+            coords_raw = row["coordinates"]
+            coords = json.loads(coords_raw) if isinstance(coords_raw, str) else coords_raw
+            # Unwrap any layers of double/triple-encoded JSON strings
+            while isinstance(coords, str):
+                coords = json.loads(coords)
+            fence = {
+                "id": row["customerGeofenceCriteriaId"],
+                "name": row["geofenceName"],
+                "type": row["geoType"],
+                "coordinates": coords,
+            }
+            geofences.append(fence)
+
+        return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences}
+    finally:
+        return_db_connection(conn)
+
+
+@app.get("/api/v1/twin/{entity_id}")
+def get_device_twin(entity_id: str):
+    """Generate the full Device Twin JSON for a given entity."""
+    config = _get_device_config(entity_id)
+
+    if not config["telemetry"] and not config["alarms"] and not config["geofences"]:
+        raise HTTPException(status_code=404,
+                            detail=f"No configuration found for entity_id '{entity_id}'")
+
+    # Build flat deduplicated list of all SignalK paths across tiers
+    all_paths = list(dict.fromkeys(
+        path for paths in config["telemetry"].values() for path in paths
+    ))
+
+    # TEMP: remap 300s tier → 60s for testing
+    test_tiered = {("60" if k == "300" else k): v for k, v in config["telemetry"].items()}
+
+    twin = {
+        "properties": {
+            "desired": {
+                "entity_id": entity_id,
+                "telemetry": {
+                    "bulk_interval_seconds": 60,
+                    "tiered_paths": test_tiered,
+                },
+                "storage": {
+                    "influx_allow_paths": all_paths,
+                },
+                "alarms": {
+                    "siren_gpio_enabled": True,
+                    **config["alarms"],
+                },
+                "geofences": config["geofences"],
+            }
+        }
+    }
+    return JSONResponse(content=twin)
+
+
+@app.post("/api/v1/twin/{entity_id}/push")
+def push_device_twin(entity_id: str):
+    """Generate twin JSON, save to DB, and push desired properties to Azure IoT Hub."""
+    config = _get_device_config(entity_id)
+
+    if not config["telemetry"] and not config["alarms"] and not config["geofences"]:
+        raise HTTPException(status_code=404,
+                            detail=f"No configuration found for entity_id '{entity_id}'")
+
+    # Build flat deduplicated list of all SignalK paths across tiers
+    all_paths = list(dict.fromkeys(
+        path for paths in config["telemetry"].values() for path in paths
+    ))
+
+    # TEMP: remap 300s tier → 60s for testing
+    test_tiered = {("60" if k == "300" else k): v for k, v in config["telemetry"].items()}
+
+    desired = {
+        "entity_id": entity_id,
+        "telemetry": {
+            "bulk_interval_seconds": 60,
+            "tiered_paths": test_tiered,
+        },
+        "storage": {
+            "influx_allow_paths": all_paths,
+        },
+        "alarms": {
+            "siren_gpio_enabled": True,
+            **config["alarms"],
+        },
+        "geofences": config["geofences"],
+    }
+
+    twin = {"properties": {"desired": desired}}
+    twin_json = json.dumps(twin)
+
+    # 1) Save to local DB
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Look up deviceId for this entity
+        cur.execute(
+            "SELECT deviceId FROM EntityIoTDevice WHERE entityId = ?",
+            (entity_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            return_db_connection(conn)
+            raise HTTPException(status_code=404,
+                                detail=f"No IoT device registered for entity {entity_id}")
+        device_id = row[0]
+
+        cur.execute("""
+            UPDATE EntityIoTDevice
+            SET deviceTwinDesired = ?,
+                lastTwinSyncUTC = GETDATE(),
+                lastUpdateTimestamp = GETDATE()
+            WHERE entityId = ?
+        """, (twin_json, entity_id))
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save twin: {str(e)}")
+
+    # 2) Push to Azure IoT Hub
+    iot_hub_cs = os.getenv("IOT_HUB_CONNECTION_STRING", "")
+    azure_pushed = False
+    if iot_hub_cs:
+        try:
+            from azure.iot.hub import IoTHubRegistryManager
+            from azure.iot.hub.models import Twin, TwinProperties
+            registry = IoTHubRegistryManager(iot_hub_cs)
+            twin_patch = Twin(properties=TwinProperties(desired=desired))
+            registry.update_twin(device_id, twin_patch, etag="*")
+            azure_pushed = True
+        except Exception as e:
+            raise HTTPException(status_code=502,
+                                detail=f"Saved to DB but Azure IoT Hub push failed: {e}")
+    else:
+        print("[WARNING] IOT_HUB_CONNECTION_STRING not set – twin saved to DB only")
+
+    return {
+        "message": f"Twin pushed for entity {entity_id}",
+        "azure_pushed": azure_pushed,
+        "device_id": device_id,
+        "twin": twin,
+    }
+
+
+@app.post("/api/v1/device/register")
+def register_device(req: DeviceRegisterRequest):
+    """Register an IoT device – creates row in EntityIoTDevice.
+
+    If IOT_HUB_CONNECTION_STRING is set, also registers in Azure IoT Hub.
+    """
+    iot_hub_cs = os.getenv("IOT_HUB_CONNECTION_STRING", "")
+    hostname = "VXT-IoT-Hub.azure-devices.net"
+    device_connection_string = None
+
+    if iot_hub_cs:
+        # Register in Azure IoT Hub
+        try:
+            from azure.iot.hub import IoTHubRegistryManager
+            registry = IoTHubRegistryManager(iot_hub_cs)
+            try:
+                device = registry.get_device(req.deviceId)
+            except Exception:
+                device = registry.create_device_with_sas(
+                    device_id=req.deviceId,
+                    primary_key=None,
+                    secondary_key=None,
+                    status="enabled",
+                    iot_edge=True,
+                )
+            # Extract hostname
+            for part in iot_hub_cs.split(";"):
+                if part.lower().startswith("hostname="):
+                    hostname = part.split("=", 1)[1]
+                    break
+            primary_key = device.authentication.symmetric_key.primary_key
+            device_connection_string = (
+                f"HostName={hostname};DeviceId={req.deviceId};SharedAccessKey={primary_key}"
+            )
+        except ImportError:
+            print("[WARNING] azure-iot-hub not installed, skipping IoT Hub registration")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Azure IoT Hub error: {e}")
+
+    # Upsert EntityIoTDevice row
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("SELECT entityIoTDeviceId FROM EntityIoTDevice WHERE entityId = ?",
+                     (req.entityId,))
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute("""
+                UPDATE EntityIoTDevice
+                SET deviceId = ?, iotHubHostname = ?, connectionString = ?,
+                    provisioningStatus = 'Provisioned', active = 'Y',
+                    lastUpdateTimestamp = GETDATE()
+                WHERE entityId = ?
+            """, (req.deviceId, hostname, device_connection_string, req.entityId))
+        else:
+            cur.execute("""
+                INSERT INTO EntityIoTDevice
+                    (entityId, deviceId, iotHubHostname, connectionString,
+                     provisioningStatus, active)
+                VALUES (?, ?, ?, ?, 'Provisioned', 'Y')
+            """, (req.entityId, req.deviceId, hostname, device_connection_string))
+
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    return JSONResponse(content={
+        "entityId": req.entityId,
+        "deviceId": req.deviceId,
+        "hostname": hostname,
+        "connectionString": device_connection_string,
+        "provisioningStatus": "Provisioned",
+    })
 
 
 if __name__ == "__main__":

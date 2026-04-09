@@ -325,6 +325,46 @@ export const entityTypeAttributeScoreAPI = {
   },
 };
 
+// EntityIoTDevice APIs
+export const entityIoTDeviceAPI = {
+  getAll: async () => {
+    const response = await api.get('/entityiotdevices');
+    return response.data;
+  },
+  getByEntityId: async (entityId) => {
+    const response = await api.get(`/entityiotdevices?entityId=${entityId}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/entityiotdevices', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/entityiotdevices/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/entityiotdevices/${id}`);
+    return response.data;
+  },
+};
+
+// Twin API (same backend, /api/v1 prefix)
+export const twinAPI = {
+  preview: async (entityId) => {
+    const response = await axios.get(`/api/v1/twin/${entityId}`);
+    return response.data;
+  },
+  pushToAzure: async (entityId) => {
+    const response = await axios.post(`/api/v1/twin/${entityId}/push`);
+    return response.data;
+  },
+  registerDevice: async (entityId, deviceId) => {
+    const response = await axios.post('/api/v1/device/register', { entityId, deviceId });
+    return response.data;
+  },
+};
+
 // CustomerGeofenceCriteria APIs
 export const customerGeofenceCriteriaAPI = {
   getAll: async (customerId = null, status = null) => {
