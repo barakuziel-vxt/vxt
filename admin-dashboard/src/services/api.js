@@ -349,18 +349,21 @@ export const entityIoTDeviceAPI = {
   },
 };
 
-// Twin API (same backend, /api/v1 prefix)
+// Twin API – uses /api/v1 prefix (Vite proxy handles dev, full URL for prod)
+const twinBase = import.meta.env.VITE_API_BASE_URL?.startsWith('http')
+  ? import.meta.env.VITE_API_BASE_URL
+  : '';
 export const twinAPI = {
   preview: async (entityId) => {
-    const response = await axios.get(`/api/v1/twin/${entityId}`);
+    const response = await axios.get(`${twinBase}/api/v1/twin/${entityId}`);
     return response.data;
   },
   pushToAzure: async (entityId) => {
-    const response = await axios.post(`/api/v1/twin/${entityId}/push`);
+    const response = await axios.post(`${twinBase}/api/v1/twin/${entityId}/push`);
     return response.data;
   },
   registerDevice: async (entityId, deviceId) => {
-    const response = await axios.post('/api/v1/device/register', { entityId, deviceId });
+    const response = await axios.post(`${twinBase}/api/v1/device/register`, { entityId, deviceId });
     return response.data;
   },
 };
