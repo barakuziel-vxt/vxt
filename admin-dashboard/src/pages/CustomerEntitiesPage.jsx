@@ -19,7 +19,6 @@ export default function CustomerEntitiesPage() {
   });
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
-
   useEffect(() => {
     loadCustomers();
     loadAllEntities();
@@ -308,6 +307,7 @@ export default function CustomerEntitiesPage() {
                 <th>Entity Name</th>
                 <th>Entity Type</th>
                 <th>Status</th>
+                <th>IoT</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -333,6 +333,15 @@ export default function CustomerEntitiesPage() {
                       <span>
                         {entity.active === 'Y' ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}
+                        onClick={() => window.dispatchEvent(new CustomEvent('vxt:navigate', { detail: { page: 'entityIoTDevice', data: { entityId: entity.entityId, entityName: entity.entityName || entity.entityId } } }))}
+                      >
+                        📡 IoT Devices
+                      </button>
                     </td>
                     <td>
                       <button

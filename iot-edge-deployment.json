@@ -1,0 +1,86 @@
+{
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {}
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.5",
+              "createOptions": "{}"
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.5",
+              "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"5671/tcp\":[{\"HostPort\":\"5671\"}],\"8883/tcp\":[{\"HostPort\":\"8883\"}],\"443/tcp\":[{\"HostPort\":\"8443\"}]}}}"
+            },
+            "env": {
+              "OptimizeForPerformance": {
+                "value": "false"
+              }
+            }
+          }
+        },
+        "modules": {
+          "influxdb2": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "influxdb:2.7",
+              "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"8086/tcp\":[{\"HostPort\":\"8086\"}]},\"Mounts\":[{\"Type\":\"tmpfs\",\"Target\":\"/var/lib/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":524288000}},{\"Type\":\"tmpfs\",\"Target\":\"/etc/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":1048576}}]}}"
+            },
+            "env": {
+              "DOCKER_INFLUXDB_INIT_MODE": {
+                "value": "setup"
+              },
+              "DOCKER_INFLUXDB_INIT_USERNAME": {
+                "value": "admin"
+              },
+              "DOCKER_INFLUXDB_INIT_PASSWORD": {
+                "value": "VxtInflux2026!"
+              },
+              "DOCKER_INFLUXDB_INIT_ORG": {
+                "value": "vxt"
+              },
+              "DOCKER_INFLUXDB_INIT_BUCKET": {
+                "value": "signalk_history"
+              },
+              "DOCKER_INFLUXDB_INIT_RETENTION": {
+                "value": "24h"
+              }
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "routes": {
+          "upstream": "FROM /messages/* INTO $upstream"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    },
+    "influxdb2": {
+      "properties.desired": {}
+    }
+  }
+}

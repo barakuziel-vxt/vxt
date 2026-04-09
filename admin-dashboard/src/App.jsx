@@ -16,11 +16,25 @@ import CustomerGeofencePage from './pages/CustomerGeofencePage';
 import EntityTelemetryRNPage from './pages/EntityTelemetryRNPage';
 import ReportManuallyPage from './pages/ReportManuallyPage';
 import GatewayConfigPage from './pages/GatewayConfigPage';
+import EntityIoTDevicePage from './pages/EntityIoTDevicePage';
+import RegisterDevicePage from './pages/RegisterDevicePage';
 
 export default function App() {
+  const [navData, setNavData] = useState(null);
+
   // Listen for in-page navigation events (e.g., from ReportManuallyPage link to GatewayConfig)
+  // Accepts string OR { page, data } for passing context between pages
   useEffect(() => {
-    const handler = (e) => setCurrentPage(e.detail);
+    const handler = (e) => {
+      const payload = e.detail;
+      if (typeof payload === 'string') {
+        setNavData(null);
+        setCurrentPage(payload);
+      } else if (payload && payload.page) {
+        setNavData(payload.data || null);
+        setCurrentPage(payload.page);
+      }
+    };
     window.addEventListener('vxt:navigate', handler);
     return () => window.removeEventListener('vxt:navigate', handler);
   }, []);
@@ -60,6 +74,10 @@ export default function App() {
         return <ReportManuallyPage />;
       case 'gatewayConfig':
         return <GatewayConfigPage />;
+      case 'entityIoTDevice':
+        return <EntityIoTDevicePage entityId={navData?.entityId} entityName={navData?.entityName} />;
+      case 'registerDevice':
+        return <RegisterDevicePage entityId={navData?.entityId} entityName={navData?.entityName} />;
       case 'protocol':
         return <ProtocolPage />;
       case 'protocolAttribute':
@@ -223,6 +241,12 @@ export default function App() {
               onClick={() => handlePageChange('gatewayConfig')}
             >
               ⚡ Gateway Config
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'entityIoTDevice' ? 'active' : ''}`}
+              onClick={() => handlePageChange('entityIoTDevice')}
+            >
+              📡 IoT Devices
             </button>
           </div>
 

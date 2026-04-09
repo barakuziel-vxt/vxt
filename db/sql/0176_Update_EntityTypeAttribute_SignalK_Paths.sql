@@ -22,11 +22,15 @@
 --   8. tanks.freshWaterTank.level → tanks.freshWater.0.currentLevel
 --   9. electrical.dc.houseBattery.voltage → electrical.batteries.main.voltage
 --   10. propulsion.main.alternatorOutput → electrical.alternators.main.voltage
+--   11. propulsion.port.fuelRate → propulsion.main.fuel.rate
+--   12. tanks.wasteWaterTank.level → tanks.wasteWater.0.currentLevel
+--   13. environment.depth.belowTransducer → navigation.depth
 --
 -- Status: ✅ Applied via manual SQL execution on March 23, 2026
+-- Updated: April 9, 2026 - Added missing attribute mappings
 
 PRINT '=== Update EntityTypeAttribute codes to match SignalK paths ==='
-PRINT 'Applying 10 attribute code updates for yacht entity types (4, 5, 6, 7)...'
+PRINT 'Applying attribute code updates for yacht entity types (4, 5, 6, 7)...'
 GO
 
 -- Disable foreign key constraint temporarily to allow code updates
@@ -111,7 +115,31 @@ UPDATE EntityTypeAttribute
 SET entityTypeAttributeCode = 'electrical.alternators.main.voltage'
 WHERE entityTypeAttributeCode = 'propulsion.main.alternatorOutput' 
   AND entityTypeId IN (4, 5, 6, 7);
-PRINT 'Updated 10/10: propulsion.main.alternatorOutput → electrical.alternators.main.voltage (' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows)';
+PRINT 'Updated 10/13: propulsion.main.alternatorOutput → electrical.alternators.main.voltage (' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows)';
+GO
+
+-- 11. Update Port Fuel Rate → Main Fuel Rate
+UPDATE EntityTypeAttribute
+SET entityTypeAttributeCode = 'propulsion.main.fuel.rate'
+WHERE entityTypeAttributeCode = 'propulsion.port.fuelRate' 
+  AND entityTypeId IN (4, 5, 6, 7);
+PRINT 'Updated 11/13: propulsion.port.fuelRate → propulsion.main.fuel.rate (' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows)';
+GO
+
+-- 12. Update Waste Water Tank Level
+UPDATE EntityTypeAttribute
+SET entityTypeAttributeCode = 'tanks.wasteWater.0.currentLevel'
+WHERE entityTypeAttributeCode = 'tanks.wasteWaterTank.level' 
+  AND entityTypeId IN (4, 5, 6, 7);
+PRINT 'Updated 12/13: tanks.wasteWaterTank.level → tanks.wasteWater.0.currentLevel (' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows)';
+GO
+
+-- 13. Update Depth Below Transducer → Navigation Depth
+UPDATE EntityTypeAttribute
+SET entityTypeAttributeCode = 'navigation.depth'
+WHERE entityTypeAttributeCode = 'environment.depth.belowTransducer' 
+  AND entityTypeId IN (4, 5, 6, 7);
+PRINT 'Updated 13/13: environment.depth.belowTransducer → navigation.depth (' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows)';
 GO
 
 -- Re-enable foreign key constraint
@@ -137,8 +165,10 @@ WHERE entityTypeAttributeCode IN (
     'propulsion.main.transmission.oilTemperature',
     'tanks.fuel.0.currentLevel',
     'tanks.freshWater.0.currentLevel',
+    'tanks.wasteWater.0.currentLevel',
     'electrical.batteries.main.voltage',
-    'electrical.alternators.main.voltage'
+    'electrical.alternators.main.voltage',
+    'navigation.depth'
 )
   AND entityTypeId IN (4, 5, 6, 7)
 GROUP BY entityTypeId, entityTypeAttributeCode, entityTypeAttributeName

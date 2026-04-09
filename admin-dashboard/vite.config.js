@@ -34,6 +34,10 @@ export default defineConfig({
     port: 3002,
     host: '0.0.0.0',
     proxy: {
+      '/api/v1': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
+      },
       '/api/telemetry': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
@@ -47,6 +51,10 @@ export default defineConfig({
         changeOrigin: true
       },
       '/entitycategories': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
+      },
+      '/entityiotdevices': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
       },
