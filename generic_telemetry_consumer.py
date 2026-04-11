@@ -157,7 +157,14 @@ if __name__ == '__main__':
 
         threads = []
         for pname in providers:
-            consumer = GenericTelemetryConsumer(provider_name=pname)
+            try:
+                consumer = GenericTelemetryConsumer(provider_name=pname)
+            except AttributeError as e:
+                logger.warning(f"Skipping provider '{pname}': no adapter found ({e})")
+                continue
+            except Exception as e:
+                logger.warning(f"Skipping provider '{pname}': init failed ({e})")
+                continue
             t = threading.Thread(
                 target=consumer.consume_and_insert,
                 name=f"consumer-{pname}",

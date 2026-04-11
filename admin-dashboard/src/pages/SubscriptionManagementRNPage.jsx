@@ -73,7 +73,12 @@ function UserRolesView({ subId, subLabel, onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      alert(`${result.message}\n${result.inviteSent ? '📧 Invitation email sent' : '⚠️ Email not sent — user was added but no email was delivered'}`);
+      if (result.inviteSent && result.inviteLink) {
+        const copied = await navigator.clipboard.writeText(result.inviteLink).then(() => true).catch(() => false);
+        alert(`${result.message}\n📧 Password reset link generated${copied ? ' (copied to clipboard)' : ''}:\n${result.inviteLink}`);
+      } else {
+        alert(`${result.message}\n⚠️ Email not sent — user was added but no email was delivered`);
+      }
       setInviteOpen(false); setInviteEmail(''); setInviteRole('viewer');
       fetchAuths();
     } catch (e) { alert(e.message); }
@@ -216,7 +221,12 @@ function InviteUserView({ onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      alert(`${result.message}\n${result.inviteSent ? '📧 Email invitation sent' : '⚠️ Email not sent'}`);
+      if (result.inviteSent && result.inviteLink) {
+        const copied = await navigator.clipboard.writeText(result.inviteLink).then(() => true).catch(() => false);
+        alert(`${result.message}\n📧 Password reset link generated${copied ? ' (copied to clipboard)' : ''}:\n${result.inviteLink}`);
+      } else {
+        alert(`${result.message}\n⚠️ Email not sent`);
+      }
       onBack();
     } catch (e) { alert(e.message); }
     finally { setSending(false); }

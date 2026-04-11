@@ -4261,25 +4261,20 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
         conn.commit()
 
-        # 4. Send invitation email via Firebase REST API (PASSWORD_RESET works because
-        #    create_user() above sets a temp password, enabling the email/password provider)
+        # 4. Generate password-reset link via Firebase Admin SDK
         invite_sent = False
+        invite_link = None
         try:
-            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
+            import firebase_admin
+            from firebase_admin import auth as fb_auth
+            if not firebase_admin._apps:
+                _init_firebase_admin()
             if firebase_uid and not firebase_uid.startswith("pending_"):
-                import requests as http_requests
-                resp = http_requests.post(
-                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                    json={"requestType": "PASSWORD_RESET", "email": email},
-                    timeout=10,
-                )
-                if resp.status_code == 200:
-                    invite_sent = True
-                    print(f"[INFO] Firebase password reset email sent to {email}")
-                else:
-                    print(f"[WARNING] Firebase email send failed: {resp.status_code} - {resp.text}")
+                invite_link = fb_auth.generate_password_reset_link(email)
+                invite_sent = True
+                print(f"[INFO] Firebase password reset link generated for {email}")
         except Exception as mail_err:
-            print(f"[WARNING] Invitation email skipped: {mail_err}")
+            print(f"[WARNING] Could not generate invite link: {mail_err}")
 
         cur.close()
         return_db_connection(conn)
@@ -4289,6 +4284,7 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             "userAuthorizationId": auth_id,
             "userId": user_id,
             "inviteSent": invite_sent,
+            "inviteLink": invite_link,
         }
     except HTTPException:
         raise
@@ -4401,40 +4397,20 @@ def invite_user_bulk(data: dict):
                 results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
         conn.commit()
 
-        # 4. Send invitation email via Firebase REST API
-        # generate_password_reset_link() only generates a link but does NOT send email.
-        # Use Firebase Identity Toolkit REST API which actually triggers email delivery.
+        # 4. Generate password-reset link via Firebase Admin SDK
         invite_sent = False
         invite_link = None
         try:
-            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
+            import firebase_admin
+            from firebase_admin import auth as fb_auth
+            if not firebase_admin._apps:
+                _init_firebase_admin()
             if firebase_uid and not firebase_uid.startswith("pending_"):
-                import requests as http_requests
-                # Use Firebase Identity Toolkit to send password reset email
-                resp = http_requests.post(
-                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                    json={"requestType": "PASSWORD_RESET", "email": email},
-                    timeout=10,
-                )
-                if resp.status_code == 200:
-                    invite_sent = True
-                    invite_link = resp.json().get("email", email)
-                    print(f"[INFO] Firebase password reset email sent to {email}")
-                else:
-                    print(f"[WARNING] Firebase REST API error: {resp.status_code} - {resp.text}")
-                    # Fallback: try email verification
-                    resp2 = http_requests.post(
-                        f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                        json={"requestType": "VERIFY_EMAIL", "idToken": ""},
-                        timeout=10,
-                    )
-                    if resp2.status_code == 200:
-                        invite_sent = True
-                        print(f"[INFO] Firebase verification email sent to {email}")
-                    else:
-                        print(f"[WARNING] Firebase verification also failed: {resp2.text}")
+                invite_link = fb_auth.generate_password_reset_link(email)
+                invite_sent = True
+                print(f"[INFO] Firebase password reset link generated for {email}")
         except Exception as mail_err:
-            print(f"[WARNING] Invitation email skipped: {mail_err}")
+            print(f"[WARNING] Could not generate invite link: {mail_err}")
 
         cur.close()
         return_db_connection(conn)
@@ -4443,6 +4419,7 @@ def invite_user_bulk(data: dict):
             "message": f"User {email} invited as {role} to {len(results)} subscription(s)",
             "userId": user_id,
             "inviteSent": invite_sent,
+            "inviteLink": invite_link,
             "results": results,
         }
     except HTTPException:
