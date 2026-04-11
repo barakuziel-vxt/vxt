@@ -19,6 +19,7 @@ function sevColor(s) {
 
 export default function PushNotificationRNPage() {
   const [userId, setUserId] = useState('');
+  const [users, setUsers] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [pushSettings, setPushSettings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,13 @@ export default function PushNotificationRNPage() {
   const [mSound, setMSound] = useState(true);
   const [mVibration, setMVibration] = useState(true);
   const [mLed, setMLed] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/appusers`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -137,10 +145,20 @@ export default function PushNotificationRNPage() {
         </div>
       </div>
 
-      {/* User ID input */}
-      <div style={{ padding: '10px 16px 4px', display: 'flex', gap: 8 }}>
-        <input style={{ ...S.searchInput, flex: 1 }} placeholder="Enter User ID..." value={userId} onChange={e => setUserId(e.target.value)} />
-        <button style={{ ...S.btn, background: C.blue }} onClick={fetchData} disabled={!userId}>Load</button>
+      {/* User selector */}
+      <div style={{ padding: '10px 16px 4px' }}>
+        <select
+          style={{ ...S.searchInput, cursor: 'pointer' }}
+          value={userId}
+          onChange={e => setUserId(e.target.value)}
+        >
+          <option value="">Select a user...</option>
+          {users.filter(u => u.active === 'Y').map(u => (
+            <option key={u.userId} value={u.userId}>
+              {u.displayName || u.email} ({u.email})
+            </option>
+          ))}
+        </select>
       </div>
 
       {userId && (
@@ -185,7 +203,7 @@ export default function PushNotificationRNPage() {
               </div>
             );
           })}
-          {!userId && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>Enter a User ID to view notification settings</div>}
+          {!userId && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>Select a user to view notification settings</div>}
           {userId && filtered.length === 0 && !loading && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>No subscriptions found</div>}
         </div>
       )}

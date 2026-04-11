@@ -13,10 +13,8 @@ Write-Host "[1/4] Launching Subscription Analysis Worker..." -ForegroundColor Ye
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe subscription_analysis_worker.py" -WindowStyle Normal
 
 Write-Host "[2.5/4] Launching Telemetry Consumers and Simulators..." -ForegroundColor Yellow
-# One consumer process per active provider (Junction + SamsungHealth)
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py Junction" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py SamsungHealth" -WindowStyle Normal
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py N2KToSignalK" -WindowStyle Normal
+# Single consumer process — auto-discovers all active providers from DB
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\venv\Scripts\python.exe generic_telemetry_consumer.py" -WindowStyle Normal
 # Launch Simulators
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
@@ -41,7 +39,7 @@ Write-Host "All systems are booting up. Check individual windows for logs." -For
 Write-Host "" -ForegroundColor Green
 Write-Host "Running Services:" -ForegroundColor Cyan
 Write-Host "  - Subscription Analysis Worker: Running (processes subscriptions every 5 min)" -ForegroundColor Yellow
-Write-Host "  - IoT Consumers      : generic_telemetry_consumer.py Junction + SamsungHealth + N2KToSignalK" -ForegroundColor Yellow
+Write-Host "  - IoT Consumers      : generic_telemetry_consumer.py (all active providers via threads)" -ForegroundColor Yellow
 Write-Host "  - Simulators         : Generating SignalK maritime + Junction health data" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan

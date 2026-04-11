@@ -7,11 +7,17 @@ Focuses on Kafka consumption and message delivery
 
 import json
 import logging
+import os
+import threading
 import time
+from dotenv import load_dotenv
 from kafka import KafkaConsumer
 from typing import List, Dict, Optional
 import sys
 from telemetry_processor import TelemetryProcessor
+
+# Load .env before any DB access
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -128,31 +134,73 @@ class GenericTelemetryConsumer:
 
 if __name__ == '__main__':
     import argparse
-    
+
+    def run_all_providers():
+        """Query DB for all active providers and start one consumer thread each."""
+        from mssql_python import connect as mssql_connect
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            logger.error("SQL_CONNECTION_STRING not set — cannot discover providers")
+            sys.exit(1)
+        conn = mssql_connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("SELECT ProviderName FROM Provider WHERE Active = 'Y'")
+        providers = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+
+        if not providers:
+            logger.error("No active providers found in database")
+            sys.exit(1)
+
+        logger.info(f"Starting {len(providers)} active provider thread(s): {providers}")
+
+        threads = []
+        for pname in providers:
+            consumer = GenericTelemetryConsumer(provider_name=pname)
+            t = threading.Thread(
+                target=consumer.consume_and_insert,
+                name=f"consumer-{pname}",
+                daemon=True,
+            )
+            t.start()
+            threads.append(t)
+            logger.info(f"[OK] Started thread for provider: {pname}")
+
+        try:
+            for t in threads:
+                t.join()
+        except KeyboardInterrupt:
+            logger.info("All consumers interrupted by user")
+
     parser = argparse.ArgumentParser(description='Generic Telemetry Consumer with Adapter Pattern')
-    parser.add_argument('provider_name', type=str, help='Provider name to consume for (e.g., Junction, Terra)')
+    parser.add_argument('provider_name', type=str, nargs='?', default=None,
+                        help='Provider name (e.g., Junction). Omit to run all active providers.')
     parser.add_argument('--db-server', default='localhost', help='Database server (default: localhost)')
     parser.add_argument('--db-name', default='BoatTelemetryDB', help='Database name (default: BoatTelemetryDB)')
     parser.add_argument('--db-user', default='sa', help='Database user (default: sa)')
     parser.add_argument('--db-password', default='YourStrongPassword123!', help='Database password')
     parser.add_argument('--log-level', default='INFO', help='Log level (default: INFO)')
-    
+
     args = parser.parse_args()
-    
+
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper()),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
-    try:
-        consumer = GenericTelemetryConsumer(
-            provider_name=args.provider_name,
-            db_server=args.db_server,
-            db_name=args.db_name,
-            db_user=args.db_user,
-            db_password=args.db_password
-        )
-        consumer.consume_and_insert()
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        sys.exit(1)
+
+    if args.provider_name is None:
+        run_all_providers()
+    else:
+        try:
+            consumer = GenericTelemetryConsumer(
+                provider_name=args.provider_name,
+                db_server=args.db_server,
+                db_name=args.db_name,
+                db_user=args.db_user,
+                db_password=args.db_password
+            )
+            consumer.consume_and_insert()
+        except Exception as e:
+            logger.error(f"Fatal error: {e}")
+            sys.exit(1)

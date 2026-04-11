@@ -239,37 +239,57 @@ if setup_router:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
 # ============================================================================
-# CONNECTION RETRY (Simple wrapper to handle first-connect timeout)
+# CONNECTION POOL
 # ============================================================================
-import time
+import queue
+import threading
+
+_conn_pool: queue.Queue = queue.Queue(maxsize=10)
 
 def get_db_connection():
-    """Get database connection using mssql-python with automatic retry on timeout"""
+    """Get a connection from the pool (or create a new one if pool is empty)."""
     conn_string = get_db_connection_string()
     if conn_string is None:
         raise Exception("SQL_CONNECTION_STRING environment variable not set")
-    
-    # Retry once on timeout
+
+    # Try to reuse a pooled connection
+    try:
+        conn = _conn_pool.get_nowait()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            return conn  # healthy — reuse it
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except queue.Empty:
+        pass
+
+    # Pool empty or connection was stale — create a new one (1 retry on transient error)
     for attempt in range(2):
         try:
-            print(f"[DEBUG] Connecting to database (attempt {attempt + 1}/2)")
             conn = connect(conn_string)
-            print(f"[INFO] [OK] Database connection successful")
             return conn
         except Exception as e:
-            print(f"[ERROR] Connection attempt {attempt + 1} failed: {str(e)}")
+            print(f"[ERROR] DB connect attempt {attempt + 1} failed: {str(e)}")
             if attempt < 1:
                 time.sleep(2)
             else:
                 raise
 
 def return_db_connection(conn):
-    """Close connection (no pooling - simple approach)"""
+    """Return connection to pool; discard silently if pool is already full."""
     if conn:
         try:
-            conn.close()
-        except:
-            pass
+            _conn_pool.put_nowait(conn)
+        except queue.Full:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 
