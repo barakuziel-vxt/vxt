@@ -2,9 +2,11 @@
  * useUserProfile — manages user profile settings (name, userId, email, phone)
  * 
  * Settings are persisted in AsyncStorage and reloaded on mount.
+ * Email defaults to the Firebase auth user's email if not set in AsyncStorage.
  */
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 export interface UserProfile {
   fullName: string;
@@ -34,10 +36,13 @@ export async function loadUserProfile(): Promise<UserProfile> {
     AsyncStorage.getItem(KEY_PHONE),
   ]);
   
+  // Use Firebase auth email as canonical source
+  const firebaseEmail = auth().currentUser?.email || '';
+  
   return {
     fullName: fullName || DEFAULTS.fullName,
     userId: userId || DEFAULTS.userId,
-    email: email || DEFAULTS.email,
+    email: firebaseEmail || email || DEFAULTS.email,
     phone: phone || DEFAULTS.phone,
     loaded: true,
   };

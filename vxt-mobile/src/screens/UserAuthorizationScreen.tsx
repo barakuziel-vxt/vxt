@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Switch,
   Alert, ActivityIndicator, RefreshControl, TextInput,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { DrawerContext } from '../context/DrawerContext';
 import { loadDataSource } from '../hooks/useDataSource';
 
@@ -56,7 +57,9 @@ export default function UserAuthorizationScreen() {
   const fetchAuthorizations = useCallback(async () => {
     if (!baseUrl) return;
     try {
-      const res = await fetch(`${baseUrl}/admin/authorizations`);
+      const userEmail = auth().currentUser?.email || '';
+      const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+      const res = await fetch(`${baseUrl}/admin/authorizations${emailParam}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAuthorizations(await res.json());
     } catch (e: any) {

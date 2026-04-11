@@ -132,7 +132,21 @@ function PushNotificationsWrapper() {
     (async () => {
       const [ds, profile] = await Promise.all([loadDataSource(), loadUserProfile()]);
       setBaseUrl(ds.baseUrl);
-      setUserId(profile.userId);
+      let resolvedUserId = profile.userId;
+      // If no userId in profile, look it up from AppUser by Firebase email
+      if (!resolvedUserId && ds.baseUrl) {
+        const userEmail = auth().currentUser?.email;
+        if (userEmail) {
+          try {
+            const res = await fetch(`${ds.baseUrl}/users/by-email/${encodeURIComponent(userEmail)}`);
+            if (res.ok) {
+              const userData = await res.json();
+              resolvedUserId = String(userData.userId);
+            }
+          } catch { /* best-effort */ }
+        }
+      }
+      setUserId(resolvedUserId);
       setLoading(false);
     })();
   }, []);

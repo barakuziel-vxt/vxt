@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { DrawerContext } from '../context/DrawerContext';
 
@@ -31,10 +32,12 @@ export default function UserProfileScreen() {
   const { openDrawer } = useContext(DrawerContext);
 
   // Sync local state when AsyncStorage finishes loading the saved profile
+  // Always use Firebase auth email as the canonical email
   React.useEffect(() => {
     if (profile.loaded) {
+      const firebaseEmail = auth().currentUser?.email || '';
       setFullName(profile.fullName);
-      setEmail(profile.email);
+      setEmail(firebaseEmail || profile.email);
       setPhone(profile.phone);
     }
   }, [profile.loaded]);

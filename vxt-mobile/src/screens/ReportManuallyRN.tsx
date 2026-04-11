@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
+import auth from '@react-native-firebase/auth';
 import { DrawerContext } from '../context/DrawerContext';
 import { useDataSource } from '../hooks/useDataSource';
 import { MqttTransport } from '../services/MqttTransport';
@@ -82,7 +83,9 @@ export default function ReportManuallyRN() {
           if (isDriver) {
             responseData = [{ entityId: 'driver', entityFirstName: 'Driver', entityLastName: '', entityTypeId: 99, entityTypeName: 'Driver' }];
           } else {
-            const res = await fetch(`${apiBase}/entities`);
+            const userEmail = auth().currentUser?.email || '';
+            const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+            const res = await fetch(`${apiBase}/entities${emailParam}`);
             responseData = res.ok ? await res.json() : [];
           }
           break;

@@ -28,6 +28,9 @@ from pydantic import BaseModel
 from datetime import datetime
 from collections import defaultdict
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from mssql_python import connect
 import json
 import traceback
@@ -2025,23 +2028,45 @@ def get_analyze_functions():
 
 # Entity Management Endpoints
 @app.get("/entities")
-def get_entities(entityTypeId: int = None):
-    """Get all entities, optionally filtered by entityTypeId"""
+def get_entities(entityTypeId: int = None, email: str = None):
+    """Get all entities, optionally filtered by entityTypeId and/or user email authorization.
+    
+    When email is provided, returns only entities the user has viewer+ authorization for.
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
-        sql = """
-            SELECT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
-                   e.gender, e.birthDate, e.active
-            FROM Entity e
-            JOIN EntityType et ON e.entityTypeId = et.entityTypeId
-        """
+        if email:
+            # Filter entities by user authorization (viewer, admin, owner)
+            sql = """
+                SELECT DISTINCT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
+                       e.gender, e.birthDate, e.active
+                FROM Entity e
+                JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+                JOIN CustomerSubscriptions cs ON cs.entityId = e.entityId AND cs.active = 'Y'
+                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN AppUser au ON au.userId = ua.userId
+                WHERE LOWER(au.email) = ?
+            """
+            params = (email.lower(),)
+            if entityTypeId:
+                sql += " AND e.entityTypeId = ?"
+                params = params + (entityTypeId,)
+            cur.execute(sql, params)
+        else:
+            sql = """
+                SELECT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
+                       e.gender, e.birthDate, e.active
+                FROM Entity e
+                JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+            """
+            if entityTypeId:
+                sql += f" WHERE e.entityTypeId = ?"
+                cur.execute(sql, (entityTypeId,))
+            else:
+                cur.execute(sql)
         
-        if entityTypeId:
-            sql += f" WHERE e.entityTypeId = {entityTypeId}"
-        
-        cur.execute(sql)
         rows = cur.fetchall()
         
         entities = []
@@ -2200,15 +2225,51 @@ def _build_iothub_sas(resource_uri: str, key: str, expiry_s: int = 3600) -> str:
 @app.post("/api/manual-report")
 def post_manual_report(data: dict):
     """
-    Publish a manual telemetry measurement to the configured gateway.
+    Publish a manual telemetry measurement.
+
+    Routing by gatewayType:
+      kafka   → look up providerEventType, publish to Kafka in Junction format
+                (consumer inserts into EntityTelemetry + downstream processing)
+      direct  → insert directly into EntityTelemetry via mssql-python (no Kafka)
+      iothub  → publish to Azure IoT Hub
+      _dryRun → test connectivity only
 
     Body fields:
       entityId, entityTypeAttributeCode, value, timestamp, source,
-      gatewayType ('kafka' | 'iothub'),
+      gatewayType ('kafka' | 'iothub' | 'direct'),
       kafkaBootstrap, kafkaTopic  (for kafka),
       iotHubConnectionString      (for iothub),
       _dryRun (bool, optional)    — test connection only, do not send data.
     """
+    # Maps providerEventType → nested path inside "data" matching ProviderEvent.ValueJsonPath
+    JUNCTION_DATA_PATHS = {
+        'vitals.heart_rate.update':               ['heart_rate_data', 'summary', 'avg_hr_bpm'],
+        'vitals.heart_rate.resting.update':       ['heart_rate_data', 'summary', 'resting_hr_bpm'],
+        'vitals.heart_rate.minimum.update':       ['heart_rate_data', 'summary', 'min_hr_bpm'],
+        'vitals.heart_rate.maximum.update':       ['heart_rate_data', 'summary', 'max_hr_bpm'],
+        'vitals.heart_rate_variability.update':   ['heart_rate_data', 'summary', 'hr_variability_rmssd'],
+        'vitals.blood_pressure.update':           ['blood_pressure_data', 'summary', 'avg_systolic_mmhg'],
+        'vitals.diastolic_blood_pressure.update': ['blood_pressure_data', 'summary', 'avg_diastolic_mmhg'],
+        'vitals.oxygen_saturation.update':        ['oxygen_data', 'avg_saturation_percentage'],
+        'vitals.respiration_rate.update':         ['respiration_data', 'avg_breaths_per_min'],
+        'vitals.glucose.update':                  ['glucose_data', 'glucose_mg_per_dL'],
+        'vitals.glucose.serum.update':            ['glucose_data', 'glucose_mg_per_dL'],
+        'vitals.body_temperature.update':         ['temperature_data', 'body_temperature_celsius'],
+        'activity.steps.update':                  ['activity_data', 'steps'],
+        'activity.calories.update':               ['activity_data', 'calories_kcal'],
+        'activity.distance.update':               ['activity_data', 'distance_km'],
+    }
+
+    def build_junction_data(pet: str, v: float) -> dict:
+        """Build Junction-format data payload matching ProviderEvent.ValueJsonPath."""
+        path = JUNCTION_DATA_PATHS.get(pet)
+        if not path:
+            return {'manual_value': v}
+        result: object = v
+        for key in reversed(path):
+            result = {key: result}
+        return result  # type: ignore[return-value]
+
     try:
         entity_id  = str(data.get('entityId', ''))
         attr_code  = str(data.get('entityTypeAttributeCode', ''))
@@ -2219,7 +2280,6 @@ def post_manual_report(data: dict):
         dry_run    = bool(data.get('_dryRun', False))
 
         if dry_run:
-            # Connection test — just validate config without sending
             if gw_type == 'kafka':
                 bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
                 try:
@@ -2241,57 +2301,121 @@ def post_manual_report(data: dict):
                     raise HTTPException(status_code=400, detail="Invalid connection string — HostName missing")
                 return {"message": f"IoT Hub hostname: {hostname} — config looks valid"}
 
-        # ── Build message payload ──────────────────────────────────────────
+        # ── Kafka path: look up providerEventType, publish Junction-format message ──
         if gw_type == 'kafka':
-            # Junction format — auto-detected by consumer via 'user' + 'event_type' keys.
-            # event_type IS the entityTypeAttributeCode (LOINC code), value goes in data.manual.summary.
-            message = {
-                "user":       {"user_id": entity_id},
-                "event_type": attr_code,
-                "timestamp":  timestamp,
-                "data": {
-                    "manual": {
-                        "summary": {"value": value}
-                    }
-                },
-            }
             bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
             topic     = data.get('kafkaTopic', 'iot-telemetry')
+            provider_event_type = attr_code  # fallback if not found in DB
+
+            # Look up providerEventType from EntityTypeAttribute
+            _conn_k = None
+            try:
+                _conn_k = connect(get_db_connection_string() or '')
+                _cur_k  = _conn_k.cursor()
+                _cur_k.execute(
+                    "SELECT ISNULL(providerEventType, ?) FROM dbo.EntityTypeAttribute "
+                    "WHERE entityTypeAttributeCode = ?",
+                    (attr_code, attr_code)
+                )
+                _row_k = _cur_k.fetchone()
+                if _row_k and _row_k[0]:
+                    provider_event_type = _row_k[0]
+            except Exception as _e:
+                print(f"[WARN] Could not look up providerEventType for '{attr_code}': {_e}")
+            finally:
+                if _conn_k:
+                    try: _conn_k.close()
+                    except: pass
+
+            # entity_id in Junction format must have "user_" prefix
+            junction_user_id = entity_id if entity_id.startswith('user_') else f"user_{entity_id}"
+
+            message = {
+                "user":       {"user_id": junction_user_id},
+                "event_type": provider_event_type,
+                "timestamp":  timestamp,
+                "provider_device": source,
+                "data":       build_junction_data(provider_event_type, float(value)),
+            }
             try:
                 from confluent_kafka import Producer
             except ImportError:
                 raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
             producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
-            producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=entity_id.encode('utf-8'))
+            producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=junction_user_id.encode('utf-8'))
             producer.flush(timeout=10)
+            print(f"[INFO] Published to Kafka: entity={junction_user_id}, event={provider_event_type}, value={value}")
             return {"message": f"Published to Kafka topic '{topic}' on {bootstrap}"}
 
-        else:  # iothub
-            conn_str = data.get('iotHubConnectionString', '')
-            if not conn_str:
-                raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
-            parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
-            hostname  = parts.get('HostName', '')
-            device_id = parts.get('DeviceId', '')
-            sak       = parts.get('SharedAccessKey', '')
-            if not hostname or not device_id or not sak:
-                raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
+        # ── Direct DB insert via mssql-python (gatewayType == 'direct' or fallback) ──
+        if gw_type in ('direct', 'db'):
+            _conn_d = None
+            try:
+                _conn_d = connect(get_db_connection_string() or '')
+                _cur_d  = _conn_d.cursor()
 
-            # TelemetryData format (matches what MqttTransport sends from the mobile app)
-            message = {
-                "deviceId":  entity_id,
-                "timestamp": timestamp,
-                "values":    {attr_code: value},
-                "source":    source,
-            }
-            resource_uri = f"{hostname}/devices/{device_id}"
-            sas_token    = _build_iothub_sas(resource_uri, sak)
-            url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
-            headers = {"Authorization": sas_token, "Content-Type": "application/json"}
-            resp = _requests.post(url, headers=headers, data=json.dumps(message), timeout=15)
-            if resp.status_code not in (200, 204):
-                raise HTTPException(status_code=502, detail=f"IoT Hub returned {resp.status_code}: {resp.text}")
-            return {"message": f"Published to Azure IoT Hub device '{device_id}'"}
+                attr_id = data.get('entityTypeAttributeId')
+                if attr_code and not attr_id:
+                    _cur_d.execute(
+                        "SELECT entityTypeAttributeId FROM dbo.EntityTypeAttribute "
+                        "WHERE entityTypeAttributeCode = ?",
+                        (attr_code,)
+                    )
+                    _row_d = _cur_d.fetchone()
+                    if _row_d:
+                        attr_id = _row_d[0]
+
+                if not attr_id:
+                    raise HTTPException(status_code=400, detail=f"entityTypeAttributeCode '{attr_code}' not found")
+
+                ts_str = timestamp if isinstance(timestamp, str) else timestamp.isoformat()
+                ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                _cur_d.execute(
+                    "INSERT INTO dbo.EntityTelemetry "
+                    "(entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC, "
+                    " providerEventInterpretation, providerDevice, numericValue) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (entity_id, int(attr_id), ts, ts, 'Manual', source, float(value))
+                )
+                _conn_d.commit()
+                print(f"[INFO] Direct DB insert: entity={entity_id}, attr={attr_code}({attr_id}), value={value}")
+                return {"message": f"Manual report saved for entity {entity_id}, attribute {attr_code}={value}"}
+            except HTTPException:
+                raise
+            except Exception as db_err:
+                print(f"[ERROR] mssql-python INSERT failed: {type(db_err).__name__}: {db_err}")
+                print(traceback.format_exc())
+                raise HTTPException(status_code=500, detail=f"DB insert failed: {db_err}")
+            finally:
+                if _conn_d:
+                    try: _conn_d.close()
+                    except: pass
+
+        # ── IoT Hub path ──────────────────────────────────────────────────
+        conn_str = data.get('iotHubConnectionString', '')
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+        parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
+        hostname  = parts.get('HostName', '')
+        device_id = parts.get('DeviceId', '')
+        sak       = parts.get('SharedAccessKey', '')
+        if not hostname or not device_id or not sak:
+            raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
+
+        message = {
+            "deviceId":  entity_id,
+            "timestamp": timestamp,
+            "values":    {attr_code: value},
+            "source":    source,
+        }
+        resource_uri = f"{hostname}/devices/{device_id}"
+        sas_token    = _build_iothub_sas(resource_uri, sak)
+        url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
+        headers = {"Authorization": sas_token, "Content-Type": "application/json"}
+        resp = _requests.post(url, headers=headers, data=json.dumps(message), timeout=15)
+        if resp.status_code not in (200, 204):
+            raise HTTPException(status_code=502, detail=f"IoT Hub returned {resp.status_code}: {resp.text}")
+        return {"message": f"Published to Azure IoT Hub device '{device_id}'"}
 
     except HTTPException:
         raise
@@ -2837,21 +2961,34 @@ def get_customer(id: int):
 # ============================================
 
 @app.get("/customersubscriptions")
-def get_customer_subscriptions(status: str = None):
+def get_customer_subscriptions(status: str = None, email: str = None):
     """Get customer subscriptions with customer, entity, and event details
     
     Args:
         status: Filter by status ('Y' for active, 'N' for inactive, or None for all)
+        email: Filter by user email authorization (only subscriptions user has access to)
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
         params = []
-        where_clause = ""
+        where_clauses = []
+        join_clause = ""
+        
+        if email:
+            join_clause = """
+                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN AppUser au ON au.userId = ua.userId
+            """
+            where_clauses.append("LOWER(au.email) = ?")
+            params.append(email.lower())
+        
         if status and status in ('Y', 'N'):
-            where_clause = "WHERE cs.active = ?"
+            where_clauses.append("cs.active = ?")
             params.append(status)
+        
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         
         cur.execute(f"""
             SELECT 
@@ -2869,7 +3006,8 @@ def get_customer_subscriptions(status: str = None):
             JOIN Customers c ON cs.customerId = c.customerId
             LEFT JOIN Event e ON cs.eventId = e.eventId
             LEFT JOIN Entity ent ON ent.entityId = cs.entityId
-            {where_clause}
+            {join_clause}
+            {where_sql}
             ORDER BY c.customerName, cs.entityId
         """, params)
         rows = cur.fetchall()
@@ -4165,6 +4303,83 @@ def update_authorization(auth_id: int, data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── Gmail SMTP Invitation Email ──────────────────────────────────────────────
+def _send_invitation_email(to_email: str) -> bool:
+    """Send an invitation email via Gmail SMTP.
+
+    Requires two environment variables:
+        GMAIL_USER     – your Gmail address (e.g. you@gmail.com)
+        GMAIL_APP_PASS – a 16-char App Password from https://myaccount.google.com/apppasswords
+    
+    Note: Gmail has strict rate limits and sender reputation checks.
+    New accounts may have emails silently dropped or delayed by Gmail.
+    """
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_pass = os.getenv("GMAIL_APP_PASS")
+
+    if not gmail_user or not gmail_pass:
+        print(f"[EMAIL] WARNING: GMAIL_USER/GMAIL_APP_PASS not configured — email NOT sent to {to_email}")
+        return False
+
+    try:
+        print(f"[EMAIL] Starting to compose email for {to_email} from {gmail_user}...")
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "You're Invited to VXT"
+        msg["From"] = f"VXT <{gmail_user}>"
+        msg["To"] = to_email
+
+        html = f"""\
+<html>
+<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;">
+  <div style="max-width:600px;margin:0 auto;padding:30px 20px;">
+    <h2 style="color:#667eea;margin-bottom:5px;">Welcome to VXT!</h2>
+    <p>You've been invited to join <strong>VXT</strong> — smart yacht monitoring.</p>
+
+    <h3 style="color:#667eea;">Getting Started</h3>
+    <ol>
+      <li>Download the <strong>VXT</strong> app from Google Play</li>
+      <li>Open the app and enter your email: <strong>{to_email}</strong></li>
+      <li>Tap the verification link we'll send you — and you're in!</li>
+    </ol>
+
+    <p style="margin:30px 0;text-align:center;">
+      <a href="https://play.google.com/store/apps/details?id=com.vxtmobile"
+         style="background:#667eea;color:#fff;padding:12px 30px;text-decoration:none;border-radius:5px;display:inline-block;">
+        Download VXT
+      </a>
+    </p>
+
+    <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:15px;">
+      No password needed — just your email. If you didn't expect this message, you can ignore it.
+    </p>
+  </div>
+</body>
+</html>"""
+
+        msg.attach(MIMEText(html, "html"))
+        print(f"[EMAIL] Email composed. Connecting to smtp.gmail.com:465...")
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            print(f"[EMAIL] Connected. Authenticating as {gmail_user}...")
+            server.login(gmail_user, gmail_pass)
+            print(f"[EMAIL] Login successful. Sending email to {to_email}...")
+            server.sendmail(gmail_user, to_email, msg.as_string())
+            print(f"[EMAIL] SUCCESS: Email queued for delivery to {to_email}")
+
+        return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[EMAIL] ERROR: Gmail authentication failed. Check GMAIL_USER and GMAIL_APP_PASS: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"[EMAIL] ERROR: SMTP error while sending to {to_email}: {e}")
+        return False
+    except Exception as e:
+        print(f"[EMAIL] ERROR: Unexpected error sending to {to_email}: {type(e).__name__}: {e}")
+        return False
+
+
 @app.post("/customersubscriptions/{sub_id}/invite")
 def invite_user_to_subscription(sub_id: int, data: dict):
     """Invite a user by email to a subscription with a role.
@@ -4257,11 +4472,9 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
         conn.commit()
 
-        # 4. Passwordless invite — no password reset needed
-        #    The invitee will sign in via /auth/start-login → custom token → email verification
-        invite_sent = True
-        invite_link = None  # No link needed — user signs in by entering email in the app
-        print(f"[INFO] User {email} invited as {role} (passwordless)")
+        # 4. Send invitation email via Gmail SMTP
+        email_sent = _send_invitation_email(email)
+        print(f"[INFO] User {email} invited as {role} (email_sent={email_sent})")
 
         cur.close()
         return_db_connection(conn)
@@ -4270,8 +4483,7 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             "message": f"User {email} invited as {role}",
             "userAuthorizationId": auth_id,
             "userId": user_id,
-            "inviteSent": invite_sent,
-            "inviteLink": invite_link,
+            "inviteSent": email_sent,
         }
     except HTTPException:
         raise
@@ -4380,10 +4592,9 @@ def invite_user_bulk(data: dict):
                 results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
         conn.commit()
 
-        # 4. Passwordless invite — no password reset needed
-        invite_sent = True
-        invite_link = None
-        print(f"[INFO] User {email} invited as {role} to {len(results)} subscription(s) (passwordless)")
+        # 4. Send invitation email via Gmail SMTP
+        email_sent = _send_invitation_email(email)
+        print(f"[INFO] User {email} invited as {role} to {len(results)} subscription(s) (email_sent={email_sent})")
 
         cur.close()
         return_db_connection(conn)
@@ -4391,8 +4602,7 @@ def invite_user_bulk(data: dict):
         return {
             "message": f"User {email} invited as {role} to {len(results)} subscription(s)",
             "userId": user_id,
-            "inviteSent": invite_sent,
-            "inviteLink": invite_link,
+            "inviteSent": email_sent,
             "results": results,
         }
     except HTTPException:
@@ -4401,22 +4611,45 @@ def invite_user_bulk(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
 def _init_firebase_admin():
     """Initialize Firebase Admin SDK if not already initialized"""
     import firebase_admin
     from firebase_admin import credentials
     if firebase_admin._apps:
         return
+    
     sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
     sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
-    if sa_path and os.path.exists(sa_path):
-        cred = credentials.Certificate(sa_path)
-    elif sa_json:
-        import json as _json
-        cred = credentials.Certificate(_json.loads(sa_json))
-    else:
-        cred = credentials.ApplicationDefault()
-    firebase_admin.initialize_app(cred)
+    
+    try:
+        if sa_path and os.path.exists(sa_path):
+            print(f"[FIREBASE] Initializing from file: {sa_path}")
+            cred = credentials.Certificate(sa_path)
+        elif sa_json:
+            print("[FIREBASE] Initializing from FIREBASE_SERVICE_ACCOUNT_JSON env var")
+            import json as _json
+            cred = credentials.Certificate(_json.loads(sa_json))
+        else:
+            print("[FIREBASE] Initializing from Application Default Credentials")
+            cred = credentials.ApplicationDefault()
+        
+        firebase_admin.initialize_app(cred)
+        print("[FIREBASE] ✅ Admin SDK initialized successfully")
+    except FileNotFoundError:
+        raise ValueError(f"Firebase service account file not found: {sa_path}")
+    except Exception as e:
+        error_msg = (
+            f"Firebase Admin SDK initialization failed: {e}\n"
+            "To fix this, either:\n"
+            "1. Set FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/serviceAccountKey.json\n"
+            "2. Set FIREBASE_SERVICE_ACCOUNT_JSON='{...}' with the full JSON content\n"
+            "3. Run: gcloud auth application-default login\n"
+            "Get your service account key from: Firebase Console → Project Settings → Service Accounts"
+        )
+        print(f"[FIREBASE ERROR] {error_msg}")
+        raise ValueError(error_msg) from e
 
 
 # ─── Passwordless Auth ─────────────────────────────────────────────────────
@@ -4454,8 +4687,14 @@ def auth_start_login(data: dict):
         # Get or create Firebase user (no password — passwordless)
         import firebase_admin
         from firebase_admin import auth as fb_auth
-        if not firebase_admin._apps:
-            _init_firebase_admin()
+        try:
+            if not firebase_admin._apps:
+                _init_firebase_admin()
+        except ValueError as cred_err:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Firebase not configured: {str(cred_err)}"
+            )
 
         try:
             fb_user = fb_auth.get_user_by_email(email)
@@ -4853,12 +5092,22 @@ def get_all_push_settings():
 # ============================================================================
 
 @app.get("/admin/authorizations")
-def get_all_authorizations():
-    """List all user authorizations across all subscriptions (admin view)"""
+def get_all_authorizations(email: str = None):
+    """List user authorizations across all subscriptions.
+    
+    When email is provided, returns only authorizations for that user.
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
+        
+        where_clause = ""
+        params = []
+        if email:
+            where_clause = "WHERE LOWER(au.email) = ?"
+            params.append(email.lower())
+        
+        cur.execute(f"""
             SELECT
                 ua.userAuthorizationId,
                 ua.userId,
@@ -4876,8 +5125,9 @@ def get_all_authorizations():
             JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
             JOIN dbo.Customers c ON c.customerId = cs.customerId
             LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            {where_clause}
             ORDER BY au.email, c.customerName
-        """)
+        """, params)
         rows = cur.fetchall()
         result = []
         for r in rows:

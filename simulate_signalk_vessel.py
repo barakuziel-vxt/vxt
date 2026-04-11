@@ -362,4 +362,5 @@ if __name__ == '__main__':
         bootstrap_servers='localhost:9092',
         topic='iot-telemetry'
     )
-    simulator.run(interval=5)  # Send new rounds of events every 5 seconds
+    # Send 2 samples per minute per attribute (30-second interval)
+    simulator.run(interval=30)

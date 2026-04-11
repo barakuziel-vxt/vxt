@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
   ActivityIndicator, TextInput, Modal, FlatList, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { DrawerContext } from '../context/DrawerContext';
 import { loadDataSource } from '../hooks/useDataSource';
 import { useGatewayStore } from '../store/gatewayStore';
@@ -121,8 +122,10 @@ export default function ReportManuallyScreen() {
     if (!baseUrl) return;
     setLoading(true);
     try {
+      const userEmail = auth().currentUser?.email || '';
+      const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
       const [entRes, attrRes] = await Promise.all([
-        fetch(`${baseUrl}/entities`),
+        fetch(`${baseUrl}/entities${emailParam}`),
         fetch(`${baseUrl}/entitytypeattributes`),
       ]);
       if (entRes.ok) setEntities(await entRes.json());

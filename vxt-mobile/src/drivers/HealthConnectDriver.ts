@@ -133,6 +133,11 @@ export class HealthConnectDriver extends BaseDriver {
         'Health Connect is not installed. Install the Health Connect app from the Play Store, then try again.',
       );
     }
+    // Reset deduplication state so every gateway session sends fresh data.
+    // Without this, unchanged values (HR=72 bpm, SpO2=98%) are never re-sent
+    // because lastTimestamp[code] == sampleTs → isNewer = false → silently dropped.
+    this.lastSent      = {};
+    this.lastTimestamp = {};
     // Do NOT request permissions here — MainActivity uses singleTask launchMode which
     // makes startActivityForResult unreliable. Permissions are handled entirely by
     // HealthVitalsScreen via checkPermissions() + requestPermissions() + AppState listener.
