@@ -73,7 +73,10 @@ function UserRolesView({ subId, subLabel, onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      alert(`\u2705 ${result.message}\n\nThe user can now open the VXT app and sign in with ${inviteEmail.trim().toLowerCase()}.\nThey will receive a verification email on first login.`);
+      const emailNote = result.inviteSent
+        ? `\n\nAn invitation email has been sent to ${inviteEmail.trim().toLowerCase()}.`
+        : `\n\n⚠️ Invitation email could not be sent (GMAIL not configured).\nPlease notify them manually to download the VXT app and sign in with ${inviteEmail.trim().toLowerCase()}.`;
+      alert(`✅ ${result.message}${emailNote}`);
       setInviteOpen(false); setInviteEmail(''); setInviteRole('viewer');
       fetchAuths();
     } catch (e) { alert(e.message); }

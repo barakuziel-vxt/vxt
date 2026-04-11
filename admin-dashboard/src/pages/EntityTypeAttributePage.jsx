@@ -23,6 +23,7 @@ export default function EntityTypeAttributePage() {
   const [editingId, setEditingId] = useState(null);
   const [selectedAttribute, setSelectedAttribute] = useState(null);
   const [criteria, setCriteria] = useState([]);
+  const [editingCriteriaId, setEditingCriteriaId] = useState(null);
   const [filterEntityTypeId, setFilterEntityTypeId] = useState(''); // ALL by default
   const [filterComponent, setFilterComponent] = useState(''); // ALL by default
   const [filterAttributeName, setFilterAttributeName] = useState('');
@@ -243,6 +244,8 @@ export default function EntityTypeAttributePage() {
     setShowCriteriaModal(false);
     setSelectedAttribute(null);
     setCriteria([]);
+    setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
+    setEditingCriteriaId(null);
   };
 
   const handleCriteriaInputChange = (e) => {
@@ -256,12 +259,24 @@ export default function EntityTypeAttributePage() {
   const handleAddCriteria = async (e) => {
     e.preventDefault();
     try {
-      const newCriteria = {
-        entityTypeId: selectedAttribute.entityTypeId,
-        entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
-        ...criteriaFormData,
-      };
-      await entityTypeAttributeScoreAPI.create(newCriteria);
+      if (editingCriteriaId) {
+        // Update existing criteria
+        const updatedCriteria = {
+          entityTypeId: selectedAttribute.entityTypeId,
+          entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
+          ...criteriaFormData,
+        };
+        await entityTypeAttributeScoreAPI.update(editingCriteriaId, updatedCriteria);
+        setEditingCriteriaId(null);
+      } else {
+        // Create new criteria
+        const newCriteria = {
+          entityTypeId: selectedAttribute.entityTypeId,
+          entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
+          ...criteriaFormData,
+        };
+        await entityTypeAttributeScoreAPI.create(newCriteria);
+      }
       setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
       const crit = await entityTypeAttributeScoreAPI.getByAttributeId(selectedAttribute.entityTypeAttributeId);
       setCriteria(crit);
@@ -270,12 +285,32 @@ export default function EntityTypeAttributePage() {
     }
   };
 
+  const handleEditCriteria = (criteriaItem) => {
+    setEditingCriteriaId(criteriaItem.entityTypeAttributeScoreId);
+    setCriteriaFormData({
+      minValue: criteriaItem.minValue || '',
+      maxValue: criteriaItem.maxValue || '',
+      strValue: criteriaItem.strValue || '',
+      score: criteriaItem.score || '',
+    });
+    // Scroll to form for better UX
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEditCriteria = () => {
+    setEditingCriteriaId(null);
+    setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
+  };
+
   const handleDeleteCriteria = async (id) => {
     if (window.confirm('Are you sure you want to delete this criterion?')) {
       try {
         await entityTypeAttributeScoreAPI.delete(id);
         const crit = await entityTypeAttributeScoreAPI.getByAttributeId(selectedAttribute.entityTypeAttributeId);
         setCriteria(crit);
+        if (editingCriteriaId === id) {
+          setEditingCriteriaId(null);
+        }
       } catch (err) {
         setError(err.message);
       }
@@ -829,7 +864,7 @@ export default function EntityTypeAttributePage() {
             </div>
 
             <div className="form-section">
-              <h3>Add New Value Score</h3>
+              <h3>{editingCriteriaId ? 'Edit Value Score' : 'Add New Value Score'}</h3>
               <form onSubmit={handleAddCriteria}>
                 <div className="form-row">
                   <div className="form-group">
@@ -885,8 +920,13 @@ export default function EntityTypeAttributePage() {
                 </div>
 
                 <button type="submit" className="btn btn-success">
-                  Add ValueScore
+                  {editingCriteriaId ? 'Update Score' : 'Add ValueScore'}
                 </button>
+                {editingCriteriaId && (
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelEditCriteria} style={{ marginLeft: '10px' }}>
+                    Cancel
+                  </button>
+                )}
               </form>
             </div>
 
@@ -906,7 +946,7 @@ export default function EntityTypeAttributePage() {
                     </thead>
                     <tbody>
                       {criteria.map((c) => (
-                        <tr key={c.entityTypeCriteriaId}>
+                        <tr key={c.entityTypeAttributeScoreId}>
                           <td>{c.minValue}</td>
                           <td>{c.maxValue}</td>
                           <td>{c.strValue || 'N/A'}</td>
@@ -915,8 +955,15 @@ export default function EntityTypeAttributePage() {
                           </td>
                           <td>
                             <button
+                              className="btn btn-primary btn-small"
+                              onClick={() => handleEditCriteria(c)}
+                              style={{ marginRight: '5px' }}
+                            >
+                              Edit
+                            </button>
+                            <button
                               className="btn btn-danger btn-small"
-                              onClick={() => handleDeleteCriteria(c.entityTypeCriteriaId)}
+                              onClick={() => handleDeleteCriteria(c.entityTypeAttributeScoreId)}
                             >
                               Delete
                             </button>

@@ -456,6 +456,21 @@ class TelemetryProcessor:
         inserted_count = 0
         
         try:
+            # Quick protocol check: silently skip messages clearly meant for other providers
+            provider_name = self.provider_config.get('ProviderName', '')
+            
+            if provider_name == 'Junction':
+                # Skip SignalK messages (have context + updates fields)
+                if 'context' in event and 'updates' in event:
+                    self.stats['records_skipped'] += 1
+                    return 0
+            
+            elif provider_name == 'N2KToSignalK':
+                # Skip Junction messages (have user + event_type fields)
+                if 'user' in event and 'event_type' in event:
+                    self.stats['records_skipped'] += 1
+                    return 0
+            
             # Validate message
             if not self.adapter.validate_message(event):
                 logger.warning(f"Message validation failed")

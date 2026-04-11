@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Switch,
   Alert, ActivityIndicator, TextInput, Modal, ScrollView, Platform,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { DrawerContext } from '../context/DrawerContext';
 import { loadDataSource } from '../hooks/useDataSource';
 import { loadUserProfile } from '../hooks/useUserProfile';
@@ -106,8 +107,12 @@ export default function SubscriptionManagementScreen() {
     if (!baseUrl) return;
     setLoading(true);
     try {
-      const statusParam = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`${baseUrl}/customersubscriptions${statusParam}`);
+      const userEmail = auth().currentUser?.email || '';
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (userEmail) params.append('email', userEmail);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const res = await fetch(`${baseUrl}/customersubscriptions${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSubscriptions(data);
@@ -126,10 +131,12 @@ export default function SubscriptionManagementScreen() {
   const fetchFormData = async () => {
     if (!baseUrl) return;
     try {
+      const userEmail = auth().currentUser?.email || '';
+      const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
       const [custRes, evtRes, entRes] = await Promise.all([
         fetch(`${baseUrl}/customers`),
         fetch(`${baseUrl}/events`),
-        fetch(`${baseUrl}/entities`),
+        fetch(`${baseUrl}/entities${emailParam}`),
       ]);
       if (custRes.ok) {
         const data = await custRes.json();

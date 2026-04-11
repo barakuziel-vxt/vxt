@@ -24,6 +24,7 @@ import {
 import RNShare from 'react-native-share';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
+import auth from '@react-native-firebase/auth';
 import { DrawerContext } from '../context/DrawerContext';
 import { useDataSource } from '../hooks/useDataSource';
 import { driverManager } from '../core/DriverManager';
@@ -176,10 +177,12 @@ export default function EntityTelemetryRN() {
       } else {
         // ── Cloud / Local mode: proxy via native fetch (no CORS restriction) ─
         const apiBase = (ds.type === 'cloud' ? ds.cloudUrl : ds.localUrl).replace(/\/$/, '');
+        const userEmail = auth().currentUser?.email || '';
         const { entityId = '', startDate = '', endDate = '', eventLogId = '', attributeCode = '' } = msg.params || {};
         switch (msg.type) {
           case 'loadEntities': {
-            const res = await fetch(`${apiBase}/entities`);
+            const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+            const res = await fetch(`${apiBase}/entities${emailParam}`);
             responseData = res.ok ? await res.json() : [];
             break;
           }

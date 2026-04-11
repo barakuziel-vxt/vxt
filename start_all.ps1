@@ -16,13 +16,13 @@ Write-Host "[2.5/4] Launching Telemetry Consumers and Simulators..." -Foreground
 # Single consumer process — auto-discovers all active providers from DB
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py" -WindowStyle Normal
 # Launch Simulators
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
-#Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
 
 # 3. Launch FastAPI Web Server
 Write-Host "[3/4] Starting FastAPI API..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe main.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\Activate.ps1; `$env:FIREBASE_SERVICE_ACCOUNT_PATH='c:\VXT\firebase-service-account.json'; `$env:GMAIL_USER='einbar.vxt@gmail.com'; `$env:GMAIL_APP_PASS='jlne zruu cbjn aiie'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload" -WindowStyle Normal
 
 # 4. Launch Admin Dashboard
 Write-Host "[4/4] Starting Admin Management Dashboard..." -ForegroundColor Yellow
