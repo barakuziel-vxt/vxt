@@ -137,6 +137,72 @@ def get_health(patient_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/user/device-token', methods=['POST'])
+def register_device_token():
+    """Register or update an FCM token for push notifications."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON body required"}), 400
+
+        fcm_token = data.get('fcmToken')
+        user_id = data.get('userId')
+        platform = data.get('platform', 'android')
+        device_model = data.get('deviceModel')
+        app_version = data.get('appVersion')
+
+        if not fcm_token:
+            return jsonify({"error": "fcmToken is required"}), 400
+        if not user_id:
+            return jsonify({"error": "userId is required"}), 400
+
+        import os
+        conn_str = os.getenv('SQL_CONNECTION_STRING')
+        if not conn_str:
+            return jsonify({"error": "SQL_CONNECTION_STRING not configured"}), 500
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        # Upsert: update if fcmToken exists, otherwise insert
+        cursor.execute(
+            """
+            MERGE dbo.UserApplication AS target
+            USING (SELECT ? AS fcmToken) AS source
+            ON target.fcmToken = source.fcmToken
+            WHEN MATCHED THEN
+                UPDATE SET
+                    platform = ?,
+                    deviceModel = ?,
+                    appVersion = ?,
+                    lastActiveUTC = GETUTCDATE(),
+                    active = 'Y',
+                    lastUpdateTimestamp = GETDATE()
+            WHEN NOT MATCHED THEN
+                INSERT (userId, platform, fcmToken, deviceModel, appVersion, lastActiveUTC, active)
+                VALUES (?, ?, ?, ?, ?, GETUTCDATE(), 'Y')
+            OUTPUT inserted.userApplicationId;
+            """,
+            fcm_token,
+            platform, device_model, app_version,
+            int(user_id), platform, fcm_token, device_model, app_version
+        )
+
+        row = cursor.fetchone()
+        user_app_id = row[0] if row else None
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "userApplicationId": user_app_id
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     from flask_cors import CORS
     CORS(app)

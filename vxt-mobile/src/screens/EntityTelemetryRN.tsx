@@ -84,7 +84,7 @@ function historyToTelemetry(history: HistoryMap): Array<Record<string, unknown>>
 }
 
 export default function EntityTelemetryRN() {
-  const { openDrawer } = useContext(DrawerContext);
+  const { openDrawer, navigateTo } = useContext(DrawerContext);
   const ds = useDataSource();
   const { activeDriver } = useGatewayStore();
   const webViewRef = useRef<WebView>(null);
@@ -97,7 +97,7 @@ export default function EntityTelemetryRN() {
 
   // ── Bridge: handle requests from WebView ─────────────────────────────────────
   async function handleBridgeMessage(event: WebViewMessageEvent) {
-    let msg: { id?: string; type: string; pdfData?: string; entityName?: string; params?: Record<string, string> };
+    let msg: { id?: string; type: string; pdfData?: string; entityName?: string; screen?: string; params?: Record<string, string> };
     try {
       msg = JSON.parse(event.nativeEvent.data);
     } catch {
@@ -120,6 +120,14 @@ export default function EntityTelemetryRN() {
         if (e?.message !== 'User did not share') {
           console.warn('[EntityTelemetryRN] Share error:', e);
         }
+      }
+      return;
+    }
+
+    // Handle navigation requests from admin dashboard WebView
+    if (msg.type === 'navigateRN') {
+      if (msg.screen) {
+        navigateTo(msg.screen);
       }
       return;
     }

@@ -10,14 +10,16 @@ import ProtocolPage from './pages/ProtocolPage';
 import ProtocolAttributePage from './pages/ProtocolAttributePage';
 import ProviderPage from './pages/ProviderPage';
 import ProviderEventPage from './pages/ProviderEventPage';
-import CustomerSubscriptionPage from './pages/CustomerSubscriptionPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
 import CustomerGeofencePage from './pages/CustomerGeofencePage';
 import EntityTelemetryRNPage from './pages/EntityTelemetryRNPage';
-import ReportManuallyPage from './pages/ReportManuallyPage';
+import ReportManuallyRNPage from './pages/ReportManuallyRNPage';
 import GatewayConfigPage from './pages/GatewayConfigPage';
 import EntityIoTDevicePage from './pages/EntityIoTDevicePage';
 import RegisterDevicePage from './pages/RegisterDevicePage';
+import PushNotificationRNPage from './pages/PushNotificationRNPage';
+import UserAuthorizationRNPage from './pages/UserAuthorizationRNPage';
+import SubscriptionManagementRNPage from './pages/SubscriptionManagementRNPage';
 
 export default function App() {
   const [navData, setNavData] = useState(null);
@@ -47,6 +49,18 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
   const handlePageChange = (page) => {
+    // In embedded mode (WebView), navigate to RN native screens
+    if (embedded) {
+      const rnScreenMap = {
+        reportManually: 'ReportManually',
+        userAuthorization: 'UserAuthorizations',
+        pushNotification: 'PushNotifications',
+      };
+      if (rnScreenMap[page] && window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateRN', screen: rnScreenMap[page] }));
+        return;
+      }
+    }
     setCurrentPage(page);
     // Close sidebar on mobile after selection
     if (window.innerWidth <= 768) {
@@ -71,7 +85,7 @@ export default function App() {
       case 'telemetryRN':
         return <EntityTelemetryRNPage />;
       case 'reportManually':
-        return <ReportManuallyPage />;
+        return <ReportManuallyRNPage />;
       case 'gatewayConfig':
         return <GatewayConfigPage />;
       case 'entityIoTDevice':
@@ -87,11 +101,15 @@ export default function App() {
       case 'providerEvent':
         return <ProviderEventPage />;
       case 'customerSubscription':
-        return <CustomerSubscriptionPage />;
+        return <SubscriptionManagementRNPage />;
       case 'customerEntities':
         return <CustomerEntitiesPage />;
       case 'customerGeofence':
         return <CustomerGeofencePage />;
+      case 'pushNotification':
+        return <PushNotificationRNPage />;
+      case 'userAuthorization':
+        return <UserAuthorizationRNPage />;
       default:
         return <EntityTelemetryRNPage />;
     }
@@ -196,7 +214,7 @@ export default function App() {
               className={`nav-button ${currentPage === 'customerSubscription' ? 'active' : ''}`}
               onClick={() => handlePageChange('customerSubscription')}
             >
-              👥 Customer Subscriptions
+              📋 Customer Subscriptions
             </button>
             <button
               className={`nav-button ${currentPage === 'customerEntities' ? 'active' : ''}`}
@@ -209,6 +227,22 @@ export default function App() {
               onClick={() => handlePageChange('customerGeofence')}
             >
               🗺️ Customer Geofences
+            </button>
+          </div>
+
+          <div className="nav-section">
+            <h3>Users & Notifications</h3>
+            <button
+              className={`nav-button ${currentPage === 'userAuthorization' ? 'active' : ''}`}
+              onClick={() => handlePageChange('userAuthorization')}
+            >
+              🔑 User Authorizations
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'pushNotification' ? 'active' : ''}`}
+              onClick={() => handlePageChange('pushNotification')}
+            >
+              🔔 Push Notifications
             </button>
           </div>
 

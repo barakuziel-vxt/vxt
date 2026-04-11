@@ -10,3 +10,4 @@ azure-functions==1.18.0
 azure-iot-hub==2.7.0
 azure-eventhub>=5.11.0
 requests==2.31.0
+firebase-admin>=6.4.0

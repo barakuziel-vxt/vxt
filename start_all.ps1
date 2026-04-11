@@ -12,10 +12,11 @@ Write-Host "Starting YachtSense AI Infrastructure..." -ForegroundColor Cyan
 Write-Host "[1/4] Launching Subscription Analysis Worker..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe subscription_analysis_worker.py" -WindowStyle Normal
 
-Write-Host "[2.5/4] Launching Consumer (uses same logic as Azure Function) and Simulators..." -ForegroundColor Yellow
-# Single source of truth: run_consumer_local.py imports SimpleEventProcessor from azure-functions/function_app.py
-# One consumer on iot-telemetry topic — mirrors single Azure Function in production (auto-detects SignalK + Junction)
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe run_consumer_local.py" -WindowStyle Normal
+Write-Host "[2.5/4] Launching Telemetry Consumers and Simulators..." -ForegroundColor Yellow
+# One consumer process per active provider (Junction + SamsungHealth)
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py Junction" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py SamsungHealth" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py N2KToSignalK" -WindowStyle Normal
 # Launch Simulators
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
@@ -40,7 +41,7 @@ Write-Host "All systems are booting up. Check individual windows for logs." -For
 Write-Host "" -ForegroundColor Green
 Write-Host "Running Services:" -ForegroundColor Cyan
 Write-Host "  - Subscription Analysis Worker: Running (processes subscriptions every 5 min)" -ForegroundColor Yellow
-Write-Host "  - IoT Consumer       : run_consumer_local.py (iot-telemetry) -> auto-detects SignalK + Junction" -ForegroundColor Yellow
+Write-Host "  - IoT Consumers      : generic_telemetry_consumer.py Junction + SamsungHealth + N2KToSignalK" -ForegroundColor Yellow
 Write-Host "  - Simulators         : Generating SignalK maritime + Junction health data" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan

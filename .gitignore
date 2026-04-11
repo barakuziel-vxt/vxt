@@ -34,5 +34,9 @@ Thumbs.db
 azure_data_*.sql
 *.msi
 
+# Firebase credentials (NEVER commit)
+firebase-service-account.json
+google-services.json
+
 # Temp/scratch folders (e.g. Gradle distribution accidentally placed here)
 vxt-temp/

@@ -8,7 +8,7 @@ import numpy as np
 from pathlib import Path
 from collections import deque
 
-SOURCE  = r"C:\Users\ASUS\AppData\Roaming\Code\User\workspaceStorage\vscode-chat-images\image-1775306445547.png"
+SOURCE  = r"C:\VXT\new_logo.jpg"
 RES_DIR = r"C:\VXT\vxt-mobile\android\app\src\main\res"
 
 SIZES = {
@@ -17,6 +17,15 @@ SIZES = {
     'mipmap-xhdpi':   96,
     'mipmap-xxhdpi':  144,
     'mipmap-xxxhdpi': 192,
+}
+
+# Adaptive icon foreground is 108dp (vs 48dp base) — same density multipliers
+FOREGROUND_SIZES = {
+    'mipmap-mdpi':    108,
+    'mipmap-hdpi':    162,
+    'mipmap-xhdpi':   216,
+    'mipmap-xxhdpi':  324,
+    'mipmap-xxxhdpi': 432,
 }
 
 def remove_white_background(img: Image.Image, threshold: int = 230) -> Image.Image:
@@ -102,7 +111,32 @@ def main():
         round_img = make_circle_mask(square)
         round_img.save(dir_path / 'ic_launcher_round.png', optimize=True)
 
-        print(f"  ✓ {folder:22s}  {size}×{size}  →  ic_launcher.png + ic_launcher_round.png")
+        # ── ic_launcher_foreground.png  (adaptive icon foreground layer)
+        # Canvas is 108dp; safe zone is center 72dp (66.7% of canvas).
+        # Place the logo to fill the safe zone with a little breathing room.
+        fg_size = FOREGROUND_SIZES[folder]
+        safe    = int(fg_size * (72 / 108))          # safe zone in pixels
+        logo_px = int(safe * 0.90)                   # 90 % of safe zone
+        logo_resized = padded.resize((logo_px, logo_px), Image.LANCZOS)
+        fg_canvas = Image.new('RGBA', (fg_size, fg_size), (255, 255, 255, 255))
+        ox = (fg_size - logo_px) // 2
+        oy = (fg_size - logo_px) // 2
+        fg_canvas.paste(logo_resized, (ox, oy), logo_resized)
+        fg_canvas.save(dir_path / 'ic_launcher_foreground.png', optimize=True)
+
+        print(f"  ✓ {folder:22s}  {size}×{size} / fg {fg_size}×{fg_size}")
+
+    # ── colors.xml — background colour for adaptive icon
+    colors_dir = Path(RES_DIR) / 'values'
+    colors_dir.mkdir(parents=True, exist_ok=True)
+    colors_xml = colors_dir / 'colors.xml'
+    colors_xml.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<resources>\n'
+        '    <color name="ic_launcher_background">#FFFFFF</color>\n'
+        '</resources>\n'
+    )
+    print(f"  ✓ values/colors.xml  (white background)")
 
     print("\nAll icons generated successfully.")
 

@@ -2827,9 +2827,11 @@ def get_customer_subscriptions(status: str = None):
         conn = get_db_connection()
         cur = conn.cursor()
         
+        params = []
         where_clause = ""
-        if status:
-            where_clause = f"WHERE cs.active = '{status}'"
+        if status and status in ('Y', 'N'):
+            where_clause = "WHERE cs.active = ?"
+            params.append(status)
         
         cur.execute(f"""
             SELECT 
@@ -2841,13 +2843,15 @@ def get_customer_subscriptions(status: str = None):
                 e.eventCode,
                 cs.subscriptionStartDate,
                 cs.subscriptionEndDate,
-                cs.active
+                cs.active,
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM CustomerSubscriptions cs
             JOIN Customers c ON cs.customerId = c.customerId
             LEFT JOIN Event e ON cs.eventId = e.eventId
+            LEFT JOIN Entity ent ON ent.entityId = cs.entityId
             {where_clause}
             ORDER BY c.customerName, cs.entityId
-        """)
+        """, params)
         rows = cur.fetchall()
         
         subscriptions = []
@@ -2861,7 +2865,8 @@ def get_customer_subscriptions(status: str = None):
                 "eventCode": row[5],
                 "subscriptionStartDate": row[6].isoformat() if row[6] else None,
                 "subscriptionEndDate": row[7].isoformat() if row[7] else None,
-                "active": row[8]
+                "active": row[8],
+                "entityName": row[9] if row[9] and row[9].strip() else row[3]
             })
         
         cur.close()
@@ -2930,6 +2935,17 @@ def create_customer_subscription(data: dict):
         # Convert eventId to int if provided, otherwise None
         event_id = int(data.get("eventId")) if data.get("eventId") else None
         
+        def parse_date(val):
+            if not val:
+                return None
+            if isinstance(val, str):
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"):
+                    try:
+                        return datetime.strptime(val, fmt)
+                    except ValueError:
+                        continue
+            return val
+
         cur.execute("""
             INSERT INTO CustomerSubscriptions (customerId, entityId, eventId, subscriptionStartDate, subscriptionEndDate, active)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -2937,8 +2953,8 @@ def create_customer_subscription(data: dict):
             customer_id,
             data.get("entityId"),
             event_id,
-            data.get("subscriptionStartDate"),
-            data.get("subscriptionEndDate") if data.get("subscriptionEndDate") else None,
+            parse_date(data.get("subscriptionStartDate")),
+            parse_date(data.get("subscriptionEndDate")),
             data.get("active", "Y")
         ))
         conn.commit()
@@ -2976,12 +2992,23 @@ def update_customer_subscription(id: int, data: dict):
             # Convert eventId to int if provided and not empty, otherwise None
             event_id = int(data["eventId"]) if data["eventId"] else None
             update_values.append(event_id)
+        def parse_date(val):
+            if not val:
+                return None
+            if isinstance(val, str):
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"):
+                    try:
+                        return datetime.strptime(val, fmt)
+                    except ValueError:
+                        continue
+            return val
+
         if "subscriptionStartDate" in data:
             update_fields.append("subscriptionStartDate = ?")
-            update_values.append(data["subscriptionStartDate"])
+            update_values.append(parse_date(data["subscriptionStartDate"]))
         if "subscriptionEndDate" in data:
             update_fields.append("subscriptionEndDate = ?")
-            update_values.append(data["subscriptionEndDate"] if data["subscriptionEndDate"] else None)
+            update_values.append(parse_date(data["subscriptionEndDate"]))
         if "active" in data:
             update_fields.append("active = ?")
             update_values.append(data["active"])
@@ -3897,6 +3924,63 @@ def push_device_twin(entity_id: str):
     }
 
 
+@app.post("/api/user/device-token")
+def register_device_token(data: dict):
+    """Register or update a user's mobile device (FCM token) in UserApplication.
+
+    Body: { "userId": "2", "fcmToken": "...", "platform": "android", "deviceModel": "SM-N980F", "appVersion": "1.0" }
+    """
+    try:
+        user_id = data.get("userId")
+        fcm_token = data.get("fcmToken")
+        platform = data.get("platform", "android")
+        device_model = data.get("deviceModel", "")
+        app_version = data.get("appVersion", "")
+
+        if not user_id or not fcm_token:
+            raise HTTPException(status_code=400, detail="userId and fcmToken are required")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if UserApplication already exists for this user + platform
+        cur.execute("""
+            SELECT userApplicationId FROM dbo.UserApplication
+            WHERE userId = ? AND platform = ?
+        """, (user_id, platform))
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute("""
+                UPDATE dbo.UserApplication
+                SET fcmToken = ?, deviceModel = ?, appVersion = ?,
+                    active = 'Y', lastActiveUTC = GETDATE()
+                WHERE userApplicationId = ?
+            """, (fcm_token, device_model, app_version, existing[0]))
+            user_app_id = existing[0]
+        else:
+            cur.execute("""
+                INSERT INTO dbo.UserApplication
+                    (userId, platform, fcmToken, deviceModel, appVersion, active, lastActiveUTC)
+                VALUES (?, ?, ?, ?, ?, 'Y', GETDATE())
+            """, (user_id, platform, fcm_token, device_model, app_version))
+            conn.commit()
+            cur.execute("""
+                SELECT userApplicationId FROM dbo.UserApplication
+                WHERE userId = ? AND platform = ?
+            """, (user_id, platform))
+            user_app_id = cur.fetchone()[0]
+
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "Device token registered", "userApplicationId": user_app_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/v1/device/register")
 def register_device(req: DeviceRegisterRequest):
     """Register an IoT device – creates row in EntityIoTDevice.
@@ -3974,6 +4058,792 @@ def register_device(req: DeviceRegisterRequest):
         "connectionString": device_connection_string,
         "provisioningStatus": "Provisioned",
     })
+
+
+# ============================================================================
+# USER AUTHORIZATION & NOTIFICATION SETTINGS ENDPOINTS
+# ============================================================================
+
+@app.get("/customersubscriptions/{sub_id}/authorizations")
+def get_subscription_authorizations(sub_id: int):
+    """Get all users authorized for a specific subscription"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                ua.userAuthorizationId,
+                ua.userId,
+                au.email,
+                au.displayName,
+                au.firebaseUid,
+                ua.role,
+                ua.active,
+                ua.createDate,
+                ua.lastUpdateTimestamp
+            FROM dbo.UserAuthorization ua
+            JOIN dbo.AppUser au ON au.userId = ua.userId
+            WHERE ua.customerSubscriptionId = ?
+            ORDER BY ua.createDate DESC
+        """, (sub_id,))
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userAuthorizationId": r[0],
+                "userId": r[1],
+                "email": r[2],
+                "displayName": r[3],
+                "firebaseUid": r[4],
+                "role": r[5],
+                "active": r[6],
+                "createDate": r[7].isoformat() if r[7] else None,
+                "lastUpdateTimestamp": r[8].isoformat() if r[8] else None,
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/authorizations/{auth_id}")
+def update_authorization(auth_id: int, data: dict):
+    """Update a user authorization (role, active status)"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        update_fields = []
+        update_values = []
+        if "role" in data:
+            allowed_roles = ('owner', 'viewer', 'admin')
+            if data["role"] not in allowed_roles:
+                raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {allowed_roles}")
+            update_fields.append("role = ?")
+            update_values.append(data["role"])
+        if "active" in data:
+            if data["active"] not in ('Y', 'N'):
+                raise HTTPException(status_code=400, detail="active must be 'Y' or 'N'")
+            update_fields.append("active = ?")
+            update_values.append(data["active"])
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        update_fields.append("lastUpdateTimestamp = GETDATE()")
+        update_values.append(auth_id)
+        cur.execute(f"""
+            UPDATE dbo.UserAuthorization
+            SET {', '.join(update_fields)}
+            WHERE userAuthorizationId = ?
+        """, update_values)
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "Authorization updated"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/customersubscriptions/{sub_id}/invite")
+def invite_user_to_subscription(sub_id: int, data: dict):
+    """Invite a user by email to a subscription with a role.
+    
+    Creates AppUser (if needed), creates UserAuthorization,
+    and sends Firebase Dynamic Link invitation email.
+    """
+    try:
+        email = (data.get("email") or "").strip().lower()
+        role = data.get("role", "viewer")
+        if not email:
+            raise HTTPException(status_code=400, detail="email is required")
+        allowed_roles = ('owner', 'viewer', 'admin')
+        if role not in allowed_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {allowed_roles}")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # 1. Verify subscription exists and get customerId
+        cur.execute("""
+            SELECT customerSubscriptionId, customerId
+            FROM dbo.CustomerSubscriptions
+            WHERE customerSubscriptionId = ? AND active = 'Y'
+        """, (sub_id,))
+        sub_row = cur.fetchone()
+        if not sub_row:
+            cur.close()
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="Subscription not found or inactive")
+        customer_id = sub_row[1]
+
+        # 2. Find or create AppUser by email
+        cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
+        user_row = cur.fetchone()
+
+        firebase_uid = None
+        if user_row:
+            user_id = user_row[0]
+            firebase_uid = user_row[1]
+        else:
+            # Try to create the user in Firebase first
+            try:
+                import firebase_admin
+                from firebase_admin import auth as fb_auth
+                if not firebase_admin._apps:
+                    _init_firebase_admin()
+                try:
+                    fb_user = fb_auth.get_user_by_email(email)
+                    firebase_uid = fb_user.uid
+                except fb_auth.UserNotFoundError:
+                    fb_user = fb_auth.create_user(email=email)
+                    firebase_uid = fb_user.uid
+            except Exception as fb_err:
+                print(f"[WARNING] Firebase user creation skipped: {fb_err}")
+                firebase_uid = f"pending_{email}"
+
+            cur.execute("""
+                INSERT INTO dbo.AppUser (firebaseUid, email, displayName, customerId, active)
+                VALUES (?, ?, ?, ?, 'Y')
+            """, (firebase_uid, email, email.split('@')[0], customer_id))
+            conn.commit()
+            cur.execute("SELECT userId FROM dbo.AppUser WHERE email = ?", (email,))
+            user_id = cur.fetchone()[0]
+
+        # 3. Create or reactivate UserAuthorization
+        cur.execute("""
+            SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+            WHERE userId = ? AND customerSubscriptionId = ?
+        """, (user_id, sub_id))
+        auth_row = cur.fetchone()
+        if auth_row:
+            cur.execute("""
+                UPDATE dbo.UserAuthorization
+                SET role = ?, active = 'Y', lastUpdateTimestamp = GETDATE()
+                WHERE userAuthorizationId = ?
+            """, (role, auth_row[0]))
+            auth_id = auth_row[0]
+        else:
+            cur.execute("""
+                INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
+                VALUES (?, ?, ?, 'Y')
+            """, (user_id, sub_id, role))
+            conn.commit()
+            cur.execute("""
+                SELECT userAuthorizationId FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerSubscriptionId = ?
+            """, (user_id, sub_id))
+            auth_id = cur.fetchone()[0]
+
+        conn.commit()
+
+        # 4. Send invitation email via Firebase REST API
+        invite_sent = False
+        try:
+            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
+            if firebase_uid and not firebase_uid.startswith("pending_"):
+                import requests as http_requests
+                resp = http_requests.post(
+                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
+                    json={"requestType": "PASSWORD_RESET", "email": email},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    invite_sent = True
+                    print(f"[INFO] Firebase password reset email sent to {email}")
+                else:
+                    print(f"[WARNING] Firebase email send failed: {resp.status_code} - {resp.text}")
+        except Exception as mail_err:
+            print(f"[WARNING] Invitation email skipped: {mail_err}")
+
+        cur.close()
+        return_db_connection(conn)
+
+        return {
+            "message": f"User {email} invited as {role}",
+            "userAuthorizationId": auth_id,
+            "userId": user_id,
+            "inviteSent": invite_sent,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/invite-bulk")
+def invite_user_bulk(data: dict):
+    """Invite a user by email to multiple subscriptions at once.
+
+    Body: { "email": "...", "role": "viewer", "subscriptionIds": [1, 2, 3] }
+    """
+    try:
+        email = (data.get("email") or "").strip().lower()
+        role = data.get("role", "viewer")
+        subscription_ids = data.get("subscriptionIds", [])
+        if not email:
+            raise HTTPException(status_code=400, detail="email is required")
+        if not subscription_ids:
+            raise HTTPException(status_code=400, detail="subscriptionIds is required")
+        allowed_roles = ('owner', 'viewer', 'admin')
+        if role not in allowed_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {allowed_roles}")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # 1. Verify all subscriptions exist
+        placeholders = ','.join(['?' for _ in subscription_ids])
+        cur.execute(f"""
+            SELECT customerSubscriptionId, customerId
+            FROM dbo.CustomerSubscriptions
+            WHERE customerSubscriptionId IN ({placeholders}) AND active = 'Y'
+        """, tuple(subscription_ids))
+        valid_subs = {row[0]: row[1] for row in cur.fetchall()}
+        if not valid_subs:
+            cur.close()
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="No valid active subscriptions found")
+
+        # Use first subscription's customerId for new user
+        customer_id = list(valid_subs.values())[0]
+
+        # 2. Find or create AppUser by email
+        cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
+        user_row = cur.fetchone()
+
+        firebase_uid = None
+        if user_row:
+            user_id = user_row[0]
+            firebase_uid = user_row[1]
+        else:
+            try:
+                import firebase_admin
+                from firebase_admin import auth as fb_auth
+                if not firebase_admin._apps:
+                    _init_firebase_admin()
+                try:
+                    fb_user = fb_auth.get_user_by_email(email)
+                    firebase_uid = fb_user.uid
+                except fb_auth.UserNotFoundError:
+                    fb_user = fb_auth.create_user(email=email)
+                    firebase_uid = fb_user.uid
+            except Exception as fb_err:
+                print(f"[WARNING] Firebase user creation skipped: {fb_err}")
+                firebase_uid = f"pending_{email}"
+
+            cur.execute("""
+                INSERT INTO dbo.AppUser (firebaseUid, email, displayName, customerId, active)
+                VALUES (?, ?, ?, ?, 'Y')
+            """, (firebase_uid, email, email.split('@')[0], customer_id))
+            conn.commit()
+            cur.execute("SELECT userId FROM dbo.AppUser WHERE email = ?", (email,))
+            user_id = cur.fetchone()[0]
+
+        # 3. Create or reactivate UserAuthorization for each subscription
+        results = []
+        for sub_id in subscription_ids:
+            if sub_id not in valid_subs:
+                results.append({"subscriptionId": sub_id, "status": "skipped", "reason": "not found or inactive"})
+                continue
+            cur.execute("""
+                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerSubscriptionId = ?
+            """, (user_id, sub_id))
+            auth_row = cur.fetchone()
+            if auth_row:
+                cur.execute("""
+                    UPDATE dbo.UserAuthorization
+                    SET role = ?, active = 'Y', lastUpdateTimestamp = GETDATE()
+                    WHERE userAuthorizationId = ?
+                """, (role, auth_row[0]))
+                results.append({"subscriptionId": sub_id, "authId": auth_row[0], "status": "updated"})
+            else:
+                cur.execute("""
+                    INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
+                    VALUES (?, ?, ?, 'Y')
+                """, (user_id, sub_id, role))
+                conn.commit()
+                cur.execute("""
+                    SELECT userAuthorizationId FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerSubscriptionId = ?
+                """, (user_id, sub_id))
+                auth_id = cur.fetchone()[0]
+                results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
+        conn.commit()
+
+        # 4. Send invitation email via Firebase REST API
+        # generate_password_reset_link() only generates a link but does NOT send email.
+        # Use Firebase Identity Toolkit REST API which actually triggers email delivery.
+        invite_sent = False
+        invite_link = None
+        try:
+            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
+            if firebase_uid and not firebase_uid.startswith("pending_"):
+                import requests as http_requests
+                # Use Firebase Identity Toolkit to send password reset email
+                resp = http_requests.post(
+                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
+                    json={"requestType": "PASSWORD_RESET", "email": email},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    invite_sent = True
+                    invite_link = resp.json().get("email", email)
+                    print(f"[INFO] Firebase password reset email sent to {email}")
+                else:
+                    print(f"[WARNING] Firebase REST API error: {resp.status_code} - {resp.text}")
+                    # Fallback: try email verification
+                    resp2 = http_requests.post(
+                        f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
+                        json={"requestType": "VERIFY_EMAIL", "idToken": ""},
+                        timeout=10,
+                    )
+                    if resp2.status_code == 200:
+                        invite_sent = True
+                        print(f"[INFO] Firebase verification email sent to {email}")
+                    else:
+                        print(f"[WARNING] Firebase verification also failed: {resp2.text}")
+        except Exception as mail_err:
+            print(f"[WARNING] Invitation email skipped: {mail_err}")
+
+        cur.close()
+        return_db_connection(conn)
+
+        return {
+            "message": f"User {email} invited as {role} to {len(results)} subscription(s)",
+            "userId": user_id,
+            "inviteSent": invite_sent,
+            "results": results,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _init_firebase_admin():
+    """Initialize Firebase Admin SDK if not already initialized"""
+    import firebase_admin
+    from firebase_admin import credentials
+    if firebase_admin._apps:
+        return
+    sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
+    sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+    if sa_path and os.path.exists(sa_path):
+        cred = credentials.Certificate(sa_path)
+    elif sa_json:
+        import json as _json
+        cred = credentials.Certificate(_json.loads(sa_json))
+    else:
+        cred = credentials.ApplicationDefault()
+    firebase_admin.initialize_app(cred)
+
+
+@app.get("/users/{user_id}/subscriptions")
+def get_user_subscriptions(user_id: int):
+    """Get all subscriptions a user has access to (for the invitee's view)"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                ua.userAuthorizationId,
+                ua.customerSubscriptionId,
+                ua.role,
+                ua.active AS authActive,
+                cs.entityId,
+                cs.eventId,
+                e.eventCode,
+                c.customerName,
+                cs.active AS subActive,
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
+            FROM dbo.UserAuthorization ua
+            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
+            JOIN dbo.Customers c ON c.customerId = cs.customerId
+            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = cs.entityId
+            WHERE ua.userId = ? AND ua.active = 'Y' AND cs.active = 'Y'
+            ORDER BY c.customerName, cs.entityId
+        """, (user_id,))
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userAuthorizationId": r[0],
+                "customerSubscriptionId": r[1],
+                "role": r[2],
+                "authActive": r[3],
+                "entityId": r[4],
+                "eventId": r[5],
+                "eventCode": r[6],
+                "customerName": r[7],
+                "subActive": r[8],
+                "entityName": r[9] if r[9] and str(r[9]).strip() else r[4],
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/users/{user_id}/push-settings")
+def get_user_push_settings(user_id: int):
+    """Get all push notification settings for a user across all their devices & subscriptions"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                uapn.userAppPushNotificationId,
+                uapn.userApplicationId,
+                uapn.customerSubscriptionId,
+                uapn.enabled,
+                uapn.minSeverity,
+                CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
+                CAST(uapn.quietHoursEnd AS VARCHAR(8)) AS quietHoursEnd,
+                uapn.soundEnabled,
+                uapn.vibrationEnabled,
+                uapn.ledEnabled,
+                uapn.deliveryChannel,
+                cs.entityId,
+                c.customerName,
+                e.eventCode
+            FROM dbo.UserAppPushNotification uapn
+            JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
+            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
+            JOIN dbo.Customers c ON c.customerId = cs.customerId
+            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            WHERE ua.userId = ? AND uapn.active = 'Y'
+            ORDER BY c.customerName, cs.entityId
+        """, (user_id,))
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userAppPushNotificationId": r[0],
+                "userApplicationId": r[1],
+                "customerSubscriptionId": r[2],
+                "enabled": r[3],
+                "minSeverity": r[4],
+                "quietHoursStart": r[5],
+                "quietHoursEnd": r[6],
+                "soundEnabled": r[7],
+                "vibrationEnabled": r[8],
+                "ledEnabled": r[9],
+                "deliveryChannel": r[10],
+                "entityId": r[11],
+                "customerName": r[12],
+                "eventCode": r[13],
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/push-settings/{setting_id}")
+def update_push_setting(setting_id: int, data: dict):
+    """Update push notification preferences for a specific subscription/device"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        update_fields = []
+        update_values = []
+
+        field_map = {
+            "enabled": ("enabled", lambda v: v if v in ('Y', 'N') else None),
+            "minSeverity": ("minSeverity", lambda v: v if v in ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') else None),
+            "quietHoursStart": ("quietHoursStart", lambda v: v),
+            "quietHoursEnd": ("quietHoursEnd", lambda v: v),
+            "soundEnabled": ("soundEnabled", lambda v: v if v in ('Y', 'N') else None),
+            "vibrationEnabled": ("vibrationEnabled", lambda v: v if v in ('Y', 'N') else None),
+            "ledEnabled": ("ledEnabled", lambda v: v if v in ('Y', 'N') else None),
+            "deliveryChannel": ("deliveryChannel", lambda v: v if v in ('fcm', 'apns', 'email', 'sms') else None),
+        }
+
+        for key, (col, validate) in field_map.items():
+            if key in data:
+                validated = validate(data[key])
+                if validated is None and data[key] is not None:
+                    raise HTTPException(status_code=400, detail=f"Invalid value for {key}")
+                update_fields.append(f"{col} = ?")
+                update_values.append(validated)
+
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        update_fields.append("lastUpdateTimestamp = GETDATE()")
+        update_values.append(setting_id)
+
+        cur.execute(f"""
+            UPDATE dbo.UserAppPushNotification
+            SET {', '.join(update_fields)}
+            WHERE userAppPushNotificationId = ?
+        """, update_values)
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "Push setting updated"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/users/{user_id}/push-settings")
+def create_push_setting(user_id: int, data: dict):
+    """Create a push notification setting for a user's device + subscription.
+    
+    Finds the user's active UserApplication (device) and creates a preference row.
+    """
+    try:
+        customer_subscription_id = data.get("customerSubscriptionId")
+        if not customer_subscription_id:
+            raise HTTPException(status_code=400, detail="customerSubscriptionId is required")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Find user's active device (most recent)
+        cur.execute("""
+            SELECT TOP 1 userApplicationId
+            FROM dbo.UserApplication
+            WHERE userId = ? AND active = 'Y'
+            ORDER BY lastActiveUTC DESC
+        """, (user_id,))
+        dev_row = cur.fetchone()
+        if not dev_row:
+            cur.close()
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="No active device found for this user")
+        user_app_id = dev_row[0]
+
+        # Check if already exists
+        cur.execute("""
+            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+            WHERE userApplicationId = ? AND customerSubscriptionId = ?
+        """, (user_app_id, customer_subscription_id))
+        existing = cur.fetchone()
+        if existing:
+            cur.close()
+            return_db_connection(conn)
+            return {"message": "Setting already exists", "userAppPushNotificationId": existing[0]}
+
+        cur.execute("""
+            INSERT INTO dbo.UserAppPushNotification
+                (userApplicationId, customerSubscriptionId, enabled, minSeverity, deliveryChannel, active)
+            VALUES (?, ?, 'Y', ?, 'fcm', 'Y')
+        """, (user_app_id, customer_subscription_id, data.get("minSeverity", "MEDIUM")))
+        conn.commit()
+
+        cur.execute("""
+            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+            WHERE userApplicationId = ? AND customerSubscriptionId = ?
+        """, (user_app_id, customer_subscription_id))
+        new_id = cur.fetchone()[0]
+
+        cur.close()
+        return_db_connection(conn)
+        return {"message": "Push setting created", "userAppPushNotificationId": new_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/users/by-email/{email}")
+def get_user_by_email(email: str):
+    """Look up an AppUser by email address"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT userId, firebaseUid, email, displayName, customerId, active
+            FROM dbo.AppUser WHERE email = ?
+        """, (email.lower(),))
+        row = cur.fetchone()
+        cur.close()
+        return_db_connection(conn)
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "userId": row[0],
+            "firebaseUid": row[1],
+            "email": row[2],
+            "displayName": row[3],
+            "customerId": row[4],
+            "active": row[5],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ADMIN: APP USERS
+# ============================================================================
+
+@app.get("/appusers")
+def get_all_app_users():
+    """List all AppUser records with customer info"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                au.userId, au.firebaseUid, au.email, au.displayName,
+                au.customerId, c.customerName, au.active, au.createDate
+            FROM dbo.AppUser au
+            LEFT JOIN dbo.Customers c ON c.customerId = au.customerId
+            ORDER BY au.email
+        """)
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userId": r[0],
+                "firebaseUid": r[1],
+                "email": r[2],
+                "displayName": r[3],
+                "customerId": r[4],
+                "customerName": r[5],
+                "active": r[6],
+                "createDate": r[7].isoformat() if r[7] else None,
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ADMIN: ALL PUSH NOTIFICATION SETTINGS
+# ============================================================================
+
+@app.get("/admin/push-settings")
+def get_all_push_settings():
+    """List all push notification settings across all users (admin view)"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                uapn.userAppPushNotificationId,
+                uapn.userApplicationId,
+                uapn.customerSubscriptionId,
+                uapn.enabled,
+                uapn.minSeverity,
+                CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
+                CAST(uapn.quietHoursEnd AS VARCHAR(8)) AS quietHoursEnd,
+                uapn.soundEnabled,
+                uapn.vibrationEnabled,
+                uapn.ledEnabled,
+                uapn.deliveryChannel,
+                uapn.active,
+                au.userId,
+                au.email,
+                au.displayName,
+                ua.platform,
+                ua.deviceModel,
+                cs.entityId,
+                c.customerName,
+                e.eventCode
+            FROM dbo.UserAppPushNotification uapn
+            JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
+            JOIN dbo.AppUser au ON au.userId = ua.userId
+            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
+            JOIN dbo.Customers c ON c.customerId = cs.customerId
+            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            ORDER BY au.email, cs.entityId
+        """)
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userAppPushNotificationId": r[0],
+                "userApplicationId": r[1],
+                "customerSubscriptionId": r[2],
+                "enabled": r[3],
+                "minSeverity": r[4],
+                "quietHoursStart": r[5],
+                "quietHoursEnd": r[6],
+                "soundEnabled": r[7],
+                "vibrationEnabled": r[8],
+                "ledEnabled": r[9],
+                "deliveryChannel": r[10],
+                "active": r[11],
+                "userId": r[12],
+                "email": r[13],
+                "displayName": r[14],
+                "platform": r[15],
+                "deviceModel": r[16],
+                "entityId": r[17],
+                "customerName": r[18],
+                "eventCode": r[19],
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ADMIN: ALL USER AUTHORIZATIONS
+# ============================================================================
+
+@app.get("/admin/authorizations")
+def get_all_authorizations():
+    """List all user authorizations across all subscriptions (admin view)"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                ua.userAuthorizationId,
+                ua.userId,
+                au.email,
+                au.displayName,
+                ua.customerSubscriptionId,
+                cs.entityId,
+                c.customerName,
+                e.eventCode,
+                ua.role,
+                ua.active,
+                ua.createDate
+            FROM dbo.UserAuthorization ua
+            JOIN dbo.AppUser au ON au.userId = ua.userId
+            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
+            JOIN dbo.Customers c ON c.customerId = cs.customerId
+            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            ORDER BY au.email, c.customerName
+        """)
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "userAuthorizationId": r[0],
+                "userId": r[1],
+                "email": r[2],
+                "displayName": r[3],
+                "customerSubscriptionId": r[4],
+                "entityId": r[5],
+                "customerName": r[6],
+                "eventCode": r[7],
+                "role": r[8],
+                "active": r[9],
+                "createDate": r[10].isoformat() if r[10] else None,
+            })
+        cur.close()
+        return_db_connection(conn)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

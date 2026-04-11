@@ -15,7 +15,19 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath 'com.google.gms:google-services:4.4.1'
     }
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Force kotlinx-coroutines to a version compatible with Kotlin 1.9.x
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
+            force 'org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.1'
+            force 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+        }
+    }
+}

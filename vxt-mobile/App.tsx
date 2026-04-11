@@ -13,13 +13,19 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DrawerContext } from './src/context/DrawerContext';
+import { initNotifications } from './src/services/NotificationService';
+import { loadDataSource } from './src/hooks/useDataSource';
+import { loadUserProfile } from './src/hooks/useUserProfile';
 import GatewayStatusScreen from './src/screens/GatewayStatusScreen';
 import DriverSelectorScreen from './src/screens/DriverSelectorScreen';
 import HealthVitalsScreen from './src/screens/HealthVitalsScreen';
 import EntityTelemetryRN from './src/screens/EntityTelemetryRN';
-import ReportManuallyRN from './src/screens/ReportManuallyRN';
+import ReportManuallyScreen from './src/screens/ReportManuallyScreen';
 import DataSourceScreen from './src/screens/DataSourceScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
+import SubscriptionManagementScreen from './src/screens/SubscriptionManagementScreen';
+import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
+import UserAuthorizationScreen from './src/screens/UserAuthorizationScreen';
 import { driverManager } from './src/core/DriverManager';
 import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
@@ -38,7 +44,7 @@ driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'PushNotifications' | 'UserAuthorizations';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -61,6 +67,9 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'Status',         label: 'Event Hub',        icon: '⚡' },
   { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
   { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
+  { key: 'Subscriptions',  label: 'Subscriptions',    icon: '📋' },
+  { key: 'PushNotifications', label: 'Push Notifications', icon: '🔔' },
+  { key: 'UserAuthorizations', label: 'User Authorizations', icon: '🔑' },
   { key: 'UserProfile',    label: 'User Profile',     icon: '👤' },
 ];
 
@@ -73,10 +82,63 @@ export default function App() {
   );
 }
 
+function PushNotificationsWrapper() {
+  const { openDrawer } = React.useContext(DrawerContext);
+  const [baseUrl, setBaseUrl] = React.useState('');
+  const [userId, setUserId] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    (async () => {
+      const [ds, profile] = await Promise.all([loadDataSource(), loadUserProfile()]);
+      setBaseUrl(ds.baseUrl);
+      setUserId(profile.userId);
+      setLoading(false);
+    })();
+  }, []);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0d1117', justifyContent: 'center', alignItems: 'center' }}>
+        <TouchableOpacity onPress={openDrawer} style={{ position: 'absolute', top: 50, left: 16, width: 40, height: 40, borderRadius: 8, backgroundColor: '#161b22', justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, color: '#e6edf3' }}>☰</Text>
+        </TouchableOpacity>
+        <Text style={{ color: '#8b949e', fontSize: 16 }}>Loading...</Text>
+      </View>
+    );
+  }
+  if (!baseUrl || !userId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0d1117', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <TouchableOpacity onPress={openDrawer} style={{ position: 'absolute', top: 50, left: 16, width: 40, height: 40, borderRadius: 8, backgroundColor: '#161b22', justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, color: '#e6edf3' }}>☰</Text>
+        </TouchableOpacity>
+        <Text style={{ color: '#e6edf3', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>🔔 Push Notifications</Text>
+        <Text style={{ color: '#8b949e', fontSize: 14, textAlign: 'center' }}>
+          {!baseUrl ? 'Please configure your API endpoint in API Endpoints first.' : 'Please set your User ID in User Profile first.'}
+        </Text>
+      </View>
+    );
+  }
+  return <NotificationSettingsScreen baseUrl={baseUrl} userId={userId} onBack={openDrawer} />;
+}
+
 function AppShell() {
   const insets = useSafeAreaInsets();
   const [active, setActive]   = React.useState<Screen>('Telemetry');
   const [isOpen, setIsOpen]   = React.useState(false);
+
+  // Initialize push notifications
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const [ds, profile] = await Promise.all([loadDataSource(), loadUserProfile()]);
+        if (ds.baseUrl && profile.userId) {
+          await initNotifications(ds.baseUrl, profile.userId);
+        }
+      } catch (e) {
+        console.warn('Push notification init failed:', e);
+      }
+    })();
+  }, []);
 
   const hiddenValue    = isRTL ? DRAWER_W : -DRAWER_W;
   const translateX     = React.useRef(new Animated.Value(hiddenValue)).current;
@@ -102,18 +164,28 @@ function AppShell() {
     closeDrawer();
   }
 
+  function navigateTo(screen: string) {
+    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','PushNotifications','UserAuthorizations'];
+    if (validScreens.includes(screen as Screen)) {
+      setActive(screen as Screen);
+    }
+  }
+
   const ActiveScreen: React.ComponentType =
     active === 'Vitals'         ? HealthVitalsScreen :
     active === 'Telemetry'      ? EntityTelemetryRN :
-    active === 'ReportManually' ? ReportManuallyRN :
+    active === 'ReportManually' ? ReportManuallyScreen :
     active === 'Status'         ? GatewayStatusScreen :
     active === 'Driver'         ? DriverSelectorScreen :
     active === 'DataSource'     ? DataSourceScreen :
     active === 'UserProfile'    ? UserProfileScreen :
+    active === 'Subscriptions'  ? SubscriptionManagementScreen :
+    active === 'PushNotifications' ? PushNotificationsWrapper :
+    active === 'UserAuthorizations' ? UserAuthorizationScreen :
     HealthVitalsScreen; // Default fallback
 
   return (
-    <DrawerContext.Provider value={{ openDrawer }}>
+    <DrawerContext.Provider value={{ openDrawer, navigateTo }}>
       <View style={[styles.root, { paddingTop: insets.top }]}>
 
         {/* ── Active screen ─────────────────────────────────── */}

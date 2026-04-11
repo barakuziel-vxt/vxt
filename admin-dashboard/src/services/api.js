@@ -1,6 +1,20 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+function resolveBaseUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const dsType = params.get('dsType');
+    const cloudUrl = params.get('cloudUrl');
+    const localUrl = params.get('localUrl');
+    if (dsType && (cloudUrl || localUrl)) {
+      const url = dsType === 'cloud' ? cloudUrl : localUrl;
+      return url.endsWith('/') ? url.slice(0, -1) : url;
+    }
+  } catch { /* ignore */ }
+  return import.meta.env.VITE_API_BASE_URL || '/api';
+}
+
+const API_BASE_URL = resolveBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -393,6 +407,38 @@ export const customerGeofenceCriteriaAPI = {
   },
   delete: async (id) => {
     const response = await api.delete(`/customergeofencecriteria/${id}`);
+    return response.data;
+  },
+};
+
+// Push Notification Admin APIs
+export const pushNotificationAPI = {
+  getAll: async () => {
+    const response = await api.get('/admin/push-settings');
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/push-settings/${id}`, data);
+    return response.data;
+  },
+};
+
+// User Authorization Admin APIs
+export const userAuthorizationAPI = {
+  getAll: async () => {
+    const response = await api.get('/admin/authorizations');
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/authorizations/${id}`, data);
+    return response.data;
+  },
+};
+
+// AppUser APIs
+export const appUserAPI = {
+  getAll: async () => {
+    const response = await api.get('/appusers');
     return response.data;
   },
 };

@@ -386,7 +386,239 @@ class SubscriptionAnalysisWorker:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None
-    
+
+    # -------------------------------------------------------------------------
+    # Firebase Push Notification
+    # -------------------------------------------------------------------------
+
+    def _init_firebase(self) -> bool:
+        """
+        Lazy-initialize the Firebase Admin SDK.
+        Reads credentials from env vars:
+          FIREBASE_SERVICE_ACCOUNT_PATH  – path to service-account JSON file
+          FIREBASE_SERVICE_ACCOUNT_JSON  – raw JSON string (or base64-encoded)
+        Returns True if the SDK is ready, False if credentials are missing.
+        """
+        import firebase_admin
+        from firebase_admin import credentials as fb_credentials
+
+        if firebase_admin._apps:
+            return True
+
+        sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
+        sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+
+        if sa_path and os.path.exists(sa_path):
+            cred = fb_credentials.Certificate(sa_path)
+        elif sa_json:
+            import base64
+            try:
+                sa_dict = json.loads(sa_json)
+            except json.JSONDecodeError:
+                sa_dict = json.loads(base64.b64decode(sa_json).decode('utf-8'))
+            cred = fb_credentials.Certificate(sa_dict)
+        else:
+            logger.warning(
+                "Firebase not configured: set FIREBASE_SERVICE_ACCOUNT_PATH "
+                "or FIREBASE_SERVICE_ACCOUNT_JSON environment variable."
+            )
+            return False
+
+        firebase_admin.initialize_app(cred)
+        logger.info("Firebase Admin SDK initialized successfully")
+        return True
+
+    @staticmethod
+    def _is_in_quiet_hours(current_time, quiet_start, quiet_end) -> bool:
+        """Return True if *current_time* (datetime.time, UTC) is inside the quiet window."""
+        if not quiet_start or not quiet_end:
+            return False
+        try:
+            from datetime import time as dt_time
+            qs = quiet_start if isinstance(quiet_start, dt_time) else dt_time.fromisoformat(str(quiet_start)[:8])
+            qe = quiet_end   if isinstance(quiet_end,   dt_time) else dt_time.fromisoformat(str(quiet_end)[:8])
+            if qs <= qe:
+                return qs <= current_time <= qe
+            # Wraps midnight
+            return current_time >= qs or current_time <= qe
+        except Exception:
+            return False
+
+    def send_push_notification(
+        self, entity_id, event_id, event_log_id, event_code, cumulative_score, probability
+    ):
+        """
+        Send Firebase Cloud Messaging push notifications to every subscribed device
+        that has opted in for this entity/event combination.
+
+        Resolution path:
+          CustomerSubscriptions (entityId + eventId)
+            → UserAppPushNotification (per-device prefs)
+            → UserApplication          (fcmToken)
+            → AppUser                  (displayName)
+
+        Notification is suppressed per-device when:
+          - enabled flag is not 'Y'
+          - event severity is below the device's minSeverity threshold
+          - current UTC time falls inside the device's quiet-hours window
+        """
+        try:
+            if not self._init_firebase():
+                return
+
+            # Map probability → severity label
+            SEVERITY_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
+            if probability >= 0.80:
+                event_severity = "HIGH"
+            elif probability >= 0.50:
+                event_severity = "MEDIUM"
+            else:
+                event_severity = "LOW"
+
+            # Fetch all subscribed, enabled devices for this entity + event
+            query = """
+                SELECT
+                    ua.userApplicationId,
+                    ua.fcmToken,
+                    ua.platform,
+                    ua.deviceModel,
+                    usr.displayName,
+                    uapn.userAppPushNotificationId,
+                    uapn.minSeverity,
+                    uapn.quietHoursStart,
+                    uapn.quietHoursEnd,
+                    uapn.soundEnabled,
+                    uapn.vibrationEnabled,
+                    uapn.ledEnabled,
+                    uapn.deliveryChannel
+                FROM dbo.CustomerSubscriptions cs
+                JOIN dbo.UserAppPushNotification uapn
+                    ON  uapn.customerSubscriptionId = cs.customerSubscriptionId
+                    AND uapn.enabled = 'Y'
+                    AND uapn.active  = 'Y'
+                JOIN dbo.UserApplication ua
+                    ON  ua.userApplicationId = uapn.userApplicationId
+                    AND ua.active   = 'Y'
+                    AND ua.fcmToken IS NOT NULL
+                    AND ua.fcmToken <> ''
+                JOIN dbo.AppUser usr
+                    ON  usr.userId = ua.userId
+                    AND usr.active = 'Y'
+                WHERE cs.entityId = ?
+                  AND cs.eventId  = ?
+                  AND cs.active   = 'Y'
+                  AND (cs.subscriptionEndDate IS NULL OR cs.subscriptionEndDate >= GETUTCDATE())
+            """
+
+            cursor = self.connection.cursor()
+            cursor.execute(query, (entity_id, event_id))
+            rows = cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            cursor.close()
+
+            if not rows:
+                logger.info(
+                    f"No push-notification subscribers for entity={entity_id}, event={event_id}"
+                )
+                return
+
+            devices = [dict(zip(cols, row)) for row in rows]
+            now_utc = datetime.now(timezone.utc).time()
+            sent_count = 0
+            skipped_count = 0
+
+            from firebase_admin import messaging
+
+            for device in devices:
+                fcm_token = device.get('fcmToken')
+                if not fcm_token:
+                    continue
+
+                # -- Severity filter --
+                min_sev = (device.get('minSeverity') or 'LOW').upper()
+                if SEVERITY_RANK.get(event_severity, 2) < SEVERITY_RANK.get(min_sev, 1):
+                    logger.debug(
+                        f"Skipping device {device['userApplicationId']}: "
+                        f"severity {event_severity} below minSeverity {min_sev}"
+                    )
+                    skipped_count += 1
+                    continue
+
+                # -- Quiet-hours filter --
+                if self._is_in_quiet_hours(
+                    now_utc, device.get('quietHoursStart'), device.get('quietHoursEnd')
+                ):
+                    logger.info(
+                        f"Skipping device {device['userApplicationId']}: inside quiet hours"
+                    )
+                    skipped_count += 1
+                    continue
+
+                # -- Build FCM message --
+                display_name = device.get('displayName') or 'Your entity'
+                title = f"VXT Alert: {event_code}"
+                body = (
+                    f"{display_name} triggered {event_code} "
+                    f"(score: {cumulative_score}, confidence: {probability:.0%})"
+                )
+                sound_enabled = device.get('soundEnabled') == 'Y'
+                vibration_enabled = device.get('vibrationEnabled') == 'Y'
+                led_enabled = device.get('ledEnabled') == 'Y'
+
+                message = messaging.Message(
+                    notification=messaging.Notification(title=title, body=body),
+                    android=messaging.AndroidConfig(
+                        priority='high',
+                        notification=messaging.AndroidNotification(
+                            title=title,
+                            body=body,
+                            sound='default' if sound_enabled else None,
+                            default_vibrate_timings=vibration_enabled,
+                            default_light_settings=led_enabled,
+                            priority='high',
+                        ),
+                    ),
+                    apns=messaging.APNSConfig(
+                        headers={'apns-priority': '10'},
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(
+                                sound='default' if sound_enabled else None,
+                                badge=1,
+                            )
+                        ),
+                    ),
+                    data={
+                        'eventLogId':      str(event_log_id),
+                        'eventId':         str(event_id),
+                        'entityId':        str(entity_id),
+                        'eventCode':       event_code,
+                        'cumulativeScore': str(cumulative_score),
+                        'probability':     f"{probability:.4f}",
+                        'severity':        event_severity,
+                    },
+                    token=fcm_token,
+                )
+
+                try:
+                    response = messaging.send(message)
+                    logger.info(
+                        f"Push sent to device {device['userApplicationId']} "
+                        f"({device.get('platform', '?')}): {response}"
+                    )
+                    sent_count += 1
+                except Exception as send_err:
+                    logger.error(
+                        f"Failed to send push to device {device['userApplicationId']}: {send_err}"
+                    )
+
+            logger.info(
+                f"Push notifications for event '{event_code}': "
+                f"{sent_count} sent, {skipped_count} skipped"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in send_push_notification: {e}", exc_info=True)
+
     def execute_python_function(self, event_log):
         """
         Execute a Python-based analysis function for an event
@@ -608,6 +840,10 @@ class SubscriptionAnalysisWorker:
                     self.log_event_found(entity_id, event_log_id, event_code, cumulative_score, triggered_at)
                     event_found = True
                     logger.info(f"[EVENT] Event registered: {function_name} (Score: {cumulative_score}, Probability: {probability:.2f})")
+                    # Step 4b: Send push notifications to subscribed devices
+                    self.send_push_notification(
+                        entity_id, event_id, event_log_id, event_code, cumulative_score, probability
+                    )
                 else:
                     logger.error(f"Failed to register event for {event_code}")
             else:
