@@ -182,23 +182,21 @@ export default function PushNotificationRNPage() {
             const status = getPushStatus(sub.customerSubscriptionId);
             return (
               <div key={sub.customerSubscriptionId} style={S.card} onClick={() => openSettings(sub)}>
-                <div style={S.cardTop}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: C.textPrimary }}>{sub.customerName}</div>
-                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Entity: {sub.entityName || sub.entityId}</div>
-                    {sub.eventCode && <div style={{ fontSize: 13, color: C.textMuted }}>Event: {sub.eventCode}</div>}
-                    <div style={{ fontSize: 12, color: C.blue, marginTop: 4, fontWeight: 600 }}>Role: {sub.role}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: C.textPrimary }}>{sub.customerName}</span>
+                  <span style={{ fontSize: 13, color: C.textMuted }}>{sub.entityName || sub.entityId}</span>
+                  {sub.eventCode && <span style={{ fontSize: 12, color: C.textMuted }}>\u2022 {sub.eventCode}</span>}
+                  <span style={{ fontSize: 12, color: C.blue, fontWeight: 600 }}>\u2022 {sub.role}</span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     {status.configured ? (
                       <>
-                        <div style={{ width: 12, height: 12, borderRadius: 6, background: status.enabled ? C.green : C.red, marginLeft: 'auto', marginBottom: 4 }} />
-                        <div style={{ fontSize: 12, fontWeight: 600, color: sevColor(status.severity) }}>{status.severity}</div>
+                        <span style={{ width: 10, height: 10, borderRadius: 5, background: status.enabled ? C.green : C.red, display: 'inline-block' }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: sevColor(status.severity) }}>{status.severity}</span>
                       </>
                     ) : (
-                      <div style={{ fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>Tap to configure</div>
+                      <span style={{ fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>Tap to configure</span>
                     )}
-                  </div>
+                  </span>
                 </div>
               </div>
             );

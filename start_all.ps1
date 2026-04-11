@@ -14,7 +14,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\p
 
 Write-Host "[2.5/4] Launching Telemetry Consumers and Simulators..." -ForegroundColor Yellow
 # Single consumer process — auto-discovers all active providers from DB
-Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\venv\Scripts\python.exe generic_telemetry_consumer.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe generic_telemetry_consumer.py" -WindowStyle Normal
 # Launch Simulators
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 #Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal

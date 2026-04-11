@@ -4216,7 +4216,11 @@ def invite_user_to_subscription(sub_id: int, data: dict):
                     fb_user = fb_auth.get_user_by_email(email)
                     firebase_uid = fb_user.uid
                 except fb_auth.UserNotFoundError:
-                    fb_user = fb_auth.create_user(email=email)
+                    import secrets as _secrets
+                    fb_user = fb_auth.create_user(
+                        email=email,
+                        password=_secrets.token_urlsafe(16),  # temp password enables EMAIL/PASSWORD provider
+                    )
                     firebase_uid = fb_user.uid
             except Exception as fb_err:
                 print(f"[WARNING] Firebase user creation skipped: {fb_err}")
@@ -4257,7 +4261,8 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
         conn.commit()
 
-        # 4. Send invitation email via Firebase REST API
+        # 4. Send invitation email via Firebase REST API (PASSWORD_RESET works because
+        #    create_user() above sets a temp password, enabling the email/password provider)
         invite_sent = False
         try:
             firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
@@ -4346,7 +4351,11 @@ def invite_user_bulk(data: dict):
                     fb_user = fb_auth.get_user_by_email(email)
                     firebase_uid = fb_user.uid
                 except fb_auth.UserNotFoundError:
-                    fb_user = fb_auth.create_user(email=email)
+                    import secrets as _secrets
+                    fb_user = fb_auth.create_user(
+                        email=email,
+                        password=_secrets.token_urlsafe(16),  # temp password enables EMAIL/PASSWORD provider
+                    )
                     firebase_uid = fb_user.uid
             except Exception as fb_err:
                 print(f"[WARNING] Firebase user creation skipped: {fb_err}")
