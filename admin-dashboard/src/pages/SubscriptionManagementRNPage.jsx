@@ -73,12 +73,7 @@ function UserRolesView({ subId, subLabel, onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      if (result.inviteSent && result.inviteLink) {
-        const copied = await navigator.clipboard.writeText(result.inviteLink).then(() => true).catch(() => false);
-        alert(`${result.message}\n📧 Password reset link generated${copied ? ' (copied to clipboard)' : ''}:\n${result.inviteLink}`);
-      } else {
-        alert(`${result.message}\n⚠️ Email not sent — user was added but no email was delivered`);
-      }
+      alert(`\u2705 ${result.message}\n\nThe user can now open the VXT app and sign in with ${inviteEmail.trim().toLowerCase()}.\nThey will receive a verification email on first login.`);
       setInviteOpen(false); setInviteEmail(''); setInviteRole('viewer');
       fetchAuths();
     } catch (e) { alert(e.message); }
@@ -221,12 +216,7 @@ function InviteUserView({ onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      if (result.inviteSent && result.inviteLink) {
-        const copied = await navigator.clipboard.writeText(result.inviteLink).then(() => true).catch(() => false);
-        alert(`${result.message}\n📧 Password reset link generated${copied ? ' (copied to clipboard)' : ''}:\n${result.inviteLink}`);
-      } else {
-        alert(`${result.message}\n⚠️ Email not sent`);
-      }
+      alert(`\u2705 ${result.message}\n\nThe user can now open the VXT app and sign in with ${trimmedEmail}.\nThey will receive a verification email on first login.`);
       onBack();
     } catch (e) { alert(e.message); }
     finally { setSending(false); }

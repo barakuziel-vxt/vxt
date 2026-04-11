@@ -4216,11 +4216,7 @@ def invite_user_to_subscription(sub_id: int, data: dict):
                     fb_user = fb_auth.get_user_by_email(email)
                     firebase_uid = fb_user.uid
                 except fb_auth.UserNotFoundError:
-                    import secrets as _secrets
-                    fb_user = fb_auth.create_user(
-                        email=email,
-                        password=_secrets.token_urlsafe(16),  # temp password enables EMAIL/PASSWORD provider
-                    )
+                    fb_user = fb_auth.create_user(email=email)
                     firebase_uid = fb_user.uid
             except Exception as fb_err:
                 print(f"[WARNING] Firebase user creation skipped: {fb_err}")
@@ -4261,20 +4257,11 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
         conn.commit()
 
-        # 4. Generate password-reset link via Firebase Admin SDK
-        invite_sent = False
-        invite_link = None
-        try:
-            import firebase_admin
-            from firebase_admin import auth as fb_auth
-            if not firebase_admin._apps:
-                _init_firebase_admin()
-            if firebase_uid and not firebase_uid.startswith("pending_"):
-                invite_link = fb_auth.generate_password_reset_link(email)
-                invite_sent = True
-                print(f"[INFO] Firebase password reset link generated for {email}")
-        except Exception as mail_err:
-            print(f"[WARNING] Could not generate invite link: {mail_err}")
+        # 4. Passwordless invite — no password reset needed
+        #    The invitee will sign in via /auth/start-login → custom token → email verification
+        invite_sent = True
+        invite_link = None  # No link needed — user signs in by entering email in the app
+        print(f"[INFO] User {email} invited as {role} (passwordless)")
 
         cur.close()
         return_db_connection(conn)
@@ -4347,11 +4334,7 @@ def invite_user_bulk(data: dict):
                     fb_user = fb_auth.get_user_by_email(email)
                     firebase_uid = fb_user.uid
                 except fb_auth.UserNotFoundError:
-                    import secrets as _secrets
-                    fb_user = fb_auth.create_user(
-                        email=email,
-                        password=_secrets.token_urlsafe(16),  # temp password enables EMAIL/PASSWORD provider
-                    )
+                    fb_user = fb_auth.create_user(email=email)
                     firebase_uid = fb_user.uid
             except Exception as fb_err:
                 print(f"[WARNING] Firebase user creation skipped: {fb_err}")
@@ -4397,20 +4380,10 @@ def invite_user_bulk(data: dict):
                 results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
         conn.commit()
 
-        # 4. Generate password-reset link via Firebase Admin SDK
-        invite_sent = False
+        # 4. Passwordless invite — no password reset needed
+        invite_sent = True
         invite_link = None
-        try:
-            import firebase_admin
-            from firebase_admin import auth as fb_auth
-            if not firebase_admin._apps:
-                _init_firebase_admin()
-            if firebase_uid and not firebase_uid.startswith("pending_"):
-                invite_link = fb_auth.generate_password_reset_link(email)
-                invite_sent = True
-                print(f"[INFO] Firebase password reset link generated for {email}")
-        except Exception as mail_err:
-            print(f"[WARNING] Could not generate invite link: {mail_err}")
+        print(f"[INFO] User {email} invited as {role} to {len(results)} subscription(s) (passwordless)")
 
         cur.close()
         return_db_connection(conn)
@@ -4444,6 +4417,82 @@ def _init_firebase_admin():
     else:
         cred = credentials.ApplicationDefault()
     firebase_admin.initialize_app(cred)
+
+
+# ─── Passwordless Auth ─────────────────────────────────────────────────────
+
+@app.post("/auth/start-login")
+def auth_start_login(data: dict):
+    """Passwordless login step 1: verify email is invited, return Firebase custom token.
+
+    Body: { "email": "user@example.com" }
+    Returns: { "token": "...", "emailVerified": bool, "uid": "..." }
+    The mobile app signs in with the custom token, then calls
+    sendEmailVerification() if emailVerified is false.
+    """
+    email = data.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check the email is in AppUser (was invited via subscription)
+        cur.execute("SELECT userId FROM dbo.AppUser WHERE LOWER(email) = ?", (email,))
+        user_row = cur.fetchone()
+
+        cur.close()
+        return_db_connection(conn)
+
+        if not user_row:
+            raise HTTPException(
+                status_code=403,
+                detail="Email not found. Ask your administrator for an invitation.",
+            )
+
+        # Get or create Firebase user (no password — passwordless)
+        import firebase_admin
+        from firebase_admin import auth as fb_auth
+        if not firebase_admin._apps:
+            _init_firebase_admin()
+
+        try:
+            fb_user = fb_auth.get_user_by_email(email)
+        except fb_auth.UserNotFoundError:
+            fb_user = fb_auth.create_user(email=email)
+
+        # Generate custom token for passwordless sign-in
+        custom_token = fb_auth.create_custom_token(fb_user.uid)
+        token_str = custom_token.decode("utf-8") if isinstance(custom_token, bytes) else custom_token
+
+        print(f"[AUTH] Custom token generated for {email} (verified={fb_user.email_verified})")
+
+        return {
+            "token": token_str,
+            "emailVerified": fb_user.email_verified,
+            "uid": fb_user.uid,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AUTH ERROR] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/auth/check-verified")
+def auth_check_verified(email: str):
+    """Check if a Firebase user's email is verified (called by app polling)."""
+    email = email.strip().lower()
+    try:
+        import firebase_admin
+        from firebase_admin import auth as fb_auth
+        if not firebase_admin._apps:
+            _init_firebase_admin()
+        fb_user = fb_auth.get_user_by_email(email)
+        return {"emailVerified": fb_user.email_verified}
+    except Exception:
+        return {"emailVerified": False}
 
 
 @app.get("/users/{user_id}/subscriptions")

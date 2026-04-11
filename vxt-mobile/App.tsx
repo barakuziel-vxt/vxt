@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { useAuthStore } from './src/store/authStore';
+import LoginScreen from './src/screens/LoginScreen';
 import { DrawerContext } from './src/context/DrawerContext';
 import { initNotifications } from './src/services/NotificationService';
 import { loadDataSource } from './src/hooks/useDataSource';
@@ -74,6 +77,44 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
 ];
 
 export default function App() {
+  const { user, initialized, setUser, setInitialized } = useAuthStore();
+
+  // Listen to Firebase Auth state changes
+  React.useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged((fbUser) => {
+      setUser(fbUser);
+      if (!initialized) setInitialized();
+    });
+    return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Show loading while Firebase initializes
+  if (!initialized) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <View style={{ flex: 1, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: C.textMuted, fontSize: 16 }}>Loading...</Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  // Not signed in → show login
+  if (!user) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <LoginScreen onAuthenticated={() => {
+          // Force re-render — onAuthStateChanged will update the store
+          auth().currentUser?.reload();
+        }} />
+      </SafeAreaProvider>
+    );
+  }
+
+  // Signed in → show main app
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
@@ -232,6 +273,18 @@ function AppShell() {
               </Text>
             </TouchableOpacity>
           ))}
+
+          {/* Sign out */}
+          <View style={{ borderTopWidth: 1, borderTopColor: C.border, marginTop: 12, paddingTop: 12 }}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { closeDrawer(); useAuthStore.getState().signOut(); }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>🚪</Text>
+              <Text style={[styles.menuLabel, { color: '#da3633' }]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
       </View>
