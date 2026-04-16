@@ -5,3 +5,4 @@ azure-eventhub>=5.11.0
 mssql-python>=1.0.0
 python-dateutil==2.8.2
 requests==2.31.0
+confluent-kafka>=2.3.0

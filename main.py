@@ -2180,102 +2180,163 @@ def _build_iothub_sas(resource_uri: str, key: str, expiry_s: int = 3600) -> str:
 @app.post("/api/manual-report")
 def post_manual_report(data: dict):
     """
-    Publish a manual telemetry measurement to the configured gateway.
-
-    Body fields:
-      entityId, entityTypeAttributeCode, value, timestamp, source,
-      gatewayType ('kafka' | 'iothub'),
-      kafkaBootstrap, kafkaTopic  (for kafka),
-      iotHubConnectionString      (for iothub),
-      _dryRun (bool, optional)    — test connection only, do not send data.
+    Manual telemetry report from mobile or admin dashboard.
+    Routes: entityTypeAttributeCode (event name) → DB direct insert OR Kafka based on gatewayType.
     """
     try:
         entity_id  = str(data.get('entityId', ''))
         attr_code  = str(data.get('entityTypeAttributeCode', ''))
         value      = data.get('value', 0)
-        timestamp  = data.get('timestamp') or datetime.utcnow().isoformat() + 'Z'
+        received_timestamp = data.get('timestamp')
         source     = data.get('source', 'Manual')
-        gw_type    = data.get('gatewayType', 'kafka')
+        gw_type    = data.get('gatewayType', 'direct')
         dry_run    = bool(data.get('_dryRun', False))
 
-        if dry_run:
-            # Connection test — just validate config without sending
-            if gw_type == 'kafka':
-                bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
-                try:
-                    from confluent_kafka.admin import AdminClient
-                    admin = AdminClient({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 5000})
-                    admin.list_topics(timeout=5)
-                    return {"message": f"Kafka reachable at {bootstrap}"}
-                except ImportError:
-                    raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
-                except Exception as e:
-                    raise HTTPException(status_code=503, detail=f"Kafka unreachable: {e}")
-            else:
-                conn_str = data.get('iotHubConnectionString', '')
-                if not conn_str:
-                    raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
-                parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
-                hostname = parts.get('HostName', '')
-                if not hostname:
-                    raise HTTPException(status_code=400, detail="Invalid connection string — HostName missing")
-                return {"message": f"IoT Hub hostname: {hostname} — config looks valid"}
+        # ── CRITICAL: Resolve event name to actual EntityTypeAttributeCode if needed ──
+        original_attr_code = attr_code
+        if attr_code and '.' in attr_code and any(x in attr_code.lower() for x in ['vitals', 'activity', 'heart', 'blood', 'glucose', 'temperature', 'steps', 'calories', 'navigation', 'propulsion', 'environment', 'electrical', 'fuel', 'water', 'engine']):
+            print(f"[INFO] Detected event name '{attr_code}', attempting to resolve to actual EntityTypeAttributeCode...")
+            _conn_res = None
+            try:
+                _conn_res = connect(get_db_connection_string() or '')
+                _cur_res = _conn_res.cursor()
+                _cur_res.execute(
+                    "SELECT TOP 1 eta.entityTypeAttributeCode FROM dbo.EntityTypeAttribute eta "
+                    "WHERE eta.Active = 'Y' AND ("
+                    "  eta.entityTypeAttributeCode = ? "
+                    "  OR LOWER(eta.entityTypeAttributeCode) LIKE LOWER(?) "
+                    "  OR LOWER(eta.entityTypeAttributeCode) LIKE LOWER(CONCAT('%', ?, '%'))"
+                    ")",
+                    (attr_code, f"%{attr_code}%", attr_code.split('.')[-1] if '.' in attr_code else attr_code)
+                )
+                _row_res = _cur_res.fetchone()
+                if _row_res and _row_res[0]:
+                    real_attr_code = _row_res[0]
+                    print(f"[INFO] ✓ Resolved '{original_attr_code}' → EntityTypeAttributeCode: '{real_attr_code}'")
+                    attr_code = real_attr_code
+                else:
+                    print(f"[INFO] Could not find EntityTypeAttribute for '{original_attr_code}', will use as-is")
+            except Exception as _e:
+                print(f"[WARN] Error resolving attribute code: {_e}")
+            finally:
+                if _conn_res:
+                    try: _conn_res.close()
+                    except: pass
 
-        # ── Build message payload ──────────────────────────────────────────
+        # ── Normalize timestamp ──
+        if received_timestamp:
+            ts_clean = received_timestamp.rstrip('Z').rstrip('+00:00')
+            timestamp = ts_clean + 'Z'
+            print(f"[INFO] Timestamp from client: {received_timestamp} → normalized to UTC: {timestamp}")
+        else:
+            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            print(f"[INFO] No timestamp in request → using server UTC now: {timestamp}")
+
+        # ── DIRECT DB INSERT (gatewayType == 'direct') ──
+        if gw_type == 'direct':
+            try:
+                conn = connect(get_db_connection_string() or '')
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO dbo.EntityTelemetry (entityId, entityTypeAttributeId, numericValue, stringValue, gatewayType, endTimestampUTC, sourceType) "
+                    "SELECT ?, eta.entityTypeAttributeId, ?, NULL, ?, ?, ? "
+                    "FROM dbo.EntityTypeAttribute eta WHERE eta.entityTypeAttributeCode = ?",
+                    (entity_id, float(value), 'direct', timestamp, 'Manual', attr_code)
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"[INFO] Direct DB insert: entity={entity_id}, attr={attr_code}, value={value}")
+                return {"message": f"Direct DB insert: {attr_code}={value}"}
+            except Exception as e:
+                print(f"[ERROR] Direct insert failed: {e}")
+                raise HTTPException(status_code=500, detail=f"Direct DB insert failed: {e}")
+
+        # ── KAFKA PUBLISH ──
         if gw_type == 'kafka':
-            # Junction format — auto-detected by consumer via 'user' + 'event_type' keys.
-            # event_type IS the entityTypeAttributeCode (LOINC code), value goes in data.manual.summary.
-            message = {
-                "user":       {"user_id": entity_id},
-                "event_type": attr_code,
-                "timestamp":  timestamp,
-                "data": {
-                    "manual": {
-                        "summary": {"value": value}
-                    }
-                },
-            }
-            bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
-            topic     = data.get('kafkaTopic', 'iot-telemetry')
+            # Lookup provider + event type from DB
+            provider_event_type = original_attr_code  # Default to what was received
+            provider_name = data.get('_provider', 'Junction')  # Default provider
+            try:
+                conn = connect(get_db_connection_string() or '')
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT TOP 1 pe.providerEventType, p.providerName FROM dbo.ProviderEvent pe "
+                    "JOIN dbo.Provider p ON pe.providerId = p.providerId "
+                    "WHERE pe.providerEventType = ? OR pe.providerEventTypeDescription LIKE ?",
+                    (attr_code, f"%{attr_code}%")
+                )
+                row = cur.fetchone()
+                if row:
+                    provider_event_type = row[0]
+                    provider_name = row[1]
+                cur.close()
+                conn.close()
+            except:
+                pass
+
+            # Route by provider type
+            bootstrap = data.get('kafkaBootstrap', '192.168.1.22:9092')
+            topic = data.get('kafkaTopic', 'iot-telemetry')
+
+            if provider_name.lower() == 'junction':
+                # Junction format  
+                message = {
+                    "user": {"user_id": entity_id},
+                    "event_type": provider_event_type,
+                    "protocol_attribute_code": attr_code,
+                    "loinc_code": attr_code,
+                    "timestamp": timestamp,
+                    "provider_device": source,
+                    "value": float(value),
+                    "data": {"manual": {"summary": {"value": float(value)}}},
+                }
+            else:
+                # N2KToSignalK format
+                message = {
+                    "context": "vessels.self",
+                    "updates": [{
+                        "timestamp": timestamp,
+                        "values": [{
+                            "path": f"navigation/{attr_code}",
+                            "value": float(value),
+                        }]
+                    }]
+                }
+
             try:
                 from confluent_kafka import Producer
-            except ImportError:
-                raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
-            producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
-            producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=entity_id.encode('utf-8'))
-            producer.flush(timeout=10)
-            return {"message": f"Published to Kafka topic '{topic}' on {bootstrap}"}
+                producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
+                producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=entity_id.encode('utf-8'))
+                producer.flush(timeout=10)
+                print(f"[INFO] ✓ Published to Kafka\n       Provider: {provider_name} | Topic: {topic} | Entity: {entity_id}\n       Attribute: {attr_code} | Event Type: {provider_event_type} | Value: {value} | Timestamp: {timestamp}\n       Size: {len(json.dumps(message))} bytes | Source: {source} | Bootstrap: {bootstrap}")
+                return {"message": f"Published to Kafka: {provider_name}"}
+            except Exception as e:
+                print(f"[ERROR] Kafka publish failed: {e}")
+                raise HTTPException(status_code=502, detail=f"Kafka publish failed: {e}")
 
-        else:  # iothub
+        # ── IOTHUB (legacy) ──
+        if gw_type == 'iothub':
             conn_str = data.get('iotHubConnectionString', '')
             if not conn_str:
-                raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+                raise HTTPException(status_code=400, detail="iotHubConnectionString required")
             parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
-            hostname  = parts.get('HostName', '')
-            device_id = parts.get('DeviceId', '')
-            sak       = parts.get('SharedAccessKey', '')
-            if not hostname or not device_id or not sak:
+            hostname, device_id, sak = parts.get('HostName'), parts.get('DeviceId'), parts.get('SharedAccessKey')
+            if not all([hostname, device_id, sak]):
                 raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
-
-            # TelemetryData format (matches what MqttTransport sends from the mobile app)
-            message = {
-                "deviceId":  entity_id,
-                "timestamp": timestamp,
-                "values":    {attr_code: value},
-                "source":    source,
-            }
+            message = {"deviceId": entity_id, "timestamp": timestamp, "values": {attr_code: value}, "source": source}
             resource_uri = f"{hostname}/devices/{device_id}"
-            sas_token    = _build_iothub_sas(resource_uri, sak)
+            sas_token = _build_iothub_sas(resource_uri, sak)
             url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
-            headers = {"Authorization": sas_token, "Content-Type": "application/json"}
-            resp = _requests.post(url, headers=headers, data=json.dumps(message), timeout=15)
+            resp = _requests.post(url, headers={"Authorization": sas_token, "Content-Type": "application/json"}, data=json.dumps(message), timeout=15)
             if resp.status_code not in (200, 204):
-                raise HTTPException(status_code=502, detail=f"IoT Hub returned {resp.status_code}: {resp.text}")
-            return {"message": f"Published to Azure IoT Hub device '{device_id}'"}
+                raise HTTPException(status_code=502, detail=f"IoT Hub {resp.status_code}: {resp.text}")
+            return {"message": f"Published to IoT Hub device '{device_id}'"}
 
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[ERROR] post_manual_report: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
