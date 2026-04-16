@@ -62,14 +62,14 @@ export default function PushNotificationRNPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const getPushStatus = (subId) => {
-    const s = pushSettings.find(p => p.customerSubscriptionId === subId);
+  const getPushStatus = (sub) => {
+    const s = pushSettings.find(p => p.customerId === sub.customerId && (p.entityId || null) === (sub.entityId || null));
     if (!s) return { configured: false, enabled: false, severity: 'MEDIUM' };
     return { configured: true, enabled: s.enabled === 'Y', severity: s.minSeverity };
   };
 
   const openSettings = (sub) => {
-    const existing = pushSettings.find(p => p.customerSubscriptionId === sub.customerSubscriptionId);
+    const existing = pushSettings.find(p => p.customerId === sub.customerId && (p.entityId || null) === (sub.entityId || null));
     if (existing) {
       setSelectedSetting(existing);
       setMEnabled(existing.enabled === 'Y');
@@ -106,7 +106,7 @@ export default function PushNotificationRNPage() {
       } else {
         const res = await fetch(`${BASE}/users/${userId}/push-settings`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customerSubscriptionId: modalSub.customerSubscriptionId, minSeverity: mSeverity }),
+          body: JSON.stringify({ customerId: modalSub.customerId, entityId: modalSub.entityId || null, minSeverity: mSeverity }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -123,11 +123,11 @@ export default function PushNotificationRNPage() {
     if (searchText) {
       const q = searchText.toLowerCase();
       if (!(sub.customerName || '').toLowerCase().includes(q)
-        && !String(sub.entityId).toLowerCase().includes(q)
-        && !(sub.eventCode || '').toLowerCase().includes(q)) return false;
+        && !String(sub.entityId || '').toLowerCase().includes(q)
+        && !(sub.entityName || '').toLowerCase().includes(q)) return false;
     }
     if (filterStatus !== 'all') {
-      const ps = getPushStatus(sub.customerSubscriptionId);
+      const ps = getPushStatus(sub);
       if (filterStatus === 'configured' && !ps.configured) return false;
       if (filterStatus === 'unconfigured' && ps.configured) return false;
       if (filterStatus === 'enabled' && !(ps.configured && ps.enabled)) return false;
@@ -141,7 +141,7 @@ export default function PushNotificationRNPage() {
       <div style={S.header}>
         <div>
           <div style={S.title}>🔔 Notification Settings</div>
-          <div style={S.subtitle}>Configure alerts per subscription</div>
+          <div style={S.subtitle}>Configure alerts per customer entity</div>
         </div>
       </div>
 
@@ -164,7 +164,7 @@ export default function PushNotificationRNPage() {
       {userId && (
         <>
           <div style={S.filterBar}>
-            <input style={S.searchInput} placeholder="Search customer, entity, event..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+            <input style={S.searchInput} placeholder="Search customer, entity..." value={searchText} onChange={e => setSearchText(e.target.value)} />
           </div>
 
           <div style={S.chipRow}>
@@ -179,13 +179,12 @@ export default function PushNotificationRNPage() {
       {loading ? <div style={S.loader}>Loading...</div> : (
         <div style={S.list}>
           {filtered.map(sub => {
-            const status = getPushStatus(sub.customerSubscriptionId);
+            const status = getPushStatus(sub);
             return (
-              <div key={sub.customerSubscriptionId} style={S.card} onClick={() => openSettings(sub)}>
+              <div key={`${sub.customerId}-${sub.entityId || 'all'}`} style={S.card} onClick={() => openSettings(sub)}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
                   <span style={{ fontSize: 15, fontWeight: 600, color: C.textPrimary }}>{sub.customerName}</span>
-                  <span style={{ fontSize: 13, color: C.textMuted }}>{sub.entityName || sub.entityId}</span>
-                  {sub.eventCode && <span style={{ fontSize: 12, color: C.textMuted }}>\u2022 {sub.eventCode}</span>}
+                  <span style={{ fontSize: 13, color: C.textMuted }}>{sub.entityName || sub.entityId || 'All Entities'}</span>
                   <span style={{ fontSize: 12, color: C.blue, fontWeight: 600 }}>\u2022 {sub.role}</span>
                   <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     {status.configured ? (
@@ -202,7 +201,7 @@ export default function PushNotificationRNPage() {
             );
           })}
           {!userId && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>Select a user to view notification settings</div>}
-          {userId && filtered.length === 0 && !loading && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>No subscriptions found</div>}
+          {userId && filtered.length === 0 && !loading && <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>No authorizations found</div>}
         </div>
       )}
 
@@ -213,7 +212,7 @@ export default function PushNotificationRNPage() {
             <div style={{ fontSize: 18, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>Push Notification Settings</div>
             {modalSub && (
               <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>
-                {modalSub.customerName} / {modalSub.entityId}{modalSub.eventCode ? ` / ${modalSub.eventCode}` : ''}
+                {modalSub.customerName} / {modalSub.entityName || modalSub.entityId || 'All Entities'}
               </div>
             )}
 

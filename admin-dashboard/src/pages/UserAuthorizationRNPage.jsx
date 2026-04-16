@@ -103,8 +103,9 @@ export default function UserAuthorizationRNPage() {
                   <div style={{ fontSize: 16, fontWeight: 600, color: C.textPrimary }}>{auth.displayName || auth.email}</div>
                   <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{auth.email}</div>
                   <div style={{ fontSize: 12, color: C.blue, marginTop: 4 }}>
-                    {auth.customerName} • Entity {auth.entityId} • {auth.eventCode || '—'}
+                    {auth.customerName} • {auth.entityName || auth.entityId || 'All Entities'}
                   </div>
+                  {auth.effectiveDate && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Effective {new Date(auth.effectiveDate).toLocaleDateString()}{auth.expiryDate ? ` • Expires ${new Date(auth.expiryDate).toLocaleDateString()}` : ''}</div>}
                   {auth.createDate && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Added {new Date(auth.createDate).toLocaleDateString()}</div>}
                 </div>
                 <div style={{ textAlign: 'right' }}>

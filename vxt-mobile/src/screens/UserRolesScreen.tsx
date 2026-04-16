@@ -31,12 +31,12 @@ interface Authorization {
 
 interface Props {
   baseUrl: string;
-  customerSubscriptionId: number;
-  subscriptionLabel: string;
+  customerId: number;
+  customerLabel: string;
   onBack: () => void;
 }
 
-export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subscriptionLabel, onBack }: Props) {
+export default function UserRolesScreen({ baseUrl, customerId, customerLabel, onBack }: Props) {
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -47,7 +47,7 @@ export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subsc
   const fetchAuthorizations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/customersubscriptions/${customerSubscriptionId}/authorizations`);
+      const res = await fetch(`${baseUrl}/customers/${customerId}/authorizations`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAuthorizations(await res.json());
     } catch (e: any) {
@@ -55,7 +55,7 @@ export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subsc
     } finally {
       setLoading(false);
     }
-  }, [baseUrl, customerSubscriptionId]);
+  }, [baseUrl, customerId]);
 
   useEffect(() => { fetchAuthorizations(); }, [fetchAuthorizations]);
 
@@ -108,7 +108,7 @@ export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subsc
     }
     setInviting(true);
     try {
-      const res = await fetch(`${baseUrl}/customersubscriptions/${customerSubscriptionId}/invite`, {
+      const res = await fetch(`${baseUrl}/customers/${customerId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: inviteEmail.trim().toLowerCase(), role: inviteRole }),
@@ -142,7 +142,7 @@ export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subsc
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.title}>👥 User Roles</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>{subscriptionLabel}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>{customerLabel}</Text>
         </View>
       </View>
 
@@ -233,7 +233,7 @@ export default function UserRolesScreen({ baseUrl, customerSubscriptionId, subsc
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Invite New User</Text>
-            <Text style={styles.modalSubtitle}>{subscriptionLabel}</Text>
+            <Text style={styles.modalSubtitle}>{customerLabel}</Text>
 
             <Text style={styles.fieldLabel}>Email Address</Text>
             <TextInput

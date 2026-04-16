@@ -16,29 +16,26 @@ const C = {
   orange:      '#d29922',
 };
 
-interface Subscription {
-  customerSubscriptionId: number;
-  customerId: number;
-  customerName: string;
+interface CustomerEntity {
   entityId: string;
   entityName: string;
-  eventId: number | null;
-  eventCode: string | null;
-  active: string;
+  customerId: number;
+  customerName: string;
 }
 
 interface Props {
   baseUrl: string;
+  customerId: number;
   onBack: () => void;
 }
 
 type Role = 'viewer' | 'admin' | 'owner';
 
-export default function InviteUserScreen({ baseUrl, onBack }: Props) {
+export default function InviteUserScreen({ baseUrl, customerId, onBack }: Props) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('viewer');
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [entities, setEntities] = useState<CustomerEntity[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [filter, setFilter] = useState('');
@@ -46,19 +43,19 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${baseUrl}/customersubscriptions?status=Y`);
+        const res = await fetch(`${baseUrl}/customerentities?customerId=${customerId}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setSubscriptions(data);
+        setEntities(data);
       } catch (e: any) {
-        Alert.alert('Error', `Failed to load subscriptions: ${e.message}`);
+        Alert.alert('Error', `Failed to load entities: ${e.message}`);
       } finally {
         setLoading(false);
       }
     })();
-  }, [baseUrl]);
+  }, [baseUrl, customerId]);
 
-  const toggleSubscription = (id: number) => {
+  const toggleEntity = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -71,7 +68,7 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
     if (selected.size === filtered.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filtered.map(s => s.customerSubscriptionId)));
+      setSelected(new Set(filtered.map(e => e.entityId)));
     }
   };
 
@@ -85,8 +82,9 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
       Alert.alert('Validation', 'Please enter a valid email address');
       return;
     }
-    if (selected.size === 0) {
-      Alert.alert('Validation', 'Please select at least one subscription');
+    // For owner/admin: no entity selection needed. For viewer: must select entities.
+    if (role === 'viewer' && selected.size === 0) {
+      Alert.alert('Validation', 'Please select at least one entity for viewer role');
       return;
     }
 
@@ -98,7 +96,8 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
         body: JSON.stringify({
           email: trimmedEmail,
           role,
-          subscriptionIds: Array.from(selected),
+          customerId,
+          entityIds: role === 'viewer' ? Array.from(selected) : [],
         }),
       });
       if (!res.ok) {
@@ -118,14 +117,12 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
     }
   };
 
-  const filtered = subscriptions.filter(s => {
+  const filtered = entities.filter(e => {
     if (!filter) return true;
     const q = filter.toLowerCase();
     return (
-      s.customerName?.toLowerCase().includes(q) ||
-      s.entityId?.toLowerCase().includes(q) ||
-      s.entityName?.toLowerCase().includes(q) ||
-      s.eventCode?.toLowerCase().includes(q)
+      e.entityId?.toLowerCase().includes(q) ||
+      e.entityName?.toLowerCase().includes(q)
     );
   });
 
@@ -172,11 +169,12 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
         </View>
       </View>
 
-      {/* Subscription selection */}
+      {/* Entity selection (only for viewer role) */}
+      {role === 'viewer' && (
       <View style={[styles.section, { flex: 1 }]}>
         <View style={styles.subHeader}>
           <Text style={styles.label}>
-            Select Subscriptions ({selected.size}/{filtered.length})
+            Select Entities ({selected.size}/{filtered.length})
           </Text>
           <TouchableOpacity onPress={selectAll}>
             <Text style={styles.selectAllText}>
@@ -187,7 +185,7 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
 
         <TextInput
           style={[styles.input, { marginBottom: 8 }]}
-          placeholder="Filter subscriptions..."
+          placeholder="Filter entities..."
           placeholderTextColor={C.textMuted}
           value={filter}
           onChangeText={setFilter}
@@ -198,26 +196,23 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
         ) : (
           <FlatList
             data={filtered}
-            keyExtractor={item => String(item.customerSubscriptionId)}
+            keyExtractor={item => item.entityId}
             contentContainerStyle={{ paddingBottom: 20 }}
             renderItem={({ item }) => {
-              const isSelected = selected.has(item.customerSubscriptionId);
+              const isSelected = selected.has(item.entityId);
               return (
                 <TouchableOpacity
                   style={[styles.subCard, isSelected && styles.subCardSelected]}
-                  onPress={() => toggleSubscription(item.customerSubscriptionId)}
+                  onPress={() => toggleEntity(item.entityId)}
                   activeOpacity={0.7}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.subCustomer}>{item.customerName}</Text>
-                    <Text style={styles.subEntity}>{item.entityName}</Text>
-                    {item.eventCode && (
-                      <Text style={styles.subEvent}>Event: {item.eventCode}</Text>
-                    )}
+                    <Text style={styles.subCustomer}>{item.entityName || item.entityId}</Text>
+                    <Text style={styles.subEntity}>ID: {item.entityId}</Text>
                   </View>
                   <Switch
                     value={isSelected}
-                    onValueChange={() => toggleSubscription(item.customerSubscriptionId)}
+                    onValueChange={() => toggleEntity(item.entityId)}
                     trackColor={{ false: C.border, true: C.green }}
                     thumbColor={isSelected ? '#fff' : C.textMuted}
                   />
@@ -225,11 +220,12 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
               );
             }}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No active subscriptions found</Text>
+              <Text style={styles.emptyText}>No entities found</Text>
             }
           />
         )}
       </View>
+      )}
 
       {/* Invite button */}
       <View style={styles.footer}>
@@ -245,7 +241,7 @@ export default function InviteUserScreen({ baseUrl, onBack }: Props) {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <Text style={styles.inviteBtnText}>
-              📨 Invite {email.trim() ? email.trim().split('@')[0] : 'User'} to {selected.size} subscription{selected.size !== 1 ? 's' : ''}
+              📨 Invite {email.trim() ? email.trim().split('@')[0] : 'User'} to {selected.size} entit{selected.size !== 1 ? 'ies' : 'y'}
             </Text>
           )}
         </TouchableOpacity>

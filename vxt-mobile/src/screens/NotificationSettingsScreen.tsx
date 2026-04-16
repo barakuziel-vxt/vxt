@@ -21,7 +21,8 @@ const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 interface PushSetting {
   userAppPushNotificationId: number;
   userApplicationId: number;
-  customerSubscriptionId: number;
+  customerId: number;
+  entityId: string | null;
   enabled: string;
   minSeverity: string;
   quietHoursStart: string | null;
@@ -30,18 +31,19 @@ interface PushSetting {
   vibrationEnabled: string;
   ledEnabled: string;
   deliveryChannel: string;
-  entityId: string;
   customerName: string;
-  eventCode: string | null;
+  entityName: string | null;
 }
 
 interface UserSubscription {
   userAuthorizationId: number;
-  customerSubscriptionId: number;
+  customerId: number;
+  entityId: string | null;
   role: string;
-  entityId: string;
-  eventCode: string | null;
   customerName: string;
+  entityName: string | null;
+  effectiveDate: string;
+  expiryDate: string | null;
 }
 
 interface Props {
@@ -97,7 +99,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
 
   const openSettings = (sub: UserSubscription) => {
     const existing = pushSettings.find(
-      p => p.customerSubscriptionId === sub.customerSubscriptionId,
+      p => p.customerId === sub.customerId && p.entityId === sub.entityId,
     );
     if (existing) {
       setSelectedSetting(existing);
@@ -146,7 +148,8 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            customerSubscriptionId: sub.customerSubscriptionId,
+            customerId: sub.customerId,
+            entityId: sub.entityId,
             minSeverity: mSeverity,
           }),
         });
@@ -171,15 +174,15 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
     }
   };
 
-  const getPushStatusForSub = (subId: number) => {
-    const setting = pushSettings.find(p => p.customerSubscriptionId === subId);
+  const getPushStatusForSub = (sub: UserSubscription) => {
+    const setting = pushSettings.find(p => p.customerId === sub.customerId && p.entityId === sub.entityId);
     if (!setting) return { configured: false, enabled: false, severity: 'MEDIUM' };
     return { configured: true, enabled: setting.enabled === 'Y', severity: setting.minSeverity };
   };
 
   // Track which subscription we opened the modal for
-  const [modalSubId, setModalSubId] = useState<number | null>(null);
-  const currentSub = subscriptions.find(s => s.customerSubscriptionId === modalSubId);
+  const [modalSubIdx, setModalSubIdx] = useState<number | null>(null);
+  const currentSub = modalSubIdx !== null ? subscriptions[modalSubIdx] : null;
 
   return (
     <View style={styles.root}>
@@ -190,7 +193,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.title}>🔔 Notification Settings</Text>
-          <Text style={styles.subtitle}>Configure alerts per subscription</Text>
+          <Text style={styles.subtitle}>Configure alerts per customer entity</Text>
         </View>
       </View>
 
@@ -198,7 +201,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
       <View style={styles.filterBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search customer, entity, event..."
+          placeholder="Search customer, entity..."
           placeholderTextColor={C.textMuted}
           value={searchText}
           onChangeText={setSearchText}
@@ -236,14 +239,13 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
               const q = searchText.toLowerCase();
               const match =
                 (sub.customerName || '').toLowerCase().includes(q) ||
-                String(sub.entityId).toLowerCase().includes(q) ||
-                (sub.eventCode || '').toLowerCase().includes(q) ||
+                (sub.entityName || sub.entityId || '').toLowerCase().includes(q) ||
                 (sub.role || '').toLowerCase().includes(q);
               if (!match) return false;
             }
             // Status filter
             if (filterStatus !== 'all') {
-              const ps = getPushStatusForSub(sub.customerSubscriptionId);
+              const ps = getPushStatusForSub(sub);
               if (filterStatus === 'configured' && !ps.configured) return false;
               if (filterStatus === 'unconfigured' && ps.configured) return false;
               if (filterStatus === 'enabled' && !(ps.configured && ps.enabled)) return false;
@@ -251,24 +253,23 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
             }
             return true;
           })}
-          keyExtractor={item => String(item.customerSubscriptionId)}
+          keyExtractor={(item, index) => `${item.customerId}-${item.entityId || 'all'}-${index}`}
           contentContainerStyle={{ paddingBottom: 20 }}
-          renderItem={({ item }) => {
-            const status = getPushStatusForSub(item.customerSubscriptionId);
+          renderItem={({ item, index }) => {
+            const status = getPushStatusForSub(item);
             return (
               <TouchableOpacity
                 style={styles.card}
                 activeOpacity={0.7}
                 onPress={() => {
-                  setModalSubId(item.customerSubscriptionId);
+                  setModalSubIdx(index);
                   openSettings(item);
                 }}
               >
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{item.customerName}</Text>
-                    <Text style={styles.cardSub}>Entity: {item.entityId}</Text>
-                    {item.eventCode && <Text style={styles.cardSub}>Event: {item.eventCode}</Text>}
+                    <Text style={styles.cardSub}>{item.entityName || item.entityId || 'All Entities'}</Text>
                     <Text style={[styles.roleBadge, { color: C.blue }]}>
                       Role: {item.role}
                     </Text>
@@ -294,7 +295,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
           }}
           ListEmptyComponent={
             <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 40 }]}>
-              No subscriptions found. Ask an admin to invite you.
+              No authorizations found. Ask an admin to invite you.
             </Text>
           }
         />
@@ -308,8 +309,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
               <Text style={styles.modalTitle}>Push Notification Settings</Text>
               {currentSub && (
                 <Text style={styles.modalSubtitle}>
-                  {currentSub.customerName} / {currentSub.entityId}
-                  {currentSub.eventCode ? ` / ${currentSub.eventCode}` : ''}
+                  {currentSub.customerName} / {currentSub.entityName || currentSub.entityId || 'All Entities'}
                 </Text>
               )}
 

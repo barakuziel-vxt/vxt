@@ -26,13 +26,15 @@ interface Authorization {
   userId: number;
   email: string;
   displayName: string;
-  customerSubscriptionId: number;
-  entityId: number | null;
+  customerId: number;
+  entityId: string | null;
   customerName: string;
-  eventCode: string | null;
+  entityName: string | null;
   role: string;
   active: string;
   createDate: string | null;
+  effectiveDate: string | null;
+  expiryDate: string | null;
 }
 
 export default function UserAuthorizationScreen() {
@@ -123,7 +125,7 @@ export default function UserAuthorizationScreen() {
         (a.displayName || '').toLowerCase().includes(q) ||
         a.email.toLowerCase().includes(q) ||
         (a.customerName || '').toLowerCase().includes(q) ||
-        (a.eventCode || '').toLowerCase().includes(q);
+        (a.entityName || a.entityId || '').toLowerCase().includes(q);
       if (!match) return false;
     }
     return true;
@@ -216,8 +218,14 @@ export default function UserAuthorizationScreen() {
                   <Text style={styles.userName}>{item.displayName || item.email}</Text>
                   <Text style={styles.userEmail}>{item.email}</Text>
                   <Text style={styles.subInfo}>
-                    {item.customerName} • Entity {item.entityId} • {item.eventCode || '—'}
+                    {item.customerName} • {item.entityName || item.entityId || 'All Entities'}
                   </Text>
+                  {item.effectiveDate && (
+                    <Text style={styles.dateTxt}>
+                      Effective {new Date(item.effectiveDate).toLocaleDateString()}
+                      {item.expiryDate ? ` • Expires ${new Date(item.expiryDate).toLocaleDateString()}` : ''}
+                    </Text>
+                  )}
                   {item.createDate && (
                     <Text style={styles.dateTxt}>Added {new Date(item.createDate).toLocaleDateString()}</Text>
                   )}

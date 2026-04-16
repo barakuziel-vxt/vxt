@@ -631,7 +631,7 @@ export default function EntityTypeAttributePage() {
                         className="btn btn-secondary btn-small"
                         onClick={() => handleOpenCriteriaModal(attr)}
                       >
-                        Scores
+                        Thresholds
                       </button>
                       <button
                         className="btn btn-danger btn-small"
@@ -860,11 +860,11 @@ export default function EntityTypeAttributePage() {
         <div className="modal">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Scoring Values for {selectedAttribute.entityTypeAttributeName}</h3>
+              <h3>Threshold Values for {selectedAttribute.entityTypeAttributeName}</h3>
             </div>
 
             <div className="form-section">
-              <h3>{editingCriteriaId ? 'Edit Value Score' : 'Add New Value Score'}</h3>
+              <h3>{editingCriteriaId ? 'Edit Threshold' : 'Add New Threshold'}</h3>
               <form onSubmit={handleAddCriteria}>
                 <div className="form-row">
                   <div className="form-group">
@@ -907,20 +907,24 @@ export default function EntityTypeAttributePage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="score">Score (points)</label>
-                  <input
-                    type="number"
+                  <label htmlFor="score">State</label>
+                  <select
                     id="score"
                     name="score"
                     value={criteriaFormData.score}
                     onChange={handleCriteriaInputChange}
                     required
-                    placeholder="e.g., 10"
-                  />
+                  >
+                    <option value="">Select state</option>
+                    <option value="0">0 - Normal</option>
+                    <option value="1">1 - Warn</option>
+                    <option value="2">2 - Alarm</option>
+                    <option value="3">3 - Emergency</option>
+                  </select>
                 </div>
 
                 <button type="submit" className="btn btn-success">
-                  {editingCriteriaId ? 'Update Score' : 'Add ValueScore'}
+                  {editingCriteriaId ? 'Update Threshold' : 'Add Threshold'}
                 </button>
                 {editingCriteriaId && (
                   <button type="button" className="btn btn-secondary" onClick={handleCancelEditCriteria} style={{ marginLeft: '10px' }}>
@@ -932,7 +936,7 @@ export default function EntityTypeAttributePage() {
 
             {criteria.length > 0 && (
               <div>
-                <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Existing ValueScores</h3>
+                <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Existing Thresholds</h3>
                 <div className="table-container">
                   <table className="table">
                     <thead>
@@ -940,18 +944,20 @@ export default function EntityTypeAttributePage() {
                         <th>Min Value</th>
                         <th>Max Value</th>
                         <th>String Value</th>
-                        <th>Score</th>
+                        <th>State</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {criteria.map((c) => (
+                      {criteria.map((c) => {
+                        const stateMap = { 0: 'Normal', 1: 'Warn', 2: 'Alarm', 3: 'Emergency' };
+                        return (
                         <tr key={c.entityTypeAttributeScoreId}>
                           <td>{c.minValue}</td>
                           <td>{c.maxValue}</td>
                           <td>{c.strValue || 'N/A'}</td>
                           <td>
-                            <span style={{ fontWeight: 'bold', color: '#667eea' }}>{c.score}</span>
+                            <span style={{ fontWeight: 'bold', color: '#667eea' }}>{stateMap[c.score] || c.score}</span>
                           </td>
                           <td>
                             <button
@@ -969,7 +975,8 @@ export default function EntityTypeAttributePage() {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

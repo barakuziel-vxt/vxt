@@ -62,7 +62,10 @@ export default function ReportManuallyScreen() {
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [selectedAttr, setSelectedAttr] = useState<Attribute | null>(null);
   const [value, setValue] = useState('');
-  const [timestamp, setTimestamp] = useState(() => new Date().toISOString().slice(0, 16));
+  const [timestamp, setTimestamp] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}T${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  });
   const [submitting, setSubmitting] = useState(false);
 
   // Picker visibility
@@ -171,23 +174,17 @@ export default function ReportManuallyScreen() {
     setSubmitting(true);
     const eName = entityName(selectedEntity);
     try {
+      // Treat picker-shown time as UTC (no timezone conversion) — same as admin-dashboard PC behavior
+      const tsNormalized = timestamp.length === 16 ? timestamp + ':00.000Z' : timestamp;
       const payload: any = {
         entityId: selectedEntity.entityId,
         entityTypeAttributeCode: selectedAttr.entityTypeAttributeCode,
         entityTypeAttributeId: selectedAttr.entityTypeAttributeId,
         value: numValue,
-        timestamp: new Date(timestamp).toISOString(),
+        timestamp: tsNormalized,
         source: 'Manual',
+        gatewayType: 'direct',  // Always direct DB insert for manual reports (no Kafka)
       };
-
-      // Add gateway routing info
-      if (gatewayConfig) {
-        payload.gatewayType = gatewayConfig.gatewayType || 'kafka';
-        if (gatewayConfig.gatewayType === 'kafka') {
-          payload.kafkaBootstrap = gatewayConfig.kafkaBootstrap || '192.168.1.22:9092';
-          payload.kafkaTopic = gatewayConfig.kafkaTopic || 'iot-telemetry';
-        }
-      }
 
       const res = await fetch(`${baseUrl}/api/manual-report`, {
         method: 'POST',
@@ -208,7 +205,8 @@ export default function ReportManuallyScreen() {
       };
       setHistory(prev => [historyItem, ...prev]);
       setValue('');
-      setTimestamp(new Date().toISOString().slice(0, 16));
+      const n2 = new Date();
+      setTimestamp(`${n2.getFullYear()}-${String(n2.getMonth()+1).padStart(2,'0')}-${String(n2.getDate()).padStart(2,'0')}T${String(n2.getHours()).padStart(2,'0')}:${String(n2.getMinutes()).padStart(2,'0')}`);
       Alert.alert('Success', `Report submitted for ${eName} — ${selectedAttr.entityTypeAttributeName}: ${numValue}`);
     } catch (e: any) {
       const historyItem: ReportHistoryItem = {
@@ -545,7 +543,8 @@ export default function ReportManuallyScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={[styles.pickerCancel, { flex: 1 }]}
                 onPress={() => {
-                  setTimestamp(new Date().toISOString().slice(0, 16));
+                  const nw = new Date();
+                  setTimestamp(`${nw.getFullYear()}-${String(nw.getMonth()+1).padStart(2,'0')}-${String(nw.getDate()).padStart(2,'0')}T${String(nw.getHours()).padStart(2,'0')}:${String(nw.getMinutes()).padStart(2,'0')}`);
                   setShowDatePicker(false);
                 }}>
                 <Text style={styles.pickerCancelText}>Now</Text>

@@ -114,9 +114,8 @@ export default function PushNotificationPage() {
               <tr>
                 <th>ID</th>
                 <th>User</th>
-                <th>Entity ID</th>
+                <th>Entity</th>
                 <th>Customer</th>
-                <th>Event</th>
                 <th>Platform</th>
                 <th>Device</th>
                 <th>Severity</th>
@@ -133,9 +132,8 @@ export default function PushNotificationPage() {
                     <div><strong>{s.displayName || '—'}</strong></div>
                     <div style={{ fontSize: '12px', color: '#999' }}>{s.email}</div>
                   </td>
-                  <td><strong>{s.entityId}</strong></td>
+                  <td><strong>{s.entityName || s.entityId || 'All Entities'}</strong></td>
                   <td>{s.customerName || '—'}</td>
-                  <td>{s.eventCode || '—'}</td>
                   <td>{s.platform || '—'}</td>
                   <td>{s.deviceModel || '—'}</td>
                   <td>

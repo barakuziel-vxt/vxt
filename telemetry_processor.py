@@ -10,12 +10,51 @@ Can be used by:
 import json
 import logging
 import os
+import re
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from mssql_python import connect as mssql_connect
 from importlib import import_module
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_timestamp(ts) -> str:
+    """
+    Normalize any timestamp format to valid SQL Server DATETIME format.
+
+    Handles:
+    - 2026-04-16T12:39:00.123456Z  (correct)
+    - 2026-04-16T12:39:00Z         (correct)
+    - 2026-04-16T12:39:00.Z        (malformed dot → fixed to .000Z)
+    - 2026-04-16T12:39:00+00:00    (→ converted to Z)
+    - non-string objects            (→ converted to ISO)
+    """
+    if not ts:
+        return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    try:
+        if isinstance(ts, str):
+            # Fix malformed: dot with no milliseconds before Z/+/-
+            match = re.match(r'^(.*T\d{2}:\d{2}:\d{2})\.(Z|\+|-)(.*)$', ts)
+            if match:
+                logger.warning(f"[Timestamp] Malformed format detected: {ts} → fixing")
+                base = match.group(1)
+                tz_tail = match.group(2) + match.group(3)
+                ts = base + ('.000Z' if match.group(2) == 'Z' else f'.000{tz_tail}')
+                logger.info(f"[Timestamp] Fixed to: {ts}")
+            ts_normalized = ts.replace('+00:00', 'Z')
+            if re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z?$', ts_normalized):
+                return ts_normalized
+            logger.warning(f"[Timestamp] Unexpected format '{ts_normalized}', falling back to server UTC")
+            return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        elif isinstance(ts, datetime):
+            return ts.isoformat().replace('+00:00', 'Z')
+        else:
+            parsed = datetime.fromisoformat(str(ts))
+            return parsed.isoformat().replace('+00:00', 'Z')
+    except Exception as e:
+        logger.error(f"[Timestamp] Error normalizing '{ts}': {e}")
+        return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
 class TelemetryProcessor:
@@ -495,11 +534,13 @@ class TelemetryProcessor:
                     continue
                 
                 # Create telemetry record (10 columns)
+                # Normalize timestamp to ensure SQL Server compatibility
+                normalized_ts = normalize_timestamp(evt['timestamp'])
                 record = (
                     entity_id,
                     entity_type_attribute_id,
-                    evt['timestamp'],
-                    evt['timestamp'],  # endTimestamp = startTimestamp for point-in-time
+                    normalized_ts,
+                    normalized_ts,  # endTimestamp = startTimestamp for point-in-time
                     None,  # providerEventInterpretation
                     evt.get('provider_device'),
                     evt.get('numeric_value'),

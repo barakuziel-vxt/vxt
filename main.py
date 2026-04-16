@@ -25,7 +25,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 import os
 import smtplib
@@ -2274,10 +2274,55 @@ def post_manual_report(data: dict):
         entity_id  = str(data.get('entityId', ''))
         attr_code  = str(data.get('entityTypeAttributeCode', ''))
         value      = data.get('value', 0)
-        timestamp  = data.get('timestamp') or datetime.utcnow().isoformat() + 'Z'
         source     = data.get('source', 'Manual')
-        gw_type    = data.get('gatewayType', 'kafka')
+        gw_type    = data.get('gatewayType', 'direct')
         dry_run    = bool(data.get('_dryRun', False))
+
+        # CRITICAL: Resolve event name to actual EntityTypeAttributeCode if needed
+        # Mobile app may send event names like "vitals.glucose.update" instead of actual codes
+        original_attr_code = attr_code
+        if attr_code and '.' in attr_code and any(x in attr_code.lower() for x in ['vitals', 'activity', 'heart', 'blood', 'glucose', 'temperature', 'steps', 'calories', 'navigation', 'propulsion', 'environment', 'electrical', 'fuel', 'water', 'engine']):
+            print(f"[INFO] Detected event name '{attr_code}', attempting to resolve to actual EntityTypeAttributeCode...")
+            _conn_res = None
+            try:
+                _conn_res = connect(get_db_connection_string() or '')
+                _cur_res = _conn_res.cursor()
+                _cur_res.execute(
+                    "SELECT TOP 1 eta.entityTypeAttributeCode FROM dbo.EntityTypeAttribute eta "
+                    "WHERE eta.Active = 'Y' AND ("
+                    "  eta.entityTypeAttributeCode = ? "
+                    "  OR LOWER(eta.entityTypeAttributeCode) LIKE LOWER(?) "
+                    "  OR LOWER(eta.entityTypeAttributeCode) LIKE LOWER(CONCAT('%', ?, '%'))"
+                    ")",
+                    (attr_code, f"%{attr_code}%", attr_code.split('.')[-1] if '.' in attr_code else attr_code)
+                )
+                _row_res = _cur_res.fetchone()
+                if _row_res and _row_res[0]:
+                    real_attr_code = _row_res[0]
+                    print(f"[INFO] ✓ Resolved '{original_attr_code}' → EntityTypeAttributeCode: '{real_attr_code}'")
+                    attr_code = real_attr_code
+                else:
+                    print(f"[INFO] Could not find EntityTypeAttribute for '{original_attr_code}', will use ProviderEventType lookup")
+            except Exception as _e:
+                print(f"[WARN] Error resolving attribute code: {_e}")
+            finally:
+                if _conn_res:
+                    try: _conn_res.close()
+                    except: pass
+
+        # Handle timestamp: ensure UTC with proper timezone
+        received_timestamp = data.get('timestamp')
+        if received_timestamp:
+            if isinstance(received_timestamp, str):
+                ts_clean = received_timestamp.rstrip('Z').rstrip('+00:00')
+                timestamp = ts_clean + 'Z'  # Force UTC
+                print(f"[INFO] Timestamp from client: {received_timestamp} \u2192 normalized to UTC: {timestamp}")
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+                print(f"[INFO] Timestamp from client (non-string): {received_timestamp} \u2192 converted to UTC: {timestamp}")
+        else:
+            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            print(f"[INFO] No timestamp in request \u2192 using server UTC now: {timestamp}")
 
         if dry_run:
             if gw_type == 'kafka':
@@ -2301,50 +2346,104 @@ def post_manual_report(data: dict):
                     raise HTTPException(status_code=400, detail="Invalid connection string — HostName missing")
                 return {"message": f"IoT Hub hostname: {hostname} — config looks valid"}
 
-        # ── Kafka path: look up providerEventType, publish Junction-format message ──
+        # ── Kafka path: look up provider + providerEventType, format per provider ──
         if gw_type == 'kafka':
             bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
             topic     = data.get('kafkaTopic', 'iot-telemetry')
             provider_event_type = attr_code  # fallback if not found in DB
+            provider_name = None  # will detect from DB
+            db_provider_id = None
 
-            # Look up providerEventType from EntityTypeAttribute
+            # Look up providerEventType AND provider from EntityTypeAttribute
             _conn_k = None
             try:
                 _conn_k = connect(get_db_connection_string() or '')
                 _cur_k  = _conn_k.cursor()
                 _cur_k.execute(
-                    "SELECT ISNULL(providerEventType, ?) FROM dbo.EntityTypeAttribute "
-                    "WHERE entityTypeAttributeCode = ?",
+                    "SELECT ISNULL(eta.providerEventType, ?), eta.providerId, p.providerName "
+                    "FROM dbo.EntityTypeAttribute eta "
+                    "LEFT JOIN dbo.Provider p ON eta.providerId = p.providerId "
+                    "WHERE eta.entityTypeAttributeCode = ?",
                     (attr_code, attr_code)
                 )
                 _row_k = _cur_k.fetchone()
-                if _row_k and _row_k[0]:
-                    provider_event_type = _row_k[0]
+                if _row_k:
+                    if _row_k[0]:
+                        provider_event_type = _row_k[0]
+                    if _row_k[1]:
+                        db_provider_id = _row_k[1]
+                    if _row_k[2]:
+                        provider_name = _row_k[2]
+                    else:
+                        print(f"[WARN] EntityTypeAttribute found for '{attr_code}' but providerId is NULL (database misconfiguration)")
+                else:
+                    print(f"[WARN] EntityTypeAttribute NOT found for code '{attr_code}'")
             except Exception as _e:
-                print(f"[WARN] Could not look up providerEventType for '{attr_code}': {_e}")
+                print(f"[WARN] Could not look up provider for '{attr_code}': {_e}")
             finally:
                 if _conn_k:
                     try: _conn_k.close()
                     except: pass
 
-            # entity_id in Junction format must have "user_" prefix
-            junction_user_id = entity_id if entity_id.startswith('user_') else f"user_{entity_id}"
+            # Intelligent provider detection with fallback
+            if not provider_name:
+                if any(x in attr_code.lower() for x in ['navigation', 'propulsion', 'environment', 'electrical', 'fuel', 'water', 'engine']):
+                    provider_name = 'N2KToSignalK'
+                    print(f"[INFO] Provider detected by pattern matching: N2KToSignalK (maritime keyword in '{attr_code}')")
+                elif any(x in attr_code.lower() for x in ['vitals', 'activity', 'heart', 'blood', 'glucose', 'temperature', 'steps', 'calories']):
+                    provider_name = 'Junction'
+                    print(f"[INFO] Provider detected by pattern matching: Junction (health keyword in '{attr_code}')")
+                else:
+                    provider_name = 'Junction'  # Conservative default
+                    print(f"[WARN] Provider undetermined from database, defaulting to Junction for '{attr_code}'")
+            else:
+                print(f"[INFO] Provider detected from database: {provider_name} (providerEventType={provider_event_type})")
 
-            message = {
-                "user":       {"user_id": junction_user_id},
-                "event_type": provider_event_type,
-                "timestamp":  timestamp,
-                "provider_device": source,
-                "data":       build_junction_data(provider_event_type, float(value)),
-            }
+            # Format message based on provider type
+            if provider_name == 'N2KToSignalK':
+                # ── SignalK format: context + updates + values ──
+                message = {
+                    'context': f'vessels.urn:mrn:imo:mmsi:{entity_id}',
+                    'protocol_attribute_code': attr_code,
+                    'updates': [{
+                        'source': source or 'Manual',
+                        'timestamp': timestamp,
+                        'values': [
+                            {
+                                'path': provider_event_type,
+                                'value': float(value)
+                            }
+                        ]
+                    }]
+                }
+                kafka_key = entity_id
+            else:
+                # ── Junction format: user + event_type + data ──
+                kafka_key = entity_id
+                message = {
+                    "user":       {"user_id": entity_id},
+                    "event_type": provider_event_type,
+                    "protocol_attribute_code": attr_code,
+                    "loinc_code": attr_code,
+                    "timestamp":  timestamp,
+                    "provider_device": source,
+                    "value":      float(value),
+                    "data":       build_junction_data(provider_event_type, float(value)),
+                }
+
             try:
                 from confluent_kafka import Producer
             except ImportError:
                 raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
             producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
-            producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=junction_user_id.encode('utf-8'))
+            message_json = json.dumps(message).encode('utf-8')
+            message_size = len(message_json)
+            producer.produce(topic, value=message_json, key=kafka_key.encode('utf-8'))
             producer.flush(timeout=10)
-            print(f"[INFO] Published to Kafka: entity={junction_user_id}, event={provider_event_type}, value={value}")
+            print(f"[INFO] ✓ Published to Kafka")
+            print(f"       Provider: {provider_name or 'unknown'} | Topic: {topic} | Entity: {entity_id}")
+            print(f"       Attribute: {attr_code} | Event Type: {provider_event_type} | Value: {value} | Timestamp: {timestamp}")
+            print(f"       Size: {message_size} bytes | Source: {source} | Bootstrap: {bootstrap}")
             return {"message": f"Published to Kafka topic '{topic}' on {bootstrap}"}
 
         # ── Direct DB insert via mssql-python (gatewayType == 'direct' or fallback) ──
@@ -4222,9 +4321,9 @@ def register_device(req: DeviceRegisterRequest):
 # USER AUTHORIZATION & NOTIFICATION SETTINGS ENDPOINTS
 # ============================================================================
 
-@app.get("/customersubscriptions/{sub_id}/authorizations")
-def get_subscription_authorizations(sub_id: int):
-    """Get all users authorized for a specific subscription"""
+@app.get("/customers/{customer_id}/authorizations")
+def get_customer_authorizations(customer_id: int):
+    """Get all users authorized for a specific customer"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4238,12 +4337,18 @@ def get_subscription_authorizations(sub_id: int):
                 ua.role,
                 ua.active,
                 ua.createDate,
-                ua.lastUpdateTimestamp
+                ua.lastUpdateTimestamp,
+                ua.customerId,
+                ua.entityId,
+                ua.effectiveDate,
+                ua.expiryDate
             FROM dbo.UserAuthorization ua
             JOIN dbo.AppUser au ON au.userId = ua.userId
-            WHERE ua.customerSubscriptionId = ?
+            WHERE ua.customerId = ?
+              AND ua.effectiveDate <= GETDATE()
+              AND (ua.expiryDate IS NULL OR ua.expiryDate > GETDATE())
             ORDER BY ua.createDate DESC
-        """, (sub_id,))
+        """, (customer_id,))
         rows = cur.fetchall()
         result = []
         for r in rows:
@@ -4257,6 +4362,10 @@ def get_subscription_authorizations(sub_id: int):
                 "active": r[6],
                 "createDate": r[7].isoformat() if r[7] else None,
                 "lastUpdateTimestamp": r[8].isoformat() if r[8] else None,
+                "customerId": r[9],
+                "entityId": r[10],
+                "effectiveDate": r[11].isoformat() if r[11] else None,
+                "expiryDate": r[12].isoformat() if r[12] else None,
             })
         cur.close()
         return_db_connection(conn)
@@ -4267,7 +4376,7 @@ def get_subscription_authorizations(sub_id: int):
 
 @app.put("/authorizations/{auth_id}")
 def update_authorization(auth_id: int, data: dict):
-    """Update a user authorization (role, active status)"""
+    """Update a user authorization (role, active status, entityId, expiryDate)"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4284,6 +4393,12 @@ def update_authorization(auth_id: int, data: dict):
                 raise HTTPException(status_code=400, detail="active must be 'Y' or 'N'")
             update_fields.append("active = ?")
             update_values.append(data["active"])
+        if "entityId" in data:
+            update_fields.append("entityId = ?")
+            update_values.append(data["entityId"])  # NULL for owner/admin
+        if "expiryDate" in data:
+            update_fields.append("expiryDate = ?")
+            update_values.append(data["expiryDate"])  # NULL to remove expiry
         if not update_fields:
             raise HTTPException(status_code=400, detail="No fields to update")
         update_fields.append("lastUpdateTimestamp = GETDATE()")
@@ -4380,16 +4495,21 @@ def _send_invitation_email(to_email: str) -> bool:
         return False
 
 
-@app.post("/customersubscriptions/{sub_id}/invite")
-def invite_user_to_subscription(sub_id: int, data: dict):
-    """Invite a user by email to a subscription with a role.
+@app.post("/customers/{customer_id}/invite")
+def invite_user_to_customer(customer_id: int, data: dict):
+    """Invite a user by email to a customer with a role.
     
     Creates AppUser (if needed), creates UserAuthorization,
-    and sends Firebase Dynamic Link invitation email.
+    and sends invitation email.
+    
+    Body: { "email": "...", "role": "viewer", "entityId": "..." (optional, for viewer) }
+    - Owner/Admin: entityId should be null (access all entities)
+    - Viewer: entityId should be set (access one entity)
     """
     try:
         email = (data.get("email") or "").strip().lower()
         role = data.get("role", "viewer")
+        entity_id = data.get("entityId")  # NULL for owner/admin, specific for viewer
         if not email:
             raise HTTPException(status_code=400, detail="email is required")
         allowed_roles = ('owner', 'viewer', 'admin')
@@ -4399,18 +4519,16 @@ def invite_user_to_subscription(sub_id: int, data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 1. Verify subscription exists and get customerId
+        # 1. Verify customer exists
         cur.execute("""
-            SELECT customerSubscriptionId, customerId
-            FROM dbo.CustomerSubscriptions
-            WHERE customerSubscriptionId = ? AND active = 'Y'
-        """, (sub_id,))
-        sub_row = cur.fetchone()
-        if not sub_row:
+            SELECT customerId FROM dbo.Customer
+            WHERE customerId = ?
+        """, (customer_id,))
+        cust_row = cur.fetchone()
+        if not cust_row:
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail="Subscription not found or inactive")
-        customer_id = sub_row[1]
+            raise HTTPException(status_code=404, detail="Customer not found")
 
         # 2. Find or create AppUser by email
         cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
@@ -4446,10 +4564,16 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             user_id = cur.fetchone()[0]
 
         # 3. Create or reactivate UserAuthorization
-        cur.execute("""
-            SELECT userAuthorizationId, active FROM dbo.UserAuthorization
-            WHERE userId = ? AND customerSubscriptionId = ?
-        """, (user_id, sub_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerId = ? AND entityId = ?
+            """, (user_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_id, customer_id))
         auth_row = cur.fetchone()
         if auth_row:
             cur.execute("""
@@ -4460,14 +4584,20 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             auth_id = auth_row[0]
         else:
             cur.execute("""
-                INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
-                VALUES (?, ?, ?, 'Y')
-            """, (user_id, sub_id, role))
+                INSERT INTO dbo.UserAuthorization (userId, customerId, entityId, role, active, effectiveDate, expiryDate)
+                VALUES (?, ?, ?, ?, 'Y', GETDATE(), NULL)
+            """, (user_id, customer_id, entity_id, role))
             conn.commit()
-            cur.execute("""
-                SELECT userAuthorizationId FROM dbo.UserAuthorization
-                WHERE userId = ? AND customerSubscriptionId = ?
-            """, (user_id, sub_id))
+            if entity_id:
+                cur.execute("""
+                    SELECT userAuthorizationId FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId = ?
+                """, (user_id, customer_id, entity_id))
+            else:
+                cur.execute("""
+                    SELECT userAuthorizationId FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                """, (user_id, customer_id))
             auth_id = cur.fetchone()[0]
 
         conn.commit()
@@ -4493,18 +4623,21 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
 @app.post("/invite-bulk")
 def invite_user_bulk(data: dict):
-    """Invite a user by email to multiple subscriptions at once.
+    """Invite a user by email to multiple entities of a customer at once.
 
-    Body: { "email": "...", "role": "viewer", "subscriptionIds": [1, 2, 3] }
+    Body: { "email": "...", "role": "viewer", "customerId": 1, "entityIds": ["E1", "E2"] }
+    For owner/admin: entityIds can be empty/omitted (grants customer-level access).
+    For viewer: entityIds should list specific entities.
     """
     try:
         email = (data.get("email") or "").strip().lower()
         role = data.get("role", "viewer")
-        subscription_ids = data.get("subscriptionIds", [])
+        customer_id = data.get("customerId")
+        entity_ids = data.get("entityIds", [])
         if not email:
             raise HTTPException(status_code=400, detail="email is required")
-        if not subscription_ids:
-            raise HTTPException(status_code=400, detail="subscriptionIds is required")
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="customerId is required")
         allowed_roles = ('owner', 'viewer', 'admin')
         if role not in allowed_roles:
             raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {allowed_roles}")
@@ -4512,21 +4645,12 @@ def invite_user_bulk(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 1. Verify all subscriptions exist
-        placeholders = ','.join(['?' for _ in subscription_ids])
-        cur.execute(f"""
-            SELECT customerSubscriptionId, customerId
-            FROM dbo.CustomerSubscriptions
-            WHERE customerSubscriptionId IN ({placeholders}) AND active = 'Y'
-        """, tuple(subscription_ids))
-        valid_subs = {row[0]: row[1] for row in cur.fetchall()}
-        if not valid_subs:
+        # 1. Verify customer exists
+        cur.execute("SELECT customerId FROM dbo.Customer WHERE customerId = ?", (customer_id,))
+        if not cur.fetchone():
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail="No valid active subscriptions found")
-
-        # Use first subscription's customerId for new user
-        customer_id = list(valid_subs.values())[0]
+            raise HTTPException(status_code=404, detail="Customer not found")
 
         # 2. Find or create AppUser by email
         cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
@@ -4560,16 +4684,23 @@ def invite_user_bulk(data: dict):
             cur.execute("SELECT userId FROM dbo.AppUser WHERE email = ?", (email,))
             user_id = cur.fetchone()[0]
 
-        # 3. Create or reactivate UserAuthorization for each subscription
+        # 3. Create authorizations
         results = []
-        for sub_id in subscription_ids:
-            if sub_id not in valid_subs:
-                results.append({"subscriptionId": sub_id, "status": "skipped", "reason": "not found or inactive"})
-                continue
-            cur.execute("""
-                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
-                WHERE userId = ? AND customerSubscriptionId = ?
-            """, (user_id, sub_id))
+        # For owner/admin with no entity_ids, create one customer-level auth
+        if not entity_ids:
+            entity_ids = [None]
+
+        for eid in entity_ids:
+            if eid:
+                cur.execute("""
+                    SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId = ?
+                """, (user_id, customer_id, eid))
+            else:
+                cur.execute("""
+                    SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                """, (user_id, customer_id))
             auth_row = cur.fetchone()
             if auth_row:
                 cur.execute("""
@@ -4577,30 +4708,36 @@ def invite_user_bulk(data: dict):
                     SET role = ?, active = 'Y', lastUpdateTimestamp = GETDATE()
                     WHERE userAuthorizationId = ?
                 """, (role, auth_row[0]))
-                results.append({"subscriptionId": sub_id, "authId": auth_row[0], "status": "updated"})
+                results.append({"entityId": eid, "authId": auth_row[0], "status": "updated"})
             else:
                 cur.execute("""
-                    INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
-                    VALUES (?, ?, ?, 'Y')
-                """, (user_id, sub_id, role))
+                    INSERT INTO dbo.UserAuthorization (userId, customerId, entityId, role, active, effectiveDate, expiryDate)
+                    VALUES (?, ?, ?, ?, 'Y', GETDATE(), NULL)
+                """, (user_id, customer_id, eid, role))
                 conn.commit()
-                cur.execute("""
-                    SELECT userAuthorizationId FROM dbo.UserAuthorization
-                    WHERE userId = ? AND customerSubscriptionId = ?
-                """, (user_id, sub_id))
+                if eid:
+                    cur.execute("""
+                        SELECT userAuthorizationId FROM dbo.UserAuthorization
+                        WHERE userId = ? AND customerId = ? AND entityId = ?
+                    """, (user_id, customer_id, eid))
+                else:
+                    cur.execute("""
+                        SELECT userAuthorizationId FROM dbo.UserAuthorization
+                        WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                    """, (user_id, customer_id))
                 auth_id = cur.fetchone()[0]
-                results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
+                results.append({"entityId": eid, "authId": auth_id, "status": "created"})
         conn.commit()
 
         # 4. Send invitation email via Gmail SMTP
         email_sent = _send_invitation_email(email)
-        print(f"[INFO] User {email} invited as {role} to {len(results)} subscription(s) (email_sent={email_sent})")
+        print(f"[INFO] User {email} invited as {role} to {len(results)} authorization(s) (email_sent={email_sent})")
 
         cur.close()
         return_db_connection(conn)
 
         return {
-            "message": f"User {email} invited as {role} to {len(results)} subscription(s)",
+            "message": f"User {email} invited as {role} with {len(results)} authorization(s)",
             "userId": user_id,
             "inviteSent": email_sent,
             "results": results,
@@ -4736,44 +4873,42 @@ def auth_check_verified(email: str):
 
 @app.get("/users/{user_id}/subscriptions")
 def get_user_subscriptions(user_id: int):
-    """Get all subscriptions a user has access to (for the invitee's view)"""
+    """Get all authorizations a user has (customer+entity based view)"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
             SELECT
                 ua.userAuthorizationId,
-                ua.customerSubscriptionId,
+                ua.customerId,
+                ua.entityId,
                 ua.role,
                 ua.active AS authActive,
-                cs.entityId,
-                cs.eventId,
-                e.eventCode,
                 c.customerName,
-                cs.active AS subActive,
-                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName,
+                ua.effectiveDate,
+                ua.expiryDate
             FROM dbo.UserAuthorization ua
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
-            LEFT JOIN dbo.Entity ent ON ent.entityId = cs.entityId
-            WHERE ua.userId = ? AND ua.active = 'Y' AND cs.active = 'Y'
-            ORDER BY c.customerName, cs.entityId
+            JOIN dbo.Customer c ON c.customerId = ua.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = ua.entityId
+            WHERE ua.userId = ? AND ua.active = 'Y'
+              AND ua.effectiveDate <= GETDATE()
+              AND (ua.expiryDate IS NULL OR ua.expiryDate > GETDATE())
+            ORDER BY c.customerName, ua.entityId
         """, (user_id,))
         rows = cur.fetchall()
         result = []
         for r in rows:
             result.append({
                 "userAuthorizationId": r[0],
-                "customerSubscriptionId": r[1],
-                "role": r[2],
-                "authActive": r[3],
-                "entityId": r[4],
-                "eventId": r[5],
-                "eventCode": r[6],
-                "customerName": r[7],
-                "subActive": r[8],
-                "entityName": r[9] if r[9] and str(r[9]).strip() else r[4],
+                "customerId": r[1],
+                "entityId": r[2],
+                "role": r[3],
+                "authActive": r[4],
+                "customerName": r[5],
+                "entityName": r[6] if r[6] and str(r[6]).strip() else r[2],
+                "effectiveDate": r[7].isoformat() if r[7] else None,
+                "expiryDate": r[8].isoformat() if r[8] else None,
             })
         cur.close()
         return_db_connection(conn)
@@ -4784,7 +4919,7 @@ def get_user_subscriptions(user_id: int):
 
 @app.get("/users/{user_id}/push-settings")
 def get_user_push_settings(user_id: int):
-    """Get all push notification settings for a user across all their devices & subscriptions"""
+    """Get all push notification settings for a user across all their devices & entities"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4792,7 +4927,8 @@ def get_user_push_settings(user_id: int):
             SELECT
                 uapn.userAppPushNotificationId,
                 uapn.userApplicationId,
-                uapn.customerSubscriptionId,
+                uapn.customerId,
+                uapn.entityId,
                 uapn.enabled,
                 uapn.minSeverity,
                 CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
@@ -4801,16 +4937,14 @@ def get_user_push_settings(user_id: int):
                 uapn.vibrationEnabled,
                 uapn.ledEnabled,
                 uapn.deliveryChannel,
-                cs.entityId,
                 c.customerName,
-                e.eventCode
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAppPushNotification uapn
             JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            JOIN dbo.Customer c ON c.customerId = uapn.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = uapn.entityId
             WHERE ua.userId = ? AND uapn.active = 'Y'
-            ORDER BY c.customerName, cs.entityId
+            ORDER BY c.customerName, uapn.entityId
         """, (user_id,))
         rows = cur.fetchall()
         result = []
@@ -4818,18 +4952,18 @@ def get_user_push_settings(user_id: int):
             result.append({
                 "userAppPushNotificationId": r[0],
                 "userApplicationId": r[1],
-                "customerSubscriptionId": r[2],
-                "enabled": r[3],
-                "minSeverity": r[4],
-                "quietHoursStart": r[5],
-                "quietHoursEnd": r[6],
-                "soundEnabled": r[7],
-                "vibrationEnabled": r[8],
-                "ledEnabled": r[9],
-                "deliveryChannel": r[10],
-                "entityId": r[11],
+                "customerId": r[2],
+                "entityId": r[3],
+                "enabled": r[4],
+                "minSeverity": r[5],
+                "quietHoursStart": r[6],
+                "quietHoursEnd": r[7],
+                "soundEnabled": r[8],
+                "vibrationEnabled": r[9],
+                "ledEnabled": r[10],
+                "deliveryChannel": r[11],
                 "customerName": r[12],
-                "eventCode": r[13],
+                "entityName": r[13] if r[13] and str(r[13]).strip() else r[3],
             })
         cur.close()
         return_db_connection(conn)
@@ -4889,14 +5023,16 @@ def update_push_setting(setting_id: int, data: dict):
 
 @app.post("/users/{user_id}/push-settings")
 def create_push_setting(user_id: int, data: dict):
-    """Create a push notification setting for a user's device + subscription.
+    """Create a push notification setting for a user's device + customer/entity.
     
     Finds the user's active UserApplication (device) and creates a preference row.
+    Body: { "customerId": 1, "entityId": "E1" (optional), "minSeverity": "MEDIUM" }
     """
     try:
-        customer_subscription_id = data.get("customerSubscriptionId")
-        if not customer_subscription_id:
-            raise HTTPException(status_code=400, detail="customerSubscriptionId is required")
+        customer_id = data.get("customerId")
+        entity_id = data.get("entityId")
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="customerId is required")
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4916,10 +5052,16 @@ def create_push_setting(user_id: int, data: dict):
         user_app_id = dev_row[0]
 
         # Check if already exists
-        cur.execute("""
-            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
-            WHERE userApplicationId = ? AND customerSubscriptionId = ?
-        """, (user_app_id, customer_subscription_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId = ?
+            """, (user_app_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_app_id, customer_id))
         existing = cur.fetchone()
         if existing:
             cur.close()
@@ -4928,15 +5070,21 @@ def create_push_setting(user_id: int, data: dict):
 
         cur.execute("""
             INSERT INTO dbo.UserAppPushNotification
-                (userApplicationId, customerSubscriptionId, enabled, minSeverity, deliveryChannel, active)
-            VALUES (?, ?, 'Y', ?, 'fcm', 'Y')
-        """, (user_app_id, customer_subscription_id, data.get("minSeverity", "MEDIUM")))
+                (userApplicationId, customerId, entityId, enabled, minSeverity, deliveryChannel, active)
+            VALUES (?, ?, ?, 'Y', ?, 'fcm', 'Y')
+        """, (user_app_id, customer_id, entity_id, data.get("minSeverity", "MEDIUM")))
         conn.commit()
 
-        cur.execute("""
-            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
-            WHERE userApplicationId = ? AND customerSubscriptionId = ?
-        """, (user_app_id, customer_subscription_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId = ?
+            """, (user_app_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_app_id, customer_id))
         new_id = cur.fetchone()[0]
 
         cur.close()
@@ -5029,7 +5177,8 @@ def get_all_push_settings():
             SELECT
                 uapn.userAppPushNotificationId,
                 uapn.userApplicationId,
-                uapn.customerSubscriptionId,
+                uapn.customerId,
+                uapn.entityId,
                 uapn.enabled,
                 uapn.minSeverity,
                 CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
@@ -5042,18 +5191,16 @@ def get_all_push_settings():
                 au.userId,
                 au.email,
                 au.displayName,
-                ua.platform,
-                ua.deviceModel,
-                cs.entityId,
+                uapp.platform,
+                uapp.deviceModel,
                 c.customerName,
-                e.eventCode
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAppPushNotification uapn
-            JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
-            JOIN dbo.AppUser au ON au.userId = ua.userId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
-            ORDER BY au.email, cs.entityId
+            JOIN dbo.UserApplication uapp ON uapp.userApplicationId = uapn.userApplicationId
+            JOIN dbo.AppUser au ON au.userId = uapp.userId
+            JOIN dbo.Customer c ON c.customerId = uapn.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = uapn.entityId
+            ORDER BY au.email, uapn.entityId
         """)
         rows = cur.fetchall()
         result = []
@@ -5061,24 +5208,24 @@ def get_all_push_settings():
             result.append({
                 "userAppPushNotificationId": r[0],
                 "userApplicationId": r[1],
-                "customerSubscriptionId": r[2],
-                "enabled": r[3],
-                "minSeverity": r[4],
-                "quietHoursStart": r[5],
-                "quietHoursEnd": r[6],
-                "soundEnabled": r[7],
-                "vibrationEnabled": r[8],
-                "ledEnabled": r[9],
-                "deliveryChannel": r[10],
-                "active": r[11],
-                "userId": r[12],
-                "email": r[13],
-                "displayName": r[14],
-                "platform": r[15],
-                "deviceModel": r[16],
-                "entityId": r[17],
+                "customerId": r[2],
+                "entityId": r[3],
+                "enabled": r[4],
+                "minSeverity": r[5],
+                "quietHoursStart": r[6],
+                "quietHoursEnd": r[7],
+                "soundEnabled": r[8],
+                "vibrationEnabled": r[9],
+                "ledEnabled": r[10],
+                "deliveryChannel": r[11],
+                "active": r[12],
+                "userId": r[13],
+                "email": r[14],
+                "displayName": r[15],
+                "platform": r[16],
+                "deviceModel": r[17],
                 "customerName": r[18],
-                "eventCode": r[19],
+                "entityName": r[19] if r[19] and str(r[19]).strip() else r[3],
             })
         cur.close()
         return_db_connection(conn)
@@ -5093,7 +5240,7 @@ def get_all_push_settings():
 
 @app.get("/admin/authorizations")
 def get_all_authorizations(email: str = None):
-    """List user authorizations across all subscriptions.
+    """List user authorizations across all customers.
     
     When email is provided, returns only authorizations for that user.
     """
@@ -5113,18 +5260,19 @@ def get_all_authorizations(email: str = None):
                 ua.userId,
                 au.email,
                 au.displayName,
-                ua.customerSubscriptionId,
-                cs.entityId,
+                ua.customerId,
+                ua.entityId,
                 c.customerName,
-                e.eventCode,
                 ua.role,
                 ua.active,
-                ua.createDate
+                ua.createDate,
+                ua.effectiveDate,
+                ua.expiryDate,
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAuthorization ua
             JOIN dbo.AppUser au ON au.userId = ua.userId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            JOIN dbo.Customer c ON c.customerId = ua.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = ua.entityId
             {where_clause}
             ORDER BY au.email, c.customerName
         """, params)
@@ -5136,13 +5284,15 @@ def get_all_authorizations(email: str = None):
                 "userId": r[1],
                 "email": r[2],
                 "displayName": r[3],
-                "customerSubscriptionId": r[4],
+                "customerId": r[4],
                 "entityId": r[5],
                 "customerName": r[6],
-                "eventCode": r[7],
-                "role": r[8],
-                "active": r[9],
-                "createDate": r[10].isoformat() if r[10] else None,
+                "role": r[7],
+                "active": r[8],
+                "createDate": r[9].isoformat() if r[9] else None,
+                "effectiveDate": r[10].isoformat() if r[10] else None,
+                "expiryDate": r[11].isoformat() if r[11] else None,
+                "entityName": r[12] if r[12] and str(r[12]).strip() else r[5],
             })
         cur.close()
         return_db_connection(conn)

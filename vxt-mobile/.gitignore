@@ -7,6 +7,7 @@ android/app/build/
 android/build/
 android/local.properties
 android/app/src/main/assets/index.android.bundle
+android/app/src/main/assets/www/
 android/app/src/main/res/drawable-*/
 android/app/src/main/res/raw/
 
