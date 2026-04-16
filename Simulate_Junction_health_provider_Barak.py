@@ -61,7 +61,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8867-4",
+            "event_type": "vitals.heart_rate.update",
             "loinc_code": "8867-4",
             "timestamp": base_time.isoformat()
         }
@@ -99,7 +99,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8480-6",
+            "event_type": "vitals.blood_pressure.update",
             "loinc_code": "8480-6",
             "timestamp": base_time.isoformat()
         }
@@ -131,7 +131,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "59408-5",
+            "event_type": "vitals.oxygen_saturation.update",
             "loinc_code": "59408-5",
             "timestamp": base_time.isoformat()
         }
@@ -163,7 +163,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "9279-1",
+            "event_type": "vitals.respiration_rate.update",
             "loinc_code": "9279-1",
             "timestamp": base_time.isoformat()
         }
@@ -195,7 +195,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8310-5",
+            "event_type": "vitals.body_temperature.update",
             "loinc_code": "8310-5",
             "timestamp": base_time.isoformat()
         }
@@ -232,7 +232,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "2339-0",
+            "event_type": "vitals.glucose.update",
             "loinc_code": "2339-0",
             "timestamp": base_time.isoformat()
         }
@@ -264,7 +264,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "80404-7",
+            "event_type": "vitals.heart_rate_variability.update",
             "loinc_code": "80404-7",
             "timestamp": base_time.isoformat()
         }
@@ -296,7 +296,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8462-4",
+            "event_type": "vitals.diastolic_blood_pressure.update",
             "loinc_code": "8462-4",
             "timestamp": base_time.isoformat()
         }
@@ -346,7 +346,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8418-4",
+            "event_type": "vitals.heart_rate.resting.update",
             "loinc_code": "8418-4",
             "timestamp": base_time.isoformat()
         }
@@ -380,7 +380,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8638-5",
+            "event_type": "vitals.heart_rate.minimum.update",
             "loinc_code": "8638-5",
             "timestamp": base_time.isoformat()
         }
@@ -412,7 +412,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "8639-3",
+            "event_type": "vitals.heart_rate.maximum.update",
             "loinc_code": "8639-3",
             "timestamp": base_time.isoformat()
         }
@@ -443,7 +443,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "vitals",
-            "event_type": "80358-0",
+            "event_type": "vitals.atrial_fibrillation_detection.update",
             "loinc_code": "80358-0",
             "timestamp": base_time.isoformat()
         }
@@ -482,7 +482,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "activity",
-            "event_type": "55411-3",
+            "event_type": "activity.steps.update",
             "loinc_code": "55411-3",
             "timestamp": base_time.isoformat()
         }
@@ -522,7 +522,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "activity",
-            "event_type": "41981-2",
+            "event_type": "activity.calories.update",
             "loinc_code": "41981-2",
             "timestamp": base_time.isoformat()
         }
@@ -561,7 +561,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "activity",
-            "event_type": "8466-5",
+            "event_type": "activity.distance.update",
             "loinc_code": "8466-5",
             "timestamp": base_time.isoformat()
         }
@@ -604,7 +604,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "sleep",
-            "event_type": "93831-0",
+            "event_type": "sleep.session.created",
             "loinc_code": "93831-0",
             "timestamp": base_time.isoformat()
         }
@@ -647,7 +647,7 @@ class JunctionEventProducer:
                 }
             },
             "type": "location",
-            "event_type": "33018-7",
+            "event_type": "location.update",
             "loinc_code": "33018-7",
             "timestamp": base_time.isoformat()
         }
@@ -728,4 +728,5 @@ if __name__ == '__main__':
         bootstrap_servers='localhost:9092',
         topic='iot-telemetry'
     )
-    producer.simulate_continuous_events(duration_seconds=600, interval_seconds=2)
+    # Send 2 samples per minute per attribute (30-second interval)
+    producer.simulate_continuous_events(duration_seconds=600, interval_seconds=30)

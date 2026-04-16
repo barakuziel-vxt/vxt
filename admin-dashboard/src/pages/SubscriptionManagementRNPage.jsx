@@ -73,7 +73,10 @@ function UserRolesView({ subId, subLabel, onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      alert(result.message);
+      const emailNote = result.inviteSent
+        ? `\n\nAn invitation email has been sent to ${inviteEmail.trim().toLowerCase()}.`
+        : `\n\n⚠️ Invitation email could not be sent (GMAIL not configured).\nPlease notify them manually to download the VXT app and sign in with ${inviteEmail.trim().toLowerCase()}.`;
+      alert(`✅ ${result.message}${emailNote}`);
       setInviteOpen(false); setInviteEmail(''); setInviteRole('viewer');
       fetchAuths();
     } catch (e) { alert(e.message); }
@@ -216,7 +219,7 @@ function InviteUserView({ onBack }) {
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
       const result = await res.json();
-      alert(`${result.message}\n${result.inviteSent ? '📧 Email invitation sent' : '⚠️ Email not sent'}`);
+      alert(`\u2705 ${result.message}\n\nThe user can now open the VXT app and sign in with ${trimmedEmail}.\nThey will receive a verification email on first login.`);
       onBack();
     } catch (e) { alert(e.message); }
     finally { setSending(false); }
@@ -455,29 +458,25 @@ export default function SubscriptionManagementRNPage() {
         <div style={S.list}>
           {filtered.map(sub => (
             <div key={sub.customerSubscriptionId} style={{ ...S.card, ...(sub.active === 'N' ? { opacity: 0.55 } : {}) }}>
-              <div style={S.cardTop}>
-                <div style={{ flex: 1 }}>
-                  <div style={S.cardTitle}>{sub.customerName}</div>
-                  <div style={S.cardEntity}>{sub.entityName} ({sub.entityId})</div>
-                  {sub.eventCode && <div style={S.cardEvent}>Event: {sub.eventCode}</div>}
-                  <div style={S.cardDate}>
-                    {sub.subscriptionStartDate ? new Date(sub.subscriptionStartDate).toLocaleDateString() : '—'}
-                    {sub.subscriptionEndDate ? ` → ${new Date(sub.subscriptionEndDate).toLocaleDateString()}` : ''}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <label style={S.toggleLabel}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
+                <span style={S.cardTitle}>{sub.customerName}</span>
+                <span style={S.cardEntity}>{sub.entityName} ({sub.entityId})</span>
+                {sub.eventCode && <span style={S.cardEvent}>• {sub.eventCode}</span>}
+                <span style={S.cardDate}>
+                  {sub.subscriptionStartDate ? new Date(sub.subscriptionStartDate).toLocaleDateString() : '—'}
+                  {sub.subscriptionEndDate ? ` → ${new Date(sub.subscriptionEndDate).toLocaleDateString()}` : ''}
+                </span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <label style={{ ...S.toggleLabel, margin: 0 }}>
                     <input type="checkbox" checked={sub.active === 'Y'} onChange={() => toggleActive(sub)} />
                     <span style={{ color: sub.active === 'Y' ? C.green : C.red, marginLeft: 6, fontSize: 12 }}>
                       {sub.active === 'Y' ? 'Active' : 'Inactive'}
                     </span>
                   </label>
-                </div>
-              </div>
-              <div style={S.cardFooter}>
-                <button style={{ ...S.cardBtn, color: C.blue }} onClick={() => openUserRoles(sub)}>👥 User Roles</button>
-                <button style={S.cardBtn} onClick={() => openEdit(sub)}>✏️ Edit</button>
-                <button style={{ ...S.cardBtn, color: C.red }} onClick={() => deleteSub(sub)}>🗑️ Delete</button>
+                  <button style={{ ...S.cardBtn, color: C.blue }} onClick={() => openUserRoles(sub)}>👥 Users</button>
+                  <button style={S.cardBtn} onClick={() => openEdit(sub)}>✏️ Edit</button>
+                  <button style={{ ...S.cardBtn, color: C.red }} onClick={() => deleteSub(sub)}>🗑️</button>
+                </span>
               </div>
             </div>
           ))}
@@ -547,12 +546,12 @@ const S = {
   chipActive: { borderColor: C.blue, background: C.blue + '22', color: C.blue, fontWeight: 600 },
   loader: { color: C.blue, textAlign: 'center', padding: 40 },
   list: { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 8 },
-  card: { background: C.card, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` },
+  card: { background: C.card, borderRadius: 10, padding: '10px 14px', border: `1px solid ${C.border}` },
   cardTop: { display: 'flex', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 16, fontWeight: 600, color: C.textPrimary },
-  cardEntity: { fontSize: 13, color: C.green, marginTop: 2 },
-  cardEvent: { fontSize: 12, color: C.blue, marginTop: 2 },
-  cardDate: { fontSize: 12, color: C.textMuted, marginTop: 4 },
+  cardTitle: { fontSize: 15, fontWeight: 600, color: C.textPrimary },
+  cardEntity: { fontSize: 13, color: C.green },
+  cardEvent: { fontSize: 12, color: C.blue },
+  cardDate: { fontSize: 12, color: C.textMuted },
   toggleLabel: { display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 13 },
   cardFooter: { display: 'flex', gap: 8, marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 8 },
   cardBtn: { background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 13, padding: '4px 8px' },

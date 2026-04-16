@@ -65,7 +65,7 @@ export default function UserAuthorizationPage() {
   return (
     <div className="page">
       <h2>User Authorizations</h2>
-      <p className="page-subtitle">Manage user access roles for customer subscriptions</p>
+      <p className="page-subtitle">Manage user access roles per customer and entity</p>
 
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -125,9 +125,10 @@ export default function UserAuthorizationPage() {
                 <th>ID</th>
                 <th>User</th>
                 <th>Customer</th>
-                <th>Entity ID</th>
-                <th>Event</th>
+                <th>Entity</th>
                 <th>Role</th>
+                <th>Effective</th>
+                <th>Expiry</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -142,8 +143,7 @@ export default function UserAuthorizationPage() {
                     <div style={{ fontSize: '12px', color: '#999' }}>{a.email}</div>
                   </td>
                   <td>{a.customerName || '—'}</td>
-                  <td><strong>{a.entityId}</strong></td>
-                  <td>{a.eventCode || '—'}</td>
+                  <td><strong>{a.entityName || a.entityId || 'All Entities'}</strong></td>
                   <td>
                     <select
                       value={a.role}
@@ -154,6 +154,10 @@ export default function UserAuthorizationPage() {
                       <option value="admin">Admin</option>
                       <option value="owner">Owner</option>
                     </select>
+                  </td>
+                  <td style={{ fontSize: '12px' }}>{a.effectiveDate?.split('T')[0] || '—'}</td>
+                  <td style={{ fontSize: '12px', color: a.expiryDate ? '#fd7e14' : '#28a745' }}>
+                    {a.expiryDate ? a.expiryDate.split('T')[0] : 'Never'}
                   </td>
                   <td>
                     <span style={{ color: a.active === 'Y' ? '#28a745' : '#dc3545', fontWeight: '600' }}>

@@ -23,6 +23,7 @@ export default function EntityTypeAttributePage() {
   const [editingId, setEditingId] = useState(null);
   const [selectedAttribute, setSelectedAttribute] = useState(null);
   const [criteria, setCriteria] = useState([]);
+  const [editingCriteriaId, setEditingCriteriaId] = useState(null);
   const [filterEntityTypeId, setFilterEntityTypeId] = useState(''); // ALL by default
   const [filterComponent, setFilterComponent] = useState(''); // ALL by default
   const [filterAttributeName, setFilterAttributeName] = useState('');
@@ -243,6 +244,8 @@ export default function EntityTypeAttributePage() {
     setShowCriteriaModal(false);
     setSelectedAttribute(null);
     setCriteria([]);
+    setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
+    setEditingCriteriaId(null);
   };
 
   const handleCriteriaInputChange = (e) => {
@@ -256,12 +259,24 @@ export default function EntityTypeAttributePage() {
   const handleAddCriteria = async (e) => {
     e.preventDefault();
     try {
-      const newCriteria = {
-        entityTypeId: selectedAttribute.entityTypeId,
-        entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
-        ...criteriaFormData,
-      };
-      await entityTypeAttributeScoreAPI.create(newCriteria);
+      if (editingCriteriaId) {
+        // Update existing criteria
+        const updatedCriteria = {
+          entityTypeId: selectedAttribute.entityTypeId,
+          entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
+          ...criteriaFormData,
+        };
+        await entityTypeAttributeScoreAPI.update(editingCriteriaId, updatedCriteria);
+        setEditingCriteriaId(null);
+      } else {
+        // Create new criteria
+        const newCriteria = {
+          entityTypeId: selectedAttribute.entityTypeId,
+          entityTypeAttributeId: selectedAttribute.entityTypeAttributeId,
+          ...criteriaFormData,
+        };
+        await entityTypeAttributeScoreAPI.create(newCriteria);
+      }
       setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
       const crit = await entityTypeAttributeScoreAPI.getByAttributeId(selectedAttribute.entityTypeAttributeId);
       setCriteria(crit);
@@ -270,12 +285,32 @@ export default function EntityTypeAttributePage() {
     }
   };
 
+  const handleEditCriteria = (criteriaItem) => {
+    setEditingCriteriaId(criteriaItem.entityTypeAttributeScoreId);
+    setCriteriaFormData({
+      minValue: criteriaItem.minValue || '',
+      maxValue: criteriaItem.maxValue || '',
+      strValue: criteriaItem.strValue || '',
+      score: criteriaItem.score || '',
+    });
+    // Scroll to form for better UX
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEditCriteria = () => {
+    setEditingCriteriaId(null);
+    setCriteriaFormData({ minValue: '', maxValue: '', strValue: '', score: '' });
+  };
+
   const handleDeleteCriteria = async (id) => {
     if (window.confirm('Are you sure you want to delete this criterion?')) {
       try {
         await entityTypeAttributeScoreAPI.delete(id);
         const crit = await entityTypeAttributeScoreAPI.getByAttributeId(selectedAttribute.entityTypeAttributeId);
         setCriteria(crit);
+        if (editingCriteriaId === id) {
+          setEditingCriteriaId(null);
+        }
       } catch (err) {
         setError(err.message);
       }
@@ -596,7 +631,7 @@ export default function EntityTypeAttributePage() {
                         className="btn btn-secondary btn-small"
                         onClick={() => handleOpenCriteriaModal(attr)}
                       >
-                        Scores
+                        Thresholds
                       </button>
                       <button
                         className="btn btn-danger btn-small"
@@ -825,11 +860,11 @@ export default function EntityTypeAttributePage() {
         <div className="modal">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Scoring Values for {selectedAttribute.entityTypeAttributeName}</h3>
+              <h3>Threshold Values for {selectedAttribute.entityTypeAttributeName}</h3>
             </div>
 
             <div className="form-section">
-              <h3>Add New Value Score</h3>
+              <h3>{editingCriteriaId ? 'Edit Threshold' : 'Add New Threshold'}</h3>
               <form onSubmit={handleAddCriteria}>
                 <div className="form-row">
                   <div className="form-group">
@@ -872,27 +907,36 @@ export default function EntityTypeAttributePage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="score">Score (points)</label>
-                  <input
-                    type="number"
+                  <label htmlFor="score">State</label>
+                  <select
                     id="score"
                     name="score"
                     value={criteriaFormData.score}
                     onChange={handleCriteriaInputChange}
                     required
-                    placeholder="e.g., 10"
-                  />
+                  >
+                    <option value="">Select state</option>
+                    <option value="0">0 - Normal</option>
+                    <option value="1">1 - Warn</option>
+                    <option value="2">2 - Alarm</option>
+                    <option value="3">3 - Emergency</option>
+                  </select>
                 </div>
 
                 <button type="submit" className="btn btn-success">
-                  Add ValueScore
+                  {editingCriteriaId ? 'Update Threshold' : 'Add Threshold'}
                 </button>
+                {editingCriteriaId && (
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelEditCriteria} style={{ marginLeft: '10px' }}>
+                    Cancel
+                  </button>
+                )}
               </form>
             </div>
 
             {criteria.length > 0 && (
               <div>
-                <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Existing ValueScores</h3>
+                <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Existing Thresholds</h3>
                 <div className="table-container">
                   <table className="table">
                     <thead>
@@ -900,29 +944,39 @@ export default function EntityTypeAttributePage() {
                         <th>Min Value</th>
                         <th>Max Value</th>
                         <th>String Value</th>
-                        <th>Score</th>
+                        <th>State</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {criteria.map((c) => (
-                        <tr key={c.entityTypeCriteriaId}>
+                      {criteria.map((c) => {
+                        const stateMap = { 0: 'Normal', 1: 'Warn', 2: 'Alarm', 3: 'Emergency' };
+                        return (
+                        <tr key={c.entityTypeAttributeScoreId}>
                           <td>{c.minValue}</td>
                           <td>{c.maxValue}</td>
                           <td>{c.strValue || 'N/A'}</td>
                           <td>
-                            <span style={{ fontWeight: 'bold', color: '#667eea' }}>{c.score}</span>
+                            <span style={{ fontWeight: 'bold', color: '#667eea' }}>{stateMap[c.score] || c.score}</span>
                           </td>
                           <td>
                             <button
+                              className="btn btn-primary btn-small"
+                              onClick={() => handleEditCriteria(c)}
+                              style={{ marginRight: '5px' }}
+                            >
+                              Edit
+                            </button>
+                            <button
                               className="btn btn-danger btn-small"
-                              onClick={() => handleDeleteCriteria(c.entityTypeCriteriaId)}
+                              onClick={() => handleDeleteCriteria(c.entityTypeAttributeScoreId)}
                             >
                               Delete
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -25,9 +25,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from mssql_python import connect
 import json
 import traceback
@@ -239,37 +242,57 @@ if setup_router:
         print(f"[WARNING] Failed to include setup_management router: {str(e)}")
 
 # ============================================================================
-# CONNECTION RETRY (Simple wrapper to handle first-connect timeout)
+# CONNECTION POOL
 # ============================================================================
-import time
+import queue
+import threading
+
+_conn_pool: queue.Queue = queue.Queue(maxsize=10)
 
 def get_db_connection():
-    """Get database connection using mssql-python with automatic retry on timeout"""
+    """Get a connection from the pool (or create a new one if pool is empty)."""
     conn_string = get_db_connection_string()
     if conn_string is None:
         raise Exception("SQL_CONNECTION_STRING environment variable not set")
-    
-    # Retry once on timeout
+
+    # Try to reuse a pooled connection
+    try:
+        conn = _conn_pool.get_nowait()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            return conn  # healthy — reuse it
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except queue.Empty:
+        pass
+
+    # Pool empty or connection was stale — create a new one (1 retry on transient error)
     for attempt in range(2):
         try:
-            print(f"[DEBUG] Connecting to database (attempt {attempt + 1}/2)")
             conn = connect(conn_string)
-            print(f"[INFO] [OK] Database connection successful")
             return conn
         except Exception as e:
-            print(f"[ERROR] Connection attempt {attempt + 1} failed: {str(e)}")
+            print(f"[ERROR] DB connect attempt {attempt + 1} failed: {str(e)}")
             if attempt < 1:
                 time.sleep(2)
             else:
                 raise
 
 def return_db_connection(conn):
-    """Close connection (no pooling - simple approach)"""
+    """Return connection to pool; discard silently if pool is already full."""
     if conn:
         try:
-            conn.close()
-        except:
-            pass
+            _conn_pool.put_nowait(conn)
+        except queue.Full:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 
@@ -2005,23 +2028,45 @@ def get_analyze_functions():
 
 # Entity Management Endpoints
 @app.get("/entities")
-def get_entities(entityTypeId: int = None):
-    """Get all entities, optionally filtered by entityTypeId"""
+def get_entities(entityTypeId: int = None, email: str = None):
+    """Get all entities, optionally filtered by entityTypeId and/or user email authorization.
+    
+    When email is provided, returns only entities the user has viewer+ authorization for.
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
-        sql = """
-            SELECT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
-                   e.gender, e.birthDate, e.active
-            FROM Entity e
-            JOIN EntityType et ON e.entityTypeId = et.entityTypeId
-        """
+        if email:
+            # Filter entities by user authorization (viewer, admin, owner)
+            sql = """
+                SELECT DISTINCT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
+                       e.gender, e.birthDate, e.active
+                FROM Entity e
+                JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+                JOIN CustomerSubscriptions cs ON cs.entityId = e.entityId AND cs.active = 'Y'
+                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN AppUser au ON au.userId = ua.userId
+                WHERE LOWER(au.email) = ?
+            """
+            params = (email.lower(),)
+            if entityTypeId:
+                sql += " AND e.entityTypeId = ?"
+                params = params + (entityTypeId,)
+            cur.execute(sql, params)
+        else:
+            sql = """
+                SELECT e.entityId, e.entityFirstName, e.entityLastName, e.entityTypeId, et.entityTypeName,
+                       e.gender, e.birthDate, e.active
+                FROM Entity e
+                JOIN EntityType et ON e.entityTypeId = et.entityTypeId
+            """
+            if entityTypeId:
+                sql += f" WHERE e.entityTypeId = ?"
+                cur.execute(sql, (entityTypeId,))
+            else:
+                cur.execute(sql)
         
-        if entityTypeId:
-            sql += f" WHERE e.entityTypeId = {entityTypeId}"
-        
-        cur.execute(sql)
         rows = cur.fetchall()
         
         entities = []
@@ -2180,19 +2225,61 @@ def _build_iothub_sas(resource_uri: str, key: str, expiry_s: int = 3600) -> str:
 @app.post("/api/manual-report")
 def post_manual_report(data: dict):
     """
-    Manual telemetry report from mobile or admin dashboard.
-    Routes: entityTypeAttributeCode (event name) → DB direct insert OR Kafka based on gatewayType.
+    Publish a manual telemetry measurement.
+
+    Routing by gatewayType:
+      kafka   → look up providerEventType, publish to Kafka in Junction format
+                (consumer inserts into EntityTelemetry + downstream processing)
+      direct  → insert directly into EntityTelemetry via mssql-python (no Kafka)
+      iothub  → publish to Azure IoT Hub
+      _dryRun → test connectivity only
+
+    Body fields:
+      entityId, entityTypeAttributeCode, value, timestamp, source,
+      gatewayType ('kafka' | 'iothub' | 'direct'),
+      kafkaBootstrap, kafkaTopic  (for kafka),
+      iotHubConnectionString      (for iothub),
+      _dryRun (bool, optional)    — test connection only, do not send data.
     """
+    # Maps providerEventType → nested path inside "data" matching ProviderEvent.ValueJsonPath
+    JUNCTION_DATA_PATHS = {
+        'vitals.heart_rate.update':               ['heart_rate_data', 'summary', 'avg_hr_bpm'],
+        'vitals.heart_rate.resting.update':       ['heart_rate_data', 'summary', 'resting_hr_bpm'],
+        'vitals.heart_rate.minimum.update':       ['heart_rate_data', 'summary', 'min_hr_bpm'],
+        'vitals.heart_rate.maximum.update':       ['heart_rate_data', 'summary', 'max_hr_bpm'],
+        'vitals.heart_rate_variability.update':   ['heart_rate_data', 'summary', 'hr_variability_rmssd'],
+        'vitals.blood_pressure.update':           ['blood_pressure_data', 'summary', 'avg_systolic_mmhg'],
+        'vitals.diastolic_blood_pressure.update': ['blood_pressure_data', 'summary', 'avg_diastolic_mmhg'],
+        'vitals.oxygen_saturation.update':        ['oxygen_data', 'avg_saturation_percentage'],
+        'vitals.respiration_rate.update':         ['respiration_data', 'avg_breaths_per_min'],
+        'vitals.glucose.update':                  ['glucose_data', 'glucose_mg_per_dL'],
+        'vitals.glucose.serum.update':            ['glucose_data', 'glucose_mg_per_dL'],
+        'vitals.body_temperature.update':         ['temperature_data', 'body_temperature_celsius'],
+        'activity.steps.update':                  ['activity_data', 'steps'],
+        'activity.calories.update':               ['activity_data', 'calories_kcal'],
+        'activity.distance.update':               ['activity_data', 'distance_km'],
+    }
+
+    def build_junction_data(pet: str, v: float) -> dict:
+        """Build Junction-format data payload matching ProviderEvent.ValueJsonPath."""
+        path = JUNCTION_DATA_PATHS.get(pet)
+        if not path:
+            return {'manual_value': v}
+        result: object = v
+        for key in reversed(path):
+            result = {key: result}
+        return result  # type: ignore[return-value]
+
     try:
         entity_id  = str(data.get('entityId', ''))
         attr_code  = str(data.get('entityTypeAttributeCode', ''))
         value      = data.get('value', 0)
-        received_timestamp = data.get('timestamp')
         source     = data.get('source', 'Manual')
         gw_type    = data.get('gatewayType', 'direct')
         dry_run    = bool(data.get('_dryRun', False))
 
-        # ── CRITICAL: Resolve event name to actual EntityTypeAttributeCode if needed ──
+        # CRITICAL: Resolve event name to actual EntityTypeAttributeCode if needed
+        # Mobile app may send event names like "vitals.glucose.update" instead of actual codes
         original_attr_code = attr_code
         if attr_code and '.' in attr_code and any(x in attr_code.lower() for x in ['vitals', 'activity', 'heart', 'blood', 'glucose', 'temperature', 'steps', 'calories', 'navigation', 'propulsion', 'environment', 'electrical', 'fuel', 'water', 'engine']):
             print(f"[INFO] Detected event name '{attr_code}', attempting to resolve to actual EntityTypeAttributeCode...")
@@ -2215,7 +2302,7 @@ def post_manual_report(data: dict):
                     print(f"[INFO] ✓ Resolved '{original_attr_code}' → EntityTypeAttributeCode: '{real_attr_code}'")
                     attr_code = real_attr_code
                 else:
-                    print(f"[INFO] Could not find EntityTypeAttribute for '{original_attr_code}', will use as-is")
+                    print(f"[INFO] Could not find EntityTypeAttribute for '{original_attr_code}', will use ProviderEventType lookup")
             except Exception as _e:
                 print(f"[WARN] Error resolving attribute code: {_e}")
             finally:
@@ -2223,115 +2310,211 @@ def post_manual_report(data: dict):
                     try: _conn_res.close()
                     except: pass
 
-        # ── Normalize timestamp ──
+        # Handle timestamp: ensure UTC with proper timezone
+        received_timestamp = data.get('timestamp')
         if received_timestamp:
-            ts_clean = received_timestamp.rstrip('Z').rstrip('+00:00')
-            timestamp = ts_clean + 'Z'
-            print(f"[INFO] Timestamp from client: {received_timestamp} → normalized to UTC: {timestamp}")
+            if isinstance(received_timestamp, str):
+                ts_clean = received_timestamp.rstrip('Z').rstrip('+00:00')
+                timestamp = ts_clean + 'Z'  # Force UTC
+                print(f"[INFO] Timestamp from client: {received_timestamp} \u2192 normalized to UTC: {timestamp}")
+            else:
+                timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+                print(f"[INFO] Timestamp from client (non-string): {received_timestamp} \u2192 converted to UTC: {timestamp}")
         else:
             timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-            print(f"[INFO] No timestamp in request → using server UTC now: {timestamp}")
+            print(f"[INFO] No timestamp in request \u2192 using server UTC now: {timestamp}")
 
-        # ── DIRECT DB INSERT (gatewayType == 'direct') ──
-        if gw_type == 'direct':
-            try:
-                conn = connect(get_db_connection_string() or '')
-                cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO dbo.EntityTelemetry (entityId, entityTypeAttributeId, numericValue, stringValue, gatewayType, endTimestampUTC, sourceType) "
-                    "SELECT ?, eta.entityTypeAttributeId, ?, NULL, ?, ?, ? "
-                    "FROM dbo.EntityTypeAttribute eta WHERE eta.entityTypeAttributeCode = ?",
-                    (entity_id, float(value), 'direct', timestamp, 'Manual', attr_code)
-                )
-                conn.commit()
-                cur.close()
-                conn.close()
-                print(f"[INFO] Direct DB insert: entity={entity_id}, attr={attr_code}, value={value}")
-                return {"message": f"Direct DB insert: {attr_code}={value}"}
-            except Exception as e:
-                print(f"[ERROR] Direct insert failed: {e}")
-                raise HTTPException(status_code=500, detail=f"Direct DB insert failed: {e}")
+        if dry_run:
+            if gw_type == 'kafka':
+                bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
+                try:
+                    from confluent_kafka.admin import AdminClient
+                    admin = AdminClient({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 5000})
+                    admin.list_topics(timeout=5)
+                    return {"message": f"Kafka reachable at {bootstrap}"}
+                except ImportError:
+                    raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
+                except Exception as e:
+                    raise HTTPException(status_code=503, detail=f"Kafka unreachable: {e}")
+            else:
+                conn_str = data.get('iotHubConnectionString', '')
+                if not conn_str:
+                    raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+                parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
+                hostname = parts.get('HostName', '')
+                if not hostname:
+                    raise HTTPException(status_code=400, detail="Invalid connection string — HostName missing")
+                return {"message": f"IoT Hub hostname: {hostname} — config looks valid"}
 
-        # ── KAFKA PUBLISH ──
+        # ── Kafka path: look up provider + providerEventType, format per provider ──
         if gw_type == 'kafka':
-            # Lookup provider + event type from DB
-            provider_event_type = original_attr_code  # Default to what was received
-            provider_name = data.get('_provider', 'Junction')  # Default provider
+            bootstrap = data.get('kafkaBootstrap', '127.0.0.1:9092')
+            topic     = data.get('kafkaTopic', 'iot-telemetry')
+            provider_event_type = attr_code  # fallback if not found in DB
+            provider_name = None  # will detect from DB
+            db_provider_id = None
+
+            # Look up providerEventType AND provider from EntityTypeAttribute
+            _conn_k = None
             try:
-                conn = connect(get_db_connection_string() or '')
-                cur = conn.cursor()
-                cur.execute(
-                    "SELECT TOP 1 pe.providerEventType, p.providerName FROM dbo.ProviderEvent pe "
-                    "JOIN dbo.Provider p ON pe.providerId = p.providerId "
-                    "WHERE pe.providerEventType = ? OR pe.providerEventTypeDescription LIKE ?",
-                    (attr_code, f"%{attr_code}%")
+                _conn_k = connect(get_db_connection_string() or '')
+                _cur_k  = _conn_k.cursor()
+                _cur_k.execute(
+                    "SELECT ISNULL(eta.providerEventType, ?), eta.providerId, p.providerName "
+                    "FROM dbo.EntityTypeAttribute eta "
+                    "LEFT JOIN dbo.Provider p ON eta.providerId = p.providerId "
+                    "WHERE eta.entityTypeAttributeCode = ?",
+                    (attr_code, attr_code)
                 )
-                row = cur.fetchone()
-                if row:
-                    provider_event_type = row[0]
-                    provider_name = row[1]
-                cur.close()
-                conn.close()
-            except:
-                pass
+                _row_k = _cur_k.fetchone()
+                if _row_k:
+                    if _row_k[0]:
+                        provider_event_type = _row_k[0]
+                    if _row_k[1]:
+                        db_provider_id = _row_k[1]
+                    if _row_k[2]:
+                        provider_name = _row_k[2]
+                    else:
+                        print(f"[WARN] EntityTypeAttribute found for '{attr_code}' but providerId is NULL (database misconfiguration)")
+                else:
+                    print(f"[WARN] EntityTypeAttribute NOT found for code '{attr_code}'")
+            except Exception as _e:
+                print(f"[WARN] Could not look up provider for '{attr_code}': {_e}")
+            finally:
+                if _conn_k:
+                    try: _conn_k.close()
+                    except: pass
 
-            # Route by provider type
-            bootstrap = data.get('kafkaBootstrap', '192.168.1.22:9092')
-            topic = data.get('kafkaTopic', 'iot-telemetry')
+            # Intelligent provider detection with fallback
+            if not provider_name:
+                if any(x in attr_code.lower() for x in ['navigation', 'propulsion', 'environment', 'electrical', 'fuel', 'water', 'engine']):
+                    provider_name = 'N2KToSignalK'
+                    print(f"[INFO] Provider detected by pattern matching: N2KToSignalK (maritime keyword in '{attr_code}')")
+                elif any(x in attr_code.lower() for x in ['vitals', 'activity', 'heart', 'blood', 'glucose', 'temperature', 'steps', 'calories']):
+                    provider_name = 'Junction'
+                    print(f"[INFO] Provider detected by pattern matching: Junction (health keyword in '{attr_code}')")
+                else:
+                    provider_name = 'Junction'  # Conservative default
+                    print(f"[WARN] Provider undetermined from database, defaulting to Junction for '{attr_code}'")
+            else:
+                print(f"[INFO] Provider detected from database: {provider_name} (providerEventType={provider_event_type})")
 
-            if provider_name.lower() == 'junction':
-                # Junction format  
+            # Format message based on provider type
+            if provider_name == 'N2KToSignalK':
+                # ── SignalK format: context + updates + values ──
                 message = {
-                    "user": {"user_id": entity_id},
+                    'context': f'vessels.urn:mrn:imo:mmsi:{entity_id}',
+                    'protocol_attribute_code': attr_code,
+                    'updates': [{
+                        'source': source or 'Manual',
+                        'timestamp': timestamp,
+                        'values': [
+                            {
+                                'path': provider_event_type,
+                                'value': float(value)
+                            }
+                        ]
+                    }]
+                }
+                kafka_key = entity_id
+            else:
+                # ── Junction format: user + event_type + data ──
+                kafka_key = entity_id
+                message = {
+                    "user":       {"user_id": entity_id},
                     "event_type": provider_event_type,
                     "protocol_attribute_code": attr_code,
                     "loinc_code": attr_code,
-                    "timestamp": timestamp,
+                    "timestamp":  timestamp,
                     "provider_device": source,
-                    "value": float(value),
-                    "data": {"manual": {"summary": {"value": float(value)}}},
-                }
-            else:
-                # N2KToSignalK format
-                message = {
-                    "context": "vessels.self",
-                    "updates": [{
-                        "timestamp": timestamp,
-                        "values": [{
-                            "path": f"navigation/{attr_code}",
-                            "value": float(value),
-                        }]
-                    }]
+                    "value":      float(value),
+                    "data":       build_junction_data(provider_event_type, float(value)),
                 }
 
             try:
                 from confluent_kafka import Producer
-                producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
-                producer.produce(topic, value=json.dumps(message).encode('utf-8'), key=entity_id.encode('utf-8'))
-                producer.flush(timeout=10)
-                print(f"[INFO] ✓ Published to Kafka\n       Provider: {provider_name} | Topic: {topic} | Entity: {entity_id}\n       Attribute: {attr_code} | Event Type: {provider_event_type} | Value: {value} | Timestamp: {timestamp}\n       Size: {len(json.dumps(message))} bytes | Source: {source} | Bootstrap: {bootstrap}")
-                return {"message": f"Published to Kafka: {provider_name}"}
-            except Exception as e:
-                print(f"[ERROR] Kafka publish failed: {e}")
-                raise HTTPException(status_code=502, detail=f"Kafka publish failed: {e}")
+            except ImportError:
+                raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
+            producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
+            message_json = json.dumps(message).encode('utf-8')
+            message_size = len(message_json)
+            producer.produce(topic, value=message_json, key=kafka_key.encode('utf-8'))
+            producer.flush(timeout=10)
+            print(f"[INFO] ✓ Published to Kafka")
+            print(f"       Provider: {provider_name or 'unknown'} | Topic: {topic} | Entity: {entity_id}")
+            print(f"       Attribute: {attr_code} | Event Type: {provider_event_type} | Value: {value} | Timestamp: {timestamp}")
+            print(f"       Size: {message_size} bytes | Source: {source} | Bootstrap: {bootstrap}")
+            return {"message": f"Published to Kafka topic '{topic}' on {bootstrap}"}
 
-        # ── IOTHUB (legacy) ──
-        if gw_type == 'iothub':
-            conn_str = data.get('iotHubConnectionString', '')
-            if not conn_str:
-                raise HTTPException(status_code=400, detail="iotHubConnectionString required")
-            parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
-            hostname, device_id, sak = parts.get('HostName'), parts.get('DeviceId'), parts.get('SharedAccessKey')
-            if not all([hostname, device_id, sak]):
-                raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
-            message = {"deviceId": entity_id, "timestamp": timestamp, "values": {attr_code: value}, "source": source}
-            resource_uri = f"{hostname}/devices/{device_id}"
-            sas_token = _build_iothub_sas(resource_uri, sak)
-            url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
-            resp = _requests.post(url, headers={"Authorization": sas_token, "Content-Type": "application/json"}, data=json.dumps(message), timeout=15)
-            if resp.status_code not in (200, 204):
-                raise HTTPException(status_code=502, detail=f"IoT Hub {resp.status_code}: {resp.text}")
-            return {"message": f"Published to IoT Hub device '{device_id}'"}
+        # ── Direct DB insert via mssql-python (gatewayType == 'direct' or fallback) ──
+        if gw_type in ('direct', 'db'):
+            _conn_d = None
+            try:
+                _conn_d = connect(get_db_connection_string() or '')
+                _cur_d  = _conn_d.cursor()
+
+                attr_id = data.get('entityTypeAttributeId')
+                if attr_code and not attr_id:
+                    _cur_d.execute(
+                        "SELECT entityTypeAttributeId FROM dbo.EntityTypeAttribute "
+                        "WHERE entityTypeAttributeCode = ?",
+                        (attr_code,)
+                    )
+                    _row_d = _cur_d.fetchone()
+                    if _row_d:
+                        attr_id = _row_d[0]
+
+                if not attr_id:
+                    raise HTTPException(status_code=400, detail=f"entityTypeAttributeCode '{attr_code}' not found")
+
+                ts_str = timestamp if isinstance(timestamp, str) else timestamp.isoformat()
+                ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                _cur_d.execute(
+                    "INSERT INTO dbo.EntityTelemetry "
+                    "(entityId, entityTypeAttributeId, startTimestampUTC, endTimestampUTC, "
+                    " providerEventInterpretation, providerDevice, numericValue) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (entity_id, int(attr_id), ts, ts, 'Manual', source, float(value))
+                )
+                _conn_d.commit()
+                print(f"[INFO] Direct DB insert: entity={entity_id}, attr={attr_code}({attr_id}), value={value}")
+                return {"message": f"Manual report saved for entity {entity_id}, attribute {attr_code}={value}"}
+            except HTTPException:
+                raise
+            except Exception as db_err:
+                print(f"[ERROR] mssql-python INSERT failed: {type(db_err).__name__}: {db_err}")
+                print(traceback.format_exc())
+                raise HTTPException(status_code=500, detail=f"DB insert failed: {db_err}")
+            finally:
+                if _conn_d:
+                    try: _conn_d.close()
+                    except: pass
+
+        # ── IoT Hub path ──────────────────────────────────────────────────
+        conn_str = data.get('iotHubConnectionString', '')
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="iotHubConnectionString is required")
+        parts = dict(p.split('=', 1) for p in conn_str.split(';') if '=' in p)
+        hostname  = parts.get('HostName', '')
+        device_id = parts.get('DeviceId', '')
+        sak       = parts.get('SharedAccessKey', '')
+        if not hostname or not device_id or not sak:
+            raise HTTPException(status_code=400, detail="Invalid IoT Hub connection string")
+
+        message = {
+            "deviceId":  entity_id,
+            "timestamp": timestamp,
+            "values":    {attr_code: value},
+            "source":    source,
+        }
+        resource_uri = f"{hostname}/devices/{device_id}"
+        sas_token    = _build_iothub_sas(resource_uri, sak)
+        url = f"https://{hostname}/devices/{device_id}/messages/events?api-version=2018-06-30"
+        headers = {"Authorization": sas_token, "Content-Type": "application/json"}
+        resp = _requests.post(url, headers=headers, data=json.dumps(message), timeout=15)
+        if resp.status_code not in (200, 204):
+            raise HTTPException(status_code=502, detail=f"IoT Hub returned {resp.status_code}: {resp.text}")
+        return {"message": f"Published to Azure IoT Hub device '{device_id}'"}
 
     except HTTPException:
         raise
@@ -2878,21 +3061,34 @@ def get_customer(id: int):
 # ============================================
 
 @app.get("/customersubscriptions")
-def get_customer_subscriptions(status: str = None):
+def get_customer_subscriptions(status: str = None, email: str = None):
     """Get customer subscriptions with customer, entity, and event details
     
     Args:
         status: Filter by status ('Y' for active, 'N' for inactive, or None for all)
+        email: Filter by user email authorization (only subscriptions user has access to)
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
         params = []
-        where_clause = ""
+        where_clauses = []
+        join_clause = ""
+        
+        if email:
+            join_clause = """
+                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN AppUser au ON au.userId = ua.userId
+            """
+            where_clauses.append("LOWER(au.email) = ?")
+            params.append(email.lower())
+        
         if status and status in ('Y', 'N'):
-            where_clause = "WHERE cs.active = ?"
+            where_clauses.append("cs.active = ?")
             params.append(status)
+        
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         
         cur.execute(f"""
             SELECT 
@@ -2910,7 +3106,8 @@ def get_customer_subscriptions(status: str = None):
             JOIN Customers c ON cs.customerId = c.customerId
             LEFT JOIN Event e ON cs.eventId = e.eventId
             LEFT JOIN Entity ent ON ent.entityId = cs.entityId
-            {where_clause}
+            {join_clause}
+            {where_sql}
             ORDER BY c.customerName, cs.entityId
         """, params)
         rows = cur.fetchall()
@@ -4125,9 +4322,9 @@ def register_device(req: DeviceRegisterRequest):
 # USER AUTHORIZATION & NOTIFICATION SETTINGS ENDPOINTS
 # ============================================================================
 
-@app.get("/customersubscriptions/{sub_id}/authorizations")
-def get_subscription_authorizations(sub_id: int):
-    """Get all users authorized for a specific subscription"""
+@app.get("/customers/{customer_id}/authorizations")
+def get_customer_authorizations(customer_id: int):
+    """Get all users authorized for a specific customer"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4141,12 +4338,18 @@ def get_subscription_authorizations(sub_id: int):
                 ua.role,
                 ua.active,
                 ua.createDate,
-                ua.lastUpdateTimestamp
+                ua.lastUpdateTimestamp,
+                ua.customerId,
+                ua.entityId,
+                ua.effectiveDate,
+                ua.expiryDate
             FROM dbo.UserAuthorization ua
             JOIN dbo.AppUser au ON au.userId = ua.userId
-            WHERE ua.customerSubscriptionId = ?
+            WHERE ua.customerId = ?
+              AND ua.effectiveDate <= GETDATE()
+              AND (ua.expiryDate IS NULL OR ua.expiryDate > GETDATE())
             ORDER BY ua.createDate DESC
-        """, (sub_id,))
+        """, (customer_id,))
         rows = cur.fetchall()
         result = []
         for r in rows:
@@ -4160,6 +4363,10 @@ def get_subscription_authorizations(sub_id: int):
                 "active": r[6],
                 "createDate": r[7].isoformat() if r[7] else None,
                 "lastUpdateTimestamp": r[8].isoformat() if r[8] else None,
+                "customerId": r[9],
+                "entityId": r[10],
+                "effectiveDate": r[11].isoformat() if r[11] else None,
+                "expiryDate": r[12].isoformat() if r[12] else None,
             })
         cur.close()
         return_db_connection(conn)
@@ -4170,7 +4377,7 @@ def get_subscription_authorizations(sub_id: int):
 
 @app.put("/authorizations/{auth_id}")
 def update_authorization(auth_id: int, data: dict):
-    """Update a user authorization (role, active status)"""
+    """Update a user authorization (role, active status, entityId, expiryDate)"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4187,6 +4394,12 @@ def update_authorization(auth_id: int, data: dict):
                 raise HTTPException(status_code=400, detail="active must be 'Y' or 'N'")
             update_fields.append("active = ?")
             update_values.append(data["active"])
+        if "entityId" in data:
+            update_fields.append("entityId = ?")
+            update_values.append(data["entityId"])  # NULL for owner/admin
+        if "expiryDate" in data:
+            update_fields.append("expiryDate = ?")
+            update_values.append(data["expiryDate"])  # NULL to remove expiry
         if not update_fields:
             raise HTTPException(status_code=400, detail="No fields to update")
         update_fields.append("lastUpdateTimestamp = GETDATE()")
@@ -4206,16 +4419,98 @@ def update_authorization(auth_id: int, data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/customersubscriptions/{sub_id}/invite")
-def invite_user_to_subscription(sub_id: int, data: dict):
-    """Invite a user by email to a subscription with a role.
+# ── Gmail SMTP Invitation Email ──────────────────────────────────────────────
+def _send_invitation_email(to_email: str) -> bool:
+    """Send an invitation email via Gmail SMTP.
+
+    Requires two environment variables:
+        GMAIL_USER     – your Gmail address (e.g. you@gmail.com)
+        GMAIL_APP_PASS – a 16-char App Password from https://myaccount.google.com/apppasswords
+    
+    Note: Gmail has strict rate limits and sender reputation checks.
+    New accounts may have emails silently dropped or delayed by Gmail.
+    """
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_pass = os.getenv("GMAIL_APP_PASS")
+
+    if not gmail_user or not gmail_pass:
+        print(f"[EMAIL] WARNING: GMAIL_USER/GMAIL_APP_PASS not configured — email NOT sent to {to_email}")
+        return False
+
+    try:
+        print(f"[EMAIL] Starting to compose email for {to_email} from {gmail_user}...")
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "You're Invited to VXT"
+        msg["From"] = f"VXT <{gmail_user}>"
+        msg["To"] = to_email
+
+        html = f"""\
+<html>
+<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;">
+  <div style="max-width:600px;margin:0 auto;padding:30px 20px;">
+    <h2 style="color:#667eea;margin-bottom:5px;">Welcome to VXT!</h2>
+    <p>You've been invited to join <strong>VXT</strong> — smart yacht monitoring.</p>
+
+    <h3 style="color:#667eea;">Getting Started</h3>
+    <ol>
+      <li>Download the <strong>VXT</strong> app from Google Play</li>
+      <li>Open the app and enter your email: <strong>{to_email}</strong></li>
+      <li>Tap the verification link we'll send you — and you're in!</li>
+    </ol>
+
+    <p style="margin:30px 0;text-align:center;">
+      <a href="https://play.google.com/store/apps/details?id=com.vxtmobile"
+         style="background:#667eea;color:#fff;padding:12px 30px;text-decoration:none;border-radius:5px;display:inline-block;">
+        Download VXT
+      </a>
+    </p>
+
+    <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:15px;">
+      No password needed — just your email. If you didn't expect this message, you can ignore it.
+    </p>
+  </div>
+</body>
+</html>"""
+
+        msg.attach(MIMEText(html, "html"))
+        print(f"[EMAIL] Email composed. Connecting to smtp.gmail.com:465...")
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            print(f"[EMAIL] Connected. Authenticating as {gmail_user}...")
+            server.login(gmail_user, gmail_pass)
+            print(f"[EMAIL] Login successful. Sending email to {to_email}...")
+            server.sendmail(gmail_user, to_email, msg.as_string())
+            print(f"[EMAIL] SUCCESS: Email queued for delivery to {to_email}")
+
+        return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[EMAIL] ERROR: Gmail authentication failed. Check GMAIL_USER and GMAIL_APP_PASS: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"[EMAIL] ERROR: SMTP error while sending to {to_email}: {e}")
+        return False
+    except Exception as e:
+        print(f"[EMAIL] ERROR: Unexpected error sending to {to_email}: {type(e).__name__}: {e}")
+        return False
+
+
+@app.post("/customers/{customer_id}/invite")
+def invite_user_to_customer(customer_id: int, data: dict):
+    """Invite a user by email to a customer with a role.
     
     Creates AppUser (if needed), creates UserAuthorization,
-    and sends Firebase Dynamic Link invitation email.
+    and sends invitation email.
+    
+    Body: { "email": "...", "role": "viewer", "entityId": "..." (optional, for viewer) }
+    - Owner/Admin: entityId should be null (access all entities)
+    - Viewer: entityId should be set (access one entity)
     """
     try:
         email = (data.get("email") or "").strip().lower()
         role = data.get("role", "viewer")
+        entity_id = data.get("entityId")  # NULL for owner/admin, specific for viewer
         if not email:
             raise HTTPException(status_code=400, detail="email is required")
         allowed_roles = ('owner', 'viewer', 'admin')
@@ -4225,18 +4520,16 @@ def invite_user_to_subscription(sub_id: int, data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 1. Verify subscription exists and get customerId
+        # 1. Verify customer exists
         cur.execute("""
-            SELECT customerSubscriptionId, customerId
-            FROM dbo.CustomerSubscriptions
-            WHERE customerSubscriptionId = ? AND active = 'Y'
-        """, (sub_id,))
-        sub_row = cur.fetchone()
-        if not sub_row:
+            SELECT customerId FROM dbo.Customer
+            WHERE customerId = ?
+        """, (customer_id,))
+        cust_row = cur.fetchone()
+        if not cust_row:
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail="Subscription not found or inactive")
-        customer_id = sub_row[1]
+            raise HTTPException(status_code=404, detail="Customer not found")
 
         # 2. Find or create AppUser by email
         cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
@@ -4272,10 +4565,16 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             user_id = cur.fetchone()[0]
 
         # 3. Create or reactivate UserAuthorization
-        cur.execute("""
-            SELECT userAuthorizationId, active FROM dbo.UserAuthorization
-            WHERE userId = ? AND customerSubscriptionId = ?
-        """, (user_id, sub_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerId = ? AND entityId = ?
+            """, (user_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                WHERE userId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_id, customer_id))
         auth_row = cur.fetchone()
         if auth_row:
             cur.execute("""
@@ -4286,36 +4585,27 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             auth_id = auth_row[0]
         else:
             cur.execute("""
-                INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
-                VALUES (?, ?, ?, 'Y')
-            """, (user_id, sub_id, role))
+                INSERT INTO dbo.UserAuthorization (userId, customerId, entityId, role, active, effectiveDate, expiryDate)
+                VALUES (?, ?, ?, ?, 'Y', GETDATE(), NULL)
+            """, (user_id, customer_id, entity_id, role))
             conn.commit()
-            cur.execute("""
-                SELECT userAuthorizationId FROM dbo.UserAuthorization
-                WHERE userId = ? AND customerSubscriptionId = ?
-            """, (user_id, sub_id))
+            if entity_id:
+                cur.execute("""
+                    SELECT userAuthorizationId FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId = ?
+                """, (user_id, customer_id, entity_id))
+            else:
+                cur.execute("""
+                    SELECT userAuthorizationId FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                """, (user_id, customer_id))
             auth_id = cur.fetchone()[0]
 
         conn.commit()
 
-        # 4. Send invitation email via Firebase REST API
-        invite_sent = False
-        try:
-            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
-            if firebase_uid and not firebase_uid.startswith("pending_"):
-                import requests as http_requests
-                resp = http_requests.post(
-                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                    json={"requestType": "PASSWORD_RESET", "email": email},
-                    timeout=10,
-                )
-                if resp.status_code == 200:
-                    invite_sent = True
-                    print(f"[INFO] Firebase password reset email sent to {email}")
-                else:
-                    print(f"[WARNING] Firebase email send failed: {resp.status_code} - {resp.text}")
-        except Exception as mail_err:
-            print(f"[WARNING] Invitation email skipped: {mail_err}")
+        # 4. Send invitation email via Gmail SMTP
+        email_sent = _send_invitation_email(email)
+        print(f"[INFO] User {email} invited as {role} (email_sent={email_sent})")
 
         cur.close()
         return_db_connection(conn)
@@ -4324,7 +4614,7 @@ def invite_user_to_subscription(sub_id: int, data: dict):
             "message": f"User {email} invited as {role}",
             "userAuthorizationId": auth_id,
             "userId": user_id,
-            "inviteSent": invite_sent,
+            "inviteSent": email_sent,
         }
     except HTTPException:
         raise
@@ -4334,18 +4624,21 @@ def invite_user_to_subscription(sub_id: int, data: dict):
 
 @app.post("/invite-bulk")
 def invite_user_bulk(data: dict):
-    """Invite a user by email to multiple subscriptions at once.
+    """Invite a user by email to multiple entities of a customer at once.
 
-    Body: { "email": "...", "role": "viewer", "subscriptionIds": [1, 2, 3] }
+    Body: { "email": "...", "role": "viewer", "customerId": 1, "entityIds": ["E1", "E2"] }
+    For owner/admin: entityIds can be empty/omitted (grants customer-level access).
+    For viewer: entityIds should list specific entities.
     """
     try:
         email = (data.get("email") or "").strip().lower()
         role = data.get("role", "viewer")
-        subscription_ids = data.get("subscriptionIds", [])
+        customer_id = data.get("customerId")
+        entity_ids = data.get("entityIds", [])
         if not email:
             raise HTTPException(status_code=400, detail="email is required")
-        if not subscription_ids:
-            raise HTTPException(status_code=400, detail="subscriptionIds is required")
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="customerId is required")
         allowed_roles = ('owner', 'viewer', 'admin')
         if role not in allowed_roles:
             raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {allowed_roles}")
@@ -4353,21 +4646,12 @@ def invite_user_bulk(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 1. Verify all subscriptions exist
-        placeholders = ','.join(['?' for _ in subscription_ids])
-        cur.execute(f"""
-            SELECT customerSubscriptionId, customerId
-            FROM dbo.CustomerSubscriptions
-            WHERE customerSubscriptionId IN ({placeholders}) AND active = 'Y'
-        """, tuple(subscription_ids))
-        valid_subs = {row[0]: row[1] for row in cur.fetchall()}
-        if not valid_subs:
+        # 1. Verify customer exists
+        cur.execute("SELECT customerId FROM dbo.Customer WHERE customerId = ?", (customer_id,))
+        if not cur.fetchone():
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail="No valid active subscriptions found")
-
-        # Use first subscription's customerId for new user
-        customer_id = list(valid_subs.values())[0]
+            raise HTTPException(status_code=404, detail="Customer not found")
 
         # 2. Find or create AppUser by email
         cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
@@ -4401,16 +4685,23 @@ def invite_user_bulk(data: dict):
             cur.execute("SELECT userId FROM dbo.AppUser WHERE email = ?", (email,))
             user_id = cur.fetchone()[0]
 
-        # 3. Create or reactivate UserAuthorization for each subscription
+        # 3. Create authorizations
         results = []
-        for sub_id in subscription_ids:
-            if sub_id not in valid_subs:
-                results.append({"subscriptionId": sub_id, "status": "skipped", "reason": "not found or inactive"})
-                continue
-            cur.execute("""
-                SELECT userAuthorizationId, active FROM dbo.UserAuthorization
-                WHERE userId = ? AND customerSubscriptionId = ?
-            """, (user_id, sub_id))
+        # For owner/admin with no entity_ids, create one customer-level auth
+        if not entity_ids:
+            entity_ids = [None]
+
+        for eid in entity_ids:
+            if eid:
+                cur.execute("""
+                    SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId = ?
+                """, (user_id, customer_id, eid))
+            else:
+                cur.execute("""
+                    SELECT userAuthorizationId, active FROM dbo.UserAuthorization
+                    WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                """, (user_id, customer_id))
             auth_row = cur.fetchone()
             if auth_row:
                 cur.execute("""
@@ -4418,63 +4709,38 @@ def invite_user_bulk(data: dict):
                     SET role = ?, active = 'Y', lastUpdateTimestamp = GETDATE()
                     WHERE userAuthorizationId = ?
                 """, (role, auth_row[0]))
-                results.append({"subscriptionId": sub_id, "authId": auth_row[0], "status": "updated"})
+                results.append({"entityId": eid, "authId": auth_row[0], "status": "updated"})
             else:
                 cur.execute("""
-                    INSERT INTO dbo.UserAuthorization (userId, customerSubscriptionId, role, active)
-                    VALUES (?, ?, ?, 'Y')
-                """, (user_id, sub_id, role))
+                    INSERT INTO dbo.UserAuthorization (userId, customerId, entityId, role, active, effectiveDate, expiryDate)
+                    VALUES (?, ?, ?, ?, 'Y', GETDATE(), NULL)
+                """, (user_id, customer_id, eid, role))
                 conn.commit()
-                cur.execute("""
-                    SELECT userAuthorizationId FROM dbo.UserAuthorization
-                    WHERE userId = ? AND customerSubscriptionId = ?
-                """, (user_id, sub_id))
+                if eid:
+                    cur.execute("""
+                        SELECT userAuthorizationId FROM dbo.UserAuthorization
+                        WHERE userId = ? AND customerId = ? AND entityId = ?
+                    """, (user_id, customer_id, eid))
+                else:
+                    cur.execute("""
+                        SELECT userAuthorizationId FROM dbo.UserAuthorization
+                        WHERE userId = ? AND customerId = ? AND entityId IS NULL
+                    """, (user_id, customer_id))
                 auth_id = cur.fetchone()[0]
-                results.append({"subscriptionId": sub_id, "authId": auth_id, "status": "created"})
+                results.append({"entityId": eid, "authId": auth_id, "status": "created"})
         conn.commit()
 
-        # 4. Send invitation email via Firebase REST API
-        # generate_password_reset_link() only generates a link but does NOT send email.
-        # Use Firebase Identity Toolkit REST API which actually triggers email delivery.
-        invite_sent = False
-        invite_link = None
-        try:
-            firebase_api_key = os.getenv('FIREBASE_API_KEY', 'AIzaSyCe3MtbtM1OeYCVYCv2UELh9KQbJrwB6Fg')
-            if firebase_uid and not firebase_uid.startswith("pending_"):
-                import requests as http_requests
-                # Use Firebase Identity Toolkit to send password reset email
-                resp = http_requests.post(
-                    f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                    json={"requestType": "PASSWORD_RESET", "email": email},
-                    timeout=10,
-                )
-                if resp.status_code == 200:
-                    invite_sent = True
-                    invite_link = resp.json().get("email", email)
-                    print(f"[INFO] Firebase password reset email sent to {email}")
-                else:
-                    print(f"[WARNING] Firebase REST API error: {resp.status_code} - {resp.text}")
-                    # Fallback: try email verification
-                    resp2 = http_requests.post(
-                        f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebase_api_key}",
-                        json={"requestType": "VERIFY_EMAIL", "idToken": ""},
-                        timeout=10,
-                    )
-                    if resp2.status_code == 200:
-                        invite_sent = True
-                        print(f"[INFO] Firebase verification email sent to {email}")
-                    else:
-                        print(f"[WARNING] Firebase verification also failed: {resp2.text}")
-        except Exception as mail_err:
-            print(f"[WARNING] Invitation email skipped: {mail_err}")
+        # 4. Send invitation email via Gmail SMTP
+        email_sent = _send_invitation_email(email)
+        print(f"[INFO] User {email} invited as {role} to {len(results)} authorization(s) (email_sent={email_sent})")
 
         cur.close()
         return_db_connection(conn)
 
         return {
-            "message": f"User {email} invited as {role} to {len(results)} subscription(s)",
+            "message": f"User {email} invited as {role} with {len(results)} authorization(s)",
             "userId": user_id,
-            "inviteSent": invite_sent,
+            "inviteSent": email_sent,
             "results": results,
         }
     except HTTPException:
@@ -4483,64 +4749,167 @@ def invite_user_bulk(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
 def _init_firebase_admin():
     """Initialize Firebase Admin SDK if not already initialized"""
     import firebase_admin
     from firebase_admin import credentials
     if firebase_admin._apps:
         return
+    
     sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
     sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
-    if sa_path and os.path.exists(sa_path):
-        cred = credentials.Certificate(sa_path)
-    elif sa_json:
-        import json as _json
-        cred = credentials.Certificate(_json.loads(sa_json))
-    else:
-        cred = credentials.ApplicationDefault()
-    firebase_admin.initialize_app(cred)
+    
+    try:
+        if sa_path and os.path.exists(sa_path):
+            print(f"[FIREBASE] Initializing from file: {sa_path}")
+            cred = credentials.Certificate(sa_path)
+        elif sa_json:
+            print("[FIREBASE] Initializing from FIREBASE_SERVICE_ACCOUNT_JSON env var")
+            import json as _json
+            cred = credentials.Certificate(_json.loads(sa_json))
+        else:
+            print("[FIREBASE] Initializing from Application Default Credentials")
+            cred = credentials.ApplicationDefault()
+        
+        firebase_admin.initialize_app(cred)
+        print("[FIREBASE] ✅ Admin SDK initialized successfully")
+    except FileNotFoundError:
+        raise ValueError(f"Firebase service account file not found: {sa_path}")
+    except Exception as e:
+        error_msg = (
+            f"Firebase Admin SDK initialization failed: {e}\n"
+            "To fix this, either:\n"
+            "1. Set FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/serviceAccountKey.json\n"
+            "2. Set FIREBASE_SERVICE_ACCOUNT_JSON='{...}' with the full JSON content\n"
+            "3. Run: gcloud auth application-default login\n"
+            "Get your service account key from: Firebase Console → Project Settings → Service Accounts"
+        )
+        print(f"[FIREBASE ERROR] {error_msg}")
+        raise ValueError(error_msg) from e
+
+
+# ─── Passwordless Auth ─────────────────────────────────────────────────────
+
+@app.post("/auth/start-login")
+def auth_start_login(data: dict):
+    """Passwordless login step 1: verify email is invited, return Firebase custom token.
+
+    Body: { "email": "user@example.com" }
+    Returns: { "token": "...", "emailVerified": bool, "uid": "..." }
+    The mobile app signs in with the custom token, then calls
+    sendEmailVerification() if emailVerified is false.
+    """
+    email = data.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check the email is in AppUser (was invited via subscription)
+        cur.execute("SELECT userId FROM dbo.AppUser WHERE LOWER(email) = ?", (email,))
+        user_row = cur.fetchone()
+
+        cur.close()
+        return_db_connection(conn)
+
+        if not user_row:
+            raise HTTPException(
+                status_code=403,
+                detail="Email not found. Ask your administrator for an invitation.",
+            )
+
+        # Get or create Firebase user (no password — passwordless)
+        import firebase_admin
+        from firebase_admin import auth as fb_auth
+        try:
+            if not firebase_admin._apps:
+                _init_firebase_admin()
+        except ValueError as cred_err:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Firebase not configured: {str(cred_err)}"
+            )
+
+        try:
+            fb_user = fb_auth.get_user_by_email(email)
+        except fb_auth.UserNotFoundError:
+            fb_user = fb_auth.create_user(email=email)
+
+        # Generate custom token for passwordless sign-in
+        custom_token = fb_auth.create_custom_token(fb_user.uid)
+        token_str = custom_token.decode("utf-8") if isinstance(custom_token, bytes) else custom_token
+
+        print(f"[AUTH] Custom token generated for {email} (verified={fb_user.email_verified})")
+
+        return {
+            "token": token_str,
+            "emailVerified": fb_user.email_verified,
+            "uid": fb_user.uid,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AUTH ERROR] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/auth/check-verified")
+def auth_check_verified(email: str):
+    """Check if a Firebase user's email is verified (called by app polling)."""
+    email = email.strip().lower()
+    try:
+        import firebase_admin
+        from firebase_admin import auth as fb_auth
+        if not firebase_admin._apps:
+            _init_firebase_admin()
+        fb_user = fb_auth.get_user_by_email(email)
+        return {"emailVerified": fb_user.email_verified}
+    except Exception:
+        return {"emailVerified": False}
 
 
 @app.get("/users/{user_id}/subscriptions")
 def get_user_subscriptions(user_id: int):
-    """Get all subscriptions a user has access to (for the invitee's view)"""
+    """Get all authorizations a user has (customer+entity based view)"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
             SELECT
                 ua.userAuthorizationId,
-                ua.customerSubscriptionId,
+                ua.customerId,
+                ua.entityId,
                 ua.role,
                 ua.active AS authActive,
-                cs.entityId,
-                cs.eventId,
-                e.eventCode,
                 c.customerName,
-                cs.active AS subActive,
-                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName,
+                ua.effectiveDate,
+                ua.expiryDate
             FROM dbo.UserAuthorization ua
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
-            LEFT JOIN dbo.Entity ent ON ent.entityId = cs.entityId
-            WHERE ua.userId = ? AND ua.active = 'Y' AND cs.active = 'Y'
-            ORDER BY c.customerName, cs.entityId
+            JOIN dbo.Customer c ON c.customerId = ua.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = ua.entityId
+            WHERE ua.userId = ? AND ua.active = 'Y'
+              AND ua.effectiveDate <= GETDATE()
+              AND (ua.expiryDate IS NULL OR ua.expiryDate > GETDATE())
+            ORDER BY c.customerName, ua.entityId
         """, (user_id,))
         rows = cur.fetchall()
         result = []
         for r in rows:
             result.append({
                 "userAuthorizationId": r[0],
-                "customerSubscriptionId": r[1],
-                "role": r[2],
-                "authActive": r[3],
-                "entityId": r[4],
-                "eventId": r[5],
-                "eventCode": r[6],
-                "customerName": r[7],
-                "subActive": r[8],
-                "entityName": r[9] if r[9] and str(r[9]).strip() else r[4],
+                "customerId": r[1],
+                "entityId": r[2],
+                "role": r[3],
+                "authActive": r[4],
+                "customerName": r[5],
+                "entityName": r[6] if r[6] and str(r[6]).strip() else r[2],
+                "effectiveDate": r[7].isoformat() if r[7] else None,
+                "expiryDate": r[8].isoformat() if r[8] else None,
             })
         cur.close()
         return_db_connection(conn)
@@ -4551,7 +4920,7 @@ def get_user_subscriptions(user_id: int):
 
 @app.get("/users/{user_id}/push-settings")
 def get_user_push_settings(user_id: int):
-    """Get all push notification settings for a user across all their devices & subscriptions"""
+    """Get all push notification settings for a user across all their devices & entities"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4559,7 +4928,8 @@ def get_user_push_settings(user_id: int):
             SELECT
                 uapn.userAppPushNotificationId,
                 uapn.userApplicationId,
-                uapn.customerSubscriptionId,
+                uapn.customerId,
+                uapn.entityId,
                 uapn.enabled,
                 uapn.minSeverity,
                 CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
@@ -4568,16 +4938,14 @@ def get_user_push_settings(user_id: int):
                 uapn.vibrationEnabled,
                 uapn.ledEnabled,
                 uapn.deliveryChannel,
-                cs.entityId,
                 c.customerName,
-                e.eventCode
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAppPushNotification uapn
             JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            JOIN dbo.Customer c ON c.customerId = uapn.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = uapn.entityId
             WHERE ua.userId = ? AND uapn.active = 'Y'
-            ORDER BY c.customerName, cs.entityId
+            ORDER BY c.customerName, uapn.entityId
         """, (user_id,))
         rows = cur.fetchall()
         result = []
@@ -4585,18 +4953,18 @@ def get_user_push_settings(user_id: int):
             result.append({
                 "userAppPushNotificationId": r[0],
                 "userApplicationId": r[1],
-                "customerSubscriptionId": r[2],
-                "enabled": r[3],
-                "minSeverity": r[4],
-                "quietHoursStart": r[5],
-                "quietHoursEnd": r[6],
-                "soundEnabled": r[7],
-                "vibrationEnabled": r[8],
-                "ledEnabled": r[9],
-                "deliveryChannel": r[10],
-                "entityId": r[11],
+                "customerId": r[2],
+                "entityId": r[3],
+                "enabled": r[4],
+                "minSeverity": r[5],
+                "quietHoursStart": r[6],
+                "quietHoursEnd": r[7],
+                "soundEnabled": r[8],
+                "vibrationEnabled": r[9],
+                "ledEnabled": r[10],
+                "deliveryChannel": r[11],
                 "customerName": r[12],
-                "eventCode": r[13],
+                "entityName": r[13] if r[13] and str(r[13]).strip() else r[3],
             })
         cur.close()
         return_db_connection(conn)
@@ -4656,14 +5024,16 @@ def update_push_setting(setting_id: int, data: dict):
 
 @app.post("/users/{user_id}/push-settings")
 def create_push_setting(user_id: int, data: dict):
-    """Create a push notification setting for a user's device + subscription.
+    """Create a push notification setting for a user's device + customer/entity.
     
     Finds the user's active UserApplication (device) and creates a preference row.
+    Body: { "customerId": 1, "entityId": "E1" (optional), "minSeverity": "MEDIUM" }
     """
     try:
-        customer_subscription_id = data.get("customerSubscriptionId")
-        if not customer_subscription_id:
-            raise HTTPException(status_code=400, detail="customerSubscriptionId is required")
+        customer_id = data.get("customerId")
+        entity_id = data.get("entityId")
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="customerId is required")
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4683,10 +5053,16 @@ def create_push_setting(user_id: int, data: dict):
         user_app_id = dev_row[0]
 
         # Check if already exists
-        cur.execute("""
-            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
-            WHERE userApplicationId = ? AND customerSubscriptionId = ?
-        """, (user_app_id, customer_subscription_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId = ?
+            """, (user_app_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_app_id, customer_id))
         existing = cur.fetchone()
         if existing:
             cur.close()
@@ -4695,15 +5071,21 @@ def create_push_setting(user_id: int, data: dict):
 
         cur.execute("""
             INSERT INTO dbo.UserAppPushNotification
-                (userApplicationId, customerSubscriptionId, enabled, minSeverity, deliveryChannel, active)
-            VALUES (?, ?, 'Y', ?, 'fcm', 'Y')
-        """, (user_app_id, customer_subscription_id, data.get("minSeverity", "MEDIUM")))
+                (userApplicationId, customerId, entityId, enabled, minSeverity, deliveryChannel, active)
+            VALUES (?, ?, ?, 'Y', ?, 'fcm', 'Y')
+        """, (user_app_id, customer_id, entity_id, data.get("minSeverity", "MEDIUM")))
         conn.commit()
 
-        cur.execute("""
-            SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
-            WHERE userApplicationId = ? AND customerSubscriptionId = ?
-        """, (user_app_id, customer_subscription_id))
+        if entity_id:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId = ?
+            """, (user_app_id, customer_id, entity_id))
+        else:
+            cur.execute("""
+                SELECT userAppPushNotificationId FROM dbo.UserAppPushNotification
+                WHERE userApplicationId = ? AND customerId = ? AND entityId IS NULL
+            """, (user_app_id, customer_id))
         new_id = cur.fetchone()[0]
 
         cur.close()
@@ -4796,7 +5178,8 @@ def get_all_push_settings():
             SELECT
                 uapn.userAppPushNotificationId,
                 uapn.userApplicationId,
-                uapn.customerSubscriptionId,
+                uapn.customerId,
+                uapn.entityId,
                 uapn.enabled,
                 uapn.minSeverity,
                 CAST(uapn.quietHoursStart AS VARCHAR(8)) AS quietHoursStart,
@@ -4809,18 +5192,16 @@ def get_all_push_settings():
                 au.userId,
                 au.email,
                 au.displayName,
-                ua.platform,
-                ua.deviceModel,
-                cs.entityId,
+                uapp.platform,
+                uapp.deviceModel,
                 c.customerName,
-                e.eventCode
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAppPushNotification uapn
-            JOIN dbo.UserApplication ua ON ua.userApplicationId = uapn.userApplicationId
-            JOIN dbo.AppUser au ON au.userId = ua.userId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = uapn.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
-            ORDER BY au.email, cs.entityId
+            JOIN dbo.UserApplication uapp ON uapp.userApplicationId = uapn.userApplicationId
+            JOIN dbo.AppUser au ON au.userId = uapp.userId
+            JOIN dbo.Customer c ON c.customerId = uapn.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = uapn.entityId
+            ORDER BY au.email, uapn.entityId
         """)
         rows = cur.fetchall()
         result = []
@@ -4828,24 +5209,24 @@ def get_all_push_settings():
             result.append({
                 "userAppPushNotificationId": r[0],
                 "userApplicationId": r[1],
-                "customerSubscriptionId": r[2],
-                "enabled": r[3],
-                "minSeverity": r[4],
-                "quietHoursStart": r[5],
-                "quietHoursEnd": r[6],
-                "soundEnabled": r[7],
-                "vibrationEnabled": r[8],
-                "ledEnabled": r[9],
-                "deliveryChannel": r[10],
-                "active": r[11],
-                "userId": r[12],
-                "email": r[13],
-                "displayName": r[14],
-                "platform": r[15],
-                "deviceModel": r[16],
-                "entityId": r[17],
+                "customerId": r[2],
+                "entityId": r[3],
+                "enabled": r[4],
+                "minSeverity": r[5],
+                "quietHoursStart": r[6],
+                "quietHoursEnd": r[7],
+                "soundEnabled": r[8],
+                "vibrationEnabled": r[9],
+                "ledEnabled": r[10],
+                "deliveryChannel": r[11],
+                "active": r[12],
+                "userId": r[13],
+                "email": r[14],
+                "displayName": r[15],
+                "platform": r[16],
+                "deviceModel": r[17],
                 "customerName": r[18],
-                "eventCode": r[19],
+                "entityName": r[19] if r[19] and str(r[19]).strip() else r[3],
             })
         cur.close()
         return_db_connection(conn)
@@ -4859,31 +5240,43 @@ def get_all_push_settings():
 # ============================================================================
 
 @app.get("/admin/authorizations")
-def get_all_authorizations():
-    """List all user authorizations across all subscriptions (admin view)"""
+def get_all_authorizations(email: str = None):
+    """List user authorizations across all customers.
+    
+    When email is provided, returns only authorizations for that user.
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
+        
+        where_clause = ""
+        params = []
+        if email:
+            where_clause = "WHERE LOWER(au.email) = ?"
+            params.append(email.lower())
+        
+        cur.execute(f"""
             SELECT
                 ua.userAuthorizationId,
                 ua.userId,
                 au.email,
                 au.displayName,
-                ua.customerSubscriptionId,
-                cs.entityId,
+                ua.customerId,
+                ua.entityId,
                 c.customerName,
-                e.eventCode,
                 ua.role,
                 ua.active,
-                ua.createDate
+                ua.createDate,
+                ua.effectiveDate,
+                ua.expiryDate,
+                CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAuthorization ua
             JOIN dbo.AppUser au ON au.userId = ua.userId
-            JOIN dbo.CustomerSubscriptions cs ON cs.customerSubscriptionId = ua.customerSubscriptionId
-            JOIN dbo.Customers c ON c.customerId = cs.customerId
-            LEFT JOIN dbo.Event e ON e.eventId = cs.eventId
+            JOIN dbo.Customer c ON c.customerId = ua.customerId
+            LEFT JOIN dbo.Entity ent ON ent.entityId = ua.entityId
+            {where_clause}
             ORDER BY au.email, c.customerName
-        """)
+        """, params)
         rows = cur.fetchall()
         result = []
         for r in rows:
@@ -4892,13 +5285,15 @@ def get_all_authorizations():
                 "userId": r[1],
                 "email": r[2],
                 "displayName": r[3],
-                "customerSubscriptionId": r[4],
+                "customerId": r[4],
                 "entityId": r[5],
                 "customerName": r[6],
-                "eventCode": r[7],
-                "role": r[8],
-                "active": r[9],
-                "createDate": r[10].isoformat() if r[10] else None,
+                "role": r[7],
+                "active": r[8],
+                "createDate": r[9].isoformat() if r[9] else None,
+                "effectiveDate": r[10].isoformat() if r[10] else None,
+                "expiryDate": r[11].isoformat() if r[11] else None,
+                "entityName": r[12] if r[12] and str(r[12]).strip() else r[5],
             })
         cur.close()
         return_db_connection(conn)

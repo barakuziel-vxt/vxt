@@ -8,9 +8,9 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { DrawerContext } from '../context/DrawerContext';
-import { useGatewayStore } from '../store/gatewayStore';
 
 const C = {
   bg:          '#0d1117',
@@ -26,24 +26,24 @@ const C = {
 export default function UserProfileScreen() {
   const [profile, updateProfile] = useUserProfile();
   const [fullName, setFullName] = useState(profile.fullName);
-  const [userId, setUserId] = useState(profile.userId);
   const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone);
   const [isSaving, setIsSaving] = useState(false);
   const { openDrawer } = useContext(DrawerContext);
 
   // Sync local state when AsyncStorage finishes loading the saved profile
+  // Always use Firebase auth email as the canonical email
   React.useEffect(() => {
     if (profile.loaded) {
+      const firebaseEmail = auth().currentUser?.email || '';
       setFullName(profile.fullName);
-      setUserId(profile.userId);
-      setEmail(profile.email);
+      setEmail(firebaseEmail || profile.email);
       setPhone(profile.phone);
     }
   }, [profile.loaded]);
 
   const handleSave = async () => {
-    if (!fullName.trim() || !userId.trim() || !email.trim() || !phone.trim()) {
+    if (!fullName.trim() || !email.trim() || !phone.trim()) {
       Alert.alert('Validation Error', 'All fields are required');
       return;
     }
@@ -51,9 +51,7 @@ export default function UserProfileScreen() {
     setIsSaving(true);
     try {
       // updateProfile now properly awaits the async save to AsyncStorage
-      await updateProfile({ fullName, userId, email, phone, loaded: true });
-      // Sync userId to gateway config so the gateway sends frames with the correct entity ID
-      useGatewayStore.getState().updateConfig({ userId });
+      await updateProfile({ fullName, email, phone, loaded: true });
       Alert.alert('Success', 'User profile saved successfully');
     } catch (e) {
       Alert.alert('Error', 'Failed to save profile: ' + (e instanceof Error ? e.message : String(e)));
@@ -70,7 +68,6 @@ export default function UserProfileScreen() {
         style: 'destructive',
         onPress: () => {
           setFullName('');
-          setUserId('');
           setEmail('');
           setPhone('');
         },
@@ -98,18 +95,6 @@ export default function UserProfileScreen() {
             value={fullName}
             onChangeText={setFullName}
             placeholder="Your full name"
-            placeholderTextColor={C.textMuted}
-            editable={!isSaving}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>User ID</Text>
-          <TextInput
-            style={styles.input}
-            value={userId}
-            onChangeText={setUserId}
-            placeholder="User ID"
             placeholderTextColor={C.textMuted}
             editable={!isSaving}
           />
@@ -162,7 +147,7 @@ export default function UserProfileScreen() {
         <View style={styles.infoBox}>
           <Text style={styles.infoTitle}>ℹ️ About Your Profile</Text>
           <Text style={styles.infoText}>
-            Your User ID ({userId}) is used to identify data submissions from this device to the VXT IoT Gateway.
+            Your profile is used to identify you in the VXT IoT system.
           </Text>
         </View>
       </View>

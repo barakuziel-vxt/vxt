@@ -208,6 +208,20 @@ export default function GatewayStatusScreen() {
         </View>
       )}
 
+      {/* ── Data submission entity ID ────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { marginTop: 16 }]}>DATA SUBMISSION</Text>
+      <View style={styles.formGroup}>
+        <Text style={styles.formLabel}>Data submission entity id</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="Enter entity ID"
+          placeholderTextColor={C.textMuted}
+          value={activeConfig.userId || ''}
+          onChangeText={(val) => updateConfig({ userId: val })}
+        />
+        <Text style={styles.formHint}>Identifies data submissions from this device</Text>
+      </View>
+
       {/* ── Gateway type selector ─────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { marginTop: 16 }]}>GATEWAY TYPE</Text>
       <View style={styles.gatewayTypeRow}>

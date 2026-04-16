@@ -20,6 +20,7 @@ import RegisterDevicePage from './pages/RegisterDevicePage';
 import PushNotificationRNPage from './pages/PushNotificationRNPage';
 import UserAuthorizationRNPage from './pages/UserAuthorizationRNPage';
 import SubscriptionManagementRNPage from './pages/SubscriptionManagementRNPage';
+import EntityAttributeRNPage from './pages/EntityAttributeRNPage';
 
 export default function App() {
   const [navData, setNavData] = useState(null);
@@ -100,6 +101,8 @@ export default function App() {
         return <ProviderPage />;
       case 'providerEvent':
         return <ProviderEventPage />;
+      case 'entityAttributeRN':
+        return <EntityAttributeRNPage />;
       case 'customerSubscription':
         return <SubscriptionManagementRNPage />;
       case 'customerEntities':
@@ -197,6 +200,12 @@ export default function App() {
               onClick={() => handlePageChange('entityTypeAttribute')}
             >
               ⚙️ Entity Type Attributes
+            </button>
+            <button
+              className={`nav-button ${currentPage === 'entityAttributeRN' ? 'active' : ''}`}
+              onClick={() => handlePageChange('entityAttributeRN')}
+            >
+              📱 Entity Attributes (RN)
             </button>
             <button
               className={`nav-button ${currentPage === 'event' ? 'active' : ''}`}

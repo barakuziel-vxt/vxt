@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { useAuthStore } from './src/store/authStore';
+import LoginScreen from './src/screens/LoginScreen';
 import { DrawerContext } from './src/context/DrawerContext';
 import { initNotifications } from './src/services/NotificationService';
 import { loadDataSource } from './src/hooks/useDataSource';
@@ -26,6 +29,7 @@ import UserProfileScreen from './src/screens/UserProfileScreen';
 import SubscriptionManagementScreen from './src/screens/SubscriptionManagementScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
 import UserAuthorizationScreen from './src/screens/UserAuthorizationScreen';
+import EntityAttributeScreen from './src/screens/EntityAttributeScreen';
 import { driverManager } from './src/core/DriverManager';
 import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
@@ -44,7 +48,7 @@ driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'PushNotifications' | 'UserAuthorizations';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'PushNotifications' | 'UserAuthorizations' | 'EntityAttributes';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -68,12 +72,51 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
   { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
   { key: 'Subscriptions',  label: 'Subscriptions',    icon: '📋' },
+  { key: 'EntityAttributes', label: 'Entity Attributes', icon: '⚙️' },
   { key: 'PushNotifications', label: 'Push Notifications', icon: '🔔' },
   { key: 'UserAuthorizations', label: 'User Authorizations', icon: '🔑' },
   { key: 'UserProfile',    label: 'User Profile',     icon: '👤' },
 ];
 
 export default function App() {
+  const { user, initialized, setUser, setInitialized } = useAuthStore();
+
+  // Listen to Firebase Auth state changes
+  React.useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged((fbUser) => {
+      setUser(fbUser);
+      if (!initialized) setInitialized();
+    });
+    return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Show loading while Firebase initializes
+  if (!initialized) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <View style={{ flex: 1, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: C.textMuted, fontSize: 16 }}>Loading...</Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  // Not signed in → show login
+  if (!user) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <LoginScreen onAuthenticated={() => {
+          // Force re-render — onAuthStateChanged will update the store
+          auth().currentUser?.reload();
+        }} />
+      </SafeAreaProvider>
+    );
+  }
+
+  // Signed in → show main app
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
@@ -91,7 +134,21 @@ function PushNotificationsWrapper() {
     (async () => {
       const [ds, profile] = await Promise.all([loadDataSource(), loadUserProfile()]);
       setBaseUrl(ds.baseUrl);
-      setUserId(profile.userId);
+      let resolvedUserId = profile.userId;
+      // If no userId in profile, look it up from AppUser by Firebase email
+      if (!resolvedUserId && ds.baseUrl) {
+        const userEmail = auth().currentUser?.email;
+        if (userEmail) {
+          try {
+            const res = await fetch(`${ds.baseUrl}/users/by-email/${encodeURIComponent(userEmail)}`);
+            if (res.ok) {
+              const userData = await res.json();
+              resolvedUserId = String(userData.userId);
+            }
+          } catch { /* best-effort */ }
+        }
+      }
+      setUserId(resolvedUserId);
       setLoading(false);
     })();
   }, []);
@@ -165,7 +222,7 @@ function AppShell() {
   }
 
   function navigateTo(screen: string) {
-    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','PushNotifications','UserAuthorizations'];
+    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','PushNotifications','UserAuthorizations','EntityAttributes'];
     if (validScreens.includes(screen as Screen)) {
       setActive(screen as Screen);
     }
@@ -180,6 +237,7 @@ function AppShell() {
     active === 'DataSource'     ? DataSourceScreen :
     active === 'UserProfile'    ? UserProfileScreen :
     active === 'Subscriptions'  ? SubscriptionManagementScreen :
+    active === 'EntityAttributes' ? EntityAttributeScreen :
     active === 'PushNotifications' ? PushNotificationsWrapper :
     active === 'UserAuthorizations' ? UserAuthorizationScreen :
     HealthVitalsScreen; // Default fallback
@@ -232,6 +290,18 @@ function AppShell() {
               </Text>
             </TouchableOpacity>
           ))}
+
+          {/* Sign out */}
+          <View style={{ borderTopWidth: 1, borderTopColor: C.border, marginTop: 12, paddingTop: 12 }}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { closeDrawer(); useAuthStore.getState().signOut(); }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>🚪</Text>
+              <Text style={[styles.menuLabel, { color: '#da3633' }]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
       </View>

@@ -155,7 +155,13 @@ class JunctionAdapter(ProviderAdapter):
         Required fields: user, user.user_id, timestamp
         
         Note: Accepts any event type - filtering by ProviderEvent rules happens downstream
+        Silently rejects messages that look like they're from other providers (e.g., SignalK)
         """
+        # Silently skip messages clearly meant for other protocols
+        if 'context' in message and 'updates' in message:
+            # This looks like SignalK - skip without warning
+            return False
+        
         required_fields = ['user', 'timestamp']
         
         for field in required_fields:
@@ -409,7 +415,14 @@ class N2KToSignalKAdapter(ProviderAdapter):
     """
     
     def validate_message(self, message: Dict) -> bool:
-        """Validate SignalK message format"""
+        """Validate SignalK message format
+        Silently rejects messages that look like they're from other providers (e.g., Junction)
+        """
+        # Silently skip messages clearly meant for other protocols
+        if 'user' in message and 'event_type' in message:
+            # This looks like Junction - skip without warning
+            return False
+        
         required_fields = ['context', 'updates']
         
         for field in required_fields:
