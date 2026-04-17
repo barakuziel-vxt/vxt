@@ -30,6 +30,7 @@ import SubscriptionManagementScreen from './src/screens/SubscriptionManagementSc
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
 import UserAuthorizationScreen from './src/screens/UserAuthorizationScreen';
 import EntityAttributeScreen from './src/screens/EntityAttributeScreen';
+import CustomerEntitiesScreen from './src/screens/CustomerEntitiesScreen';
 import { driverManager } from './src/core/DriverManager';
 import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
@@ -48,7 +49,7 @@ driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'PushNotifications' | 'UserAuthorizations' | 'EntityAttributes';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'CustomerEntities' | 'PushNotifications' | 'UserAuthorizations' | 'EntityAttributes';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -72,6 +73,7 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
   { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
   { key: 'Subscriptions',  label: 'Subscriptions',    icon: '📋' },
+  { key: 'CustomerEntities', label: 'Customer Entities', icon: '🏢' },
   { key: 'EntityAttributes', label: 'Entity Attributes', icon: '⚙️' },
   { key: 'PushNotifications', label: 'Push Notifications', icon: '🔔' },
   { key: 'UserAuthorizations', label: 'User Authorizations', icon: '🔑' },
@@ -222,7 +224,7 @@ function AppShell() {
   }
 
   function navigateTo(screen: string) {
-    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','PushNotifications','UserAuthorizations','EntityAttributes'];
+    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','CustomerEntities','PushNotifications','UserAuthorizations','EntityAttributes'];
     if (validScreens.includes(screen as Screen)) {
       setActive(screen as Screen);
     }
@@ -237,6 +239,7 @@ function AppShell() {
     active === 'DataSource'     ? DataSourceScreen :
     active === 'UserProfile'    ? UserProfileScreen :
     active === 'Subscriptions'  ? SubscriptionManagementScreen :
+    active === 'CustomerEntities' ? CustomerEntitiesScreen :
     active === 'EntityAttributes' ? EntityAttributeScreen :
     active === 'PushNotifications' ? PushNotificationsWrapper :
     active === 'UserAuthorizations' ? UserAuthorizationScreen :

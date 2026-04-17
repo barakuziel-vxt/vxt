@@ -9,7 +9,6 @@ import { loadDataSource } from '../hooks/useDataSource';
 import { loadUserProfile } from '../hooks/useUserProfile';
 import UserRolesScreen from './UserRolesScreen';
 import NotificationSettingsScreen from './NotificationSettingsScreen';
-import InviteUserScreen from './InviteUserScreen';
 
 const C = {
   bg:          '#0d1117',
@@ -23,7 +22,7 @@ const C = {
   orange:      '#d29922',
 };
 
-type SubPage = 'list' | 'userRoles' | 'notificationSettings' | 'inviteUser';
+type SubPage = 'list' | 'userRoles' | 'notificationSettings';
 
 interface Subscription {
   customerSubscriptionId: number;
@@ -312,15 +311,6 @@ export default function SubscriptionManagementScreen() {
     );
   }
 
-  if (subPage === 'inviteUser') {
-    return (
-      <InviteUserScreen
-        baseUrl={baseUrl!}
-        onBack={() => setSubPage('list')}
-      />
-    );
-  }
-
   // ── Main list ───────────────────────────────────────
   return (
     <View style={styles.root}>
@@ -362,9 +352,7 @@ export default function SubscriptionManagementScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity style={[styles.filterBtn, { backgroundColor: C.blue }]} onPress={() => setSubPage('inviteUser')}>
-          <Text style={[styles.filterBtnText, { color: '#fff' }]}>� Invite User</Text>
-        </TouchableOpacity>
+
       </View>
 
       {/* List */}

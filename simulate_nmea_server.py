@@ -1,3 +1,4 @@
+# python simulate_nmea_server.py --mode udp --target halos.local
 """
 NMEA 0183 Simulator — TCP Server + UDP Sender
 ================================================
