@@ -1,7 +1,8 @@
 /**
  * SubscriptionManagementRNPage — SINGLE SOURCE OF TRUTH for both web and mobile.
- * Includes: Subscription list, Edit/Create, User Roles per subscription, Invite User.
+ * Includes: Subscription list, Edit/Create, User Roles per subscription.
  * Same dark theme, same API calls — no duplicate logic in RN screens.
+ * Note: User invitations now happen at the entity level (see CustomerEntitiesPage).
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
@@ -26,10 +27,6 @@ function toLocalDateStr(s) {
 function UserRolesView({ subId, subLabel, onBack }) {
   const [auths, setAuths] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('viewer');
-  const [inviting, setInviting] = useState(false);
 
   const fetchAuths = useCallback(async () => {
     setLoading(true);
@@ -63,26 +60,6 @@ function UserRolesView({ subId, subLabel, onBack }) {
     } catch (e) { alert(e.message); }
   };
 
-  const sendInvite = async () => {
-    if (!inviteEmail.trim()) { alert('Please enter an email address'); return; }
-    setInviting(true);
-    try {
-      const res = await fetch(`${BASE}/customersubscriptions/${subId}/invite`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail.trim().toLowerCase(), role: inviteRole }),
-      });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
-      const result = await res.json();
-      const emailNote = result.inviteSent
-        ? `\n\nAn invitation email has been sent to ${inviteEmail.trim().toLowerCase()}.`
-        : `\n\n⚠️ Invitation email could not be sent (GMAIL not configured).\nPlease notify them manually to download the VXT app and sign in with ${inviteEmail.trim().toLowerCase()}.`;
-      alert(`✅ ${result.message}${emailNote}`);
-      setInviteOpen(false); setInviteEmail(''); setInviteRole('viewer');
-      fetchAuths();
-    } catch (e) { alert(e.message); }
-    finally { setInviting(false); }
-  };
-
   return (
     <div style={S.root}>
       <div style={S.header}>
@@ -93,7 +70,6 @@ function UserRolesView({ subId, subLabel, onBack }) {
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
-        <button style={{ ...S.addBtn, background: C.green }} onClick={() => setInviteOpen(true)}>➕ Invite New User</button>
         <span style={{ fontSize: 13, color: C.textMuted }}>{auths.filter(a => a.active === 'Y').length} active user(s)</span>
       </div>
 
@@ -131,38 +107,8 @@ function UserRolesView({ subId, subLabel, onBack }) {
           {auths.length === 0 && (
             <div style={{ color: C.textMuted, textAlign: 'center', padding: 40 }}>
               No users assigned yet
-              <div><button style={{ ...S.addBtn, background: C.green, marginTop: 12 }} onClick={() => setInviteOpen(true)}>➕ Invite First User</button></div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Invite modal */}
-      {inviteOpen && (
-        <div style={S.overlay} onClick={() => setInviteOpen(false)}>
-          <div style={S.modal} onClick={e => e.stopPropagation()}>
-            <div style={S.modalTitle}>Invite New User</div>
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16 }}>{subLabel}</div>
-
-            <label style={S.fieldLabel}>Email Address</label>
-            <input style={S.input} placeholder="user@example.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
-
-            <label style={S.fieldLabel}>Role</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {ROLES.map(r => (
-                <button key={r} style={{
-                  padding: '8px 14px', borderRadius: 16, border: `1px solid ${C.border}`, background: C.bg,
-                  color: C.textMuted, fontSize: 13, cursor: 'pointer',
-                  ...(inviteRole === r ? { background: C.blue, borderColor: C.blue, color: '#fff', fontWeight: 600 } : {}),
-                }} onClick={() => setInviteRole(r)}>{r === 'viewer' ? '👁️ Viewer' : r === 'admin' ? '🔧 Admin' : '👑 Owner'}</button>
-              ))}
-            </div>
-
-            <div style={S.modalActions}>
-              <button style={S.cancelBtn} onClick={() => { setInviteOpen(false); setInviteEmail(''); }}>Cancel</button>
-              <button style={S.saveBtn} onClick={sendInvite} disabled={inviting}>{inviting ? 'Sending...' : 'Send Invitation'}</button>
-            </div>
-          </div>
         </div>
       )}
     </div>
