@@ -122,10 +122,10 @@ function onEachShippingLane(feature, layer) {
 
 function shippingLaneStyle(feature) {
   return {
-    color: '#2563eb',
-    weight: 2,
-    opacity: 0.6,
-    dashArray: '5, 5'
+    color: '#0ea5e9',
+    weight: 3,
+    opacity: 0.8,
+    dashArray: '8, 4'
   };
 }
 
@@ -142,12 +142,12 @@ function onEachHazard(feature, layer) {
 
 function hazardStyle(feature) {
   const types = {
-    shallow_water: { color: '#f97316', weight: 8 },
-    rock: { color: '#6b7280', weight: 6 },
-    wreck: { color: '#7c3aed', weight: 6 },
-    reef: { color: '#10b981', weight: 2, fillOpacity: 0.2 }
+    shallow_water: { color: '#f97316', weight: 2, fillOpacity: 0.3 },
+    rock: { color: '#6b7280', weight: 2, fillOpacity: 0.3 },
+    wreck: { color: '#7c3aed', weight: 2, fillOpacity: 0.3 },
+    reef: { color: '#10b981', weight: 2, fillOpacity: 0.25 }
   };
-  return types[feature.properties.type] || { color: '#666', weight: 4 };
+  return types[feature.properties.type] || { color: '#666', weight: 2, fillOpacity: 0.2 };
 }
 
 function hazardPointToLayer(feature, latlng) {
@@ -172,11 +172,11 @@ function onEachDepthContour(feature, layer) {
 
 function depthContourStyle(feature) {
   const depths = {
-    10: { color: '#fbbf24', weight: 1, opacity: 0.5 },
-    50: { color: '#f59e0b', weight: 1, opacity: 0.4 },
-    100: { color: '#d97706', weight: 1, opacity: 0.3 }
+    10: { color: '#fbbf24', weight: 2, opacity: 0.8, dashArray: '4, 2' },
+    50: { color: '#f59e0b', weight: 2, opacity: 0.7, dashArray: '6, 3' },
+    100: { color: '#d97706', weight: 2, opacity: 0.6, dashArray: '8, 4' }
   };
-  return depths[feature.properties.depth] || { color: '#999', weight: 1 };
+  return depths[feature.properties.depth] || { color: '#999', weight: 2, opacity: 0.5 };
 }
 
 // Depth contours (isobaths)
@@ -309,7 +309,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
     <div className="analytics-section">
       <h3>📍 {title}</h3>
       <div style={{
-        height: '300px',
+        height: '500px',
         width: '100%',
         borderRadius: '8px',
         overflow: 'hidden',
