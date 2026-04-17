@@ -492,6 +492,7 @@ export default function EntityAttributeScreen() {
   const [subPage, setSubPage] = useState<SubPage>('list');
   const [selectedAttr, setSelectedAttr] = useState<Attribute | null>(null);
   const [showEntityTypePicker, setShowEntityTypePicker] = useState(false);
+  const [allowedEntityTypeIds, setAllowedEntityTypeIds] = useState<Set<number> | null>(null);
 
   useEffect(() => {
     (async () => {
