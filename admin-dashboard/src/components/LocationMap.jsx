@@ -108,6 +108,15 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
   
   const centerPoint = locationPoints[locationPoints.length - 1] || locationPoints[0];
 
+  // Sailboat icon for the current position marker
+  const sailboatIcon = new DivIcon({
+    html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))">⛵</div>',
+    className: '',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14]
+  });
+
   return (
     <div className="analytics-section">
       <h3>📍 {title}</h3>
@@ -141,7 +150,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
           />
           
           {/* Mark current/latest point */}
-          <Marker position={[centerPoint.lat, centerPoint.lon]}>
+          <Marker position={[centerPoint.lat, centerPoint.lon]} icon={sailboatIcon}>
             <Popup>
               <div style={{ fontSize: '12px' }}>
                 <strong>Current Position</strong><br/>

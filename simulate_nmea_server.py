@@ -33,7 +33,8 @@ SignalK Setup for UDP mode:
     3. Apply → Restart
 
 Simulated NMEA sentences (Navigation & Environment):
-    $GPRMC  - GPS Position (Haifa marina) — location reference only
+    $GPRMC  - GPS Position + SOG/COG (sailing along Haifa coast)
+    $GPGGA  - GPS Fix — latitude, longitude, altitude
     $SDDBT  - Depth below transducer — 18.7m
 
 Simulated NMEA Engine Monitoring Attributes:
@@ -55,6 +56,7 @@ Simulated NMEA Engine Monitoring Attributes:
 
 import argparse
 import math
+import random
 import socket
 import sys
 import threading
@@ -117,9 +119,15 @@ def generate_sentences(t: float) -> list:
     utc_date = now.strftime("%d%m%y")
 
     # Computed values
-    # Position: static (Haifa marina)
-    lat = BASE_LAT
-    lon = BASE_LON
+    # Position: sailing along Haifa coast with gentle drift
+    lat = BASE_LAT + math.sin(t / 300) * 0.01 + math.sin(t / 120) * 0.003 + random.uniform(-0.0002, 0.0002)
+    lon = BASE_LON + math.cos(t / 400) * 0.012 + math.sin(t / 150) * 0.004 + random.uniform(-0.0002, 0.0002)
+
+    # Speed over ground (knots) and course over ground (degrees true)
+    sog_knots = 5.5 + math.sin(t / 90) * 2.0 + math.sin(t / 30) * 0.5
+    cog_deg = 45.0 + math.sin(t / 200) * 30.0 + math.cos(t / 80) * 10.0
+    if cog_deg < 0:
+        cog_deg += 360.0
     
     # Depth: 18.7m
     depth_m = 18.7 + math.sin(t / 180) * 0.3
@@ -178,12 +186,19 @@ def generate_sentences(t: float) -> list:
 
     # ── RMC - Recommended Minimum Navigation Information ─────────────────────
     # $GPRMC,hhmmss.ss,A,llll.llll,N,yyyyy.yyyy,E,sog,cog,ddmmyy,magvar,dir,mode
-    # Position only — SOG/COG set to 0, magnetic variation omitted (empty fields)
-    rmc = "GPRMC,%s,A,%s,%s,%s,%s,0.0,0.0,%s,,,A" % (
+    rmc = "GPRMC,%s,A,%s,%s,%s,%s,%.1f,%.1f,%s,,,A" % (
         utc_time, lat_nmea, ns, lon_nmea, ew,
-        utc_date
+        sog_knots, cog_deg, utc_date
     )
     sentences.append(nmea(rmc))
+
+    # ── GGA - GPS Fix Data ──────────────────────────────────────────────────
+    # $GPGGA,hhmmss.ss,llll.llll,N,yyyyy.yyyy,E,fix,sats,hdop,alt,M,geoid,M,,
+    altitude_m = 2.5 + math.sin(t / 300) * 0.5
+    gga = "GPGGA,%s,%s,%s,%s,%s,1,09,0.9,%.1f,M,17.0,M,," % (
+        utc_time, lat_nmea, ns, lon_nmea, ew, altitude_m
+    )
+    sentences.append(nmea(gga))
 
     # ── DBT - Depth Below Transducer ────────────────────────────────────────
     # $SDDBT,depth_ft,f,depth_m,M,depth_fathom,F
@@ -360,11 +375,11 @@ def run_udp_sender(args):
     print("  VXT / YachtSense AI — NMEA 0183 UDP Sender")
     print("=" * 64)
     print(f"  Target : {args.target} ({target_ip}:{args.port})")
-    print(f"  Interval: {args.interval}s (21 NMEA sentences per burst)")
+    print(f"  Interval: {args.interval}s (22 NMEA sentences per burst)")
     print()
     print("  Transmitted Attributes:")
     print("  ──────────────────────")
-    print("  Navigation: Position (RMC), Depth (DBT)")
+    print("  Navigation: Position + SOG/COG (RMC), GPS Fix (GGA), Depth (DBT)")
     print("  Propulsion: RPM, Fuel Rate, Oil/Water/Exhaust Temps,")
     print("              Oil/Fuel Pressure, Alternator, Gearbox Temp, Load, Runtime")
     print("  Tanks: Fuel Level, Fresh Water Level")
@@ -391,9 +406,10 @@ def run_udp_sender(args):
             burst_count += 1
 
             # Extract computed values for display
-            sog = 7.0 + math.sin(t / 120) * 0.5
+            lat_disp = BASE_LAT + math.sin(t / 300) * 0.01
+            lon_disp = BASE_LON + math.cos(t / 400) * 0.012
+            sog = 5.5 + math.sin(t / 90) * 2.0
             depth = 18.7 + math.sin(t / 180) * 0.3
-            wind_spd = 9.0 + math.sin(t / 90) * 0.5
             rpm = 1500 + math.sin(t / 60) * 400
             fuel_rate = 10.0 + math.sin(t / 80) * 4.0 + math.sin(t / 30) * 2.0
             oil_temp = 75 + math.sin(t / 150) * 8
@@ -402,9 +418,9 @@ def run_udp_sender(args):
 
             print(
                 f"  [{ts}] #{burst_count:>4d}  "
+                f"Pos={lat_disp:.4f},{lon_disp:.4f}  SOG={sog:.1f}kn  "
                 f"RPM={rpm:.0f}  FuelRate={fuel_rate:.1f}L/h  "
                 f"OilTemp={oil_temp:.0f}°C  WaterTemp={water_temp:.0f}°C  "
-                f"Depth={depth:.1f}m  "
                 f"→ {args.target}:{args.port} ({len(sentences)} sentences)"
             )
 
@@ -433,11 +449,11 @@ def run_tcp_server(args):
     print("=" * 64)
     print(f"  Listen : {args.bind}:{args.port}")
     print(f"  LAN IP : {local_ip}")
-    print(f"  Interval: {args.interval}s (21 NMEA sentences per burst)")
+    print(f"  Interval: {args.interval}s (22 NMEA sentences per burst)")
     print()
     print("  Transmitted Attributes:")
     print("  ──────────────────────")
-    print("  Navigation: Position (RMC), Depth (DBT)")
+    print("  Navigation: Position + SOG/COG (RMC), GPS Fix (GGA), Depth (DBT)")
     print("  Propulsion: RPM, Fuel Rate, Oil/Water/Exhaust Temps,")
     print("              Oil/Fuel Pressure, Alternator, Gearbox Temp, Load, Runtime")
     print("  Tanks: Fuel Level, Fresh Water Level")
