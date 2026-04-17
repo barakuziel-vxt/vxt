@@ -137,10 +137,67 @@ async def startup_event():
         print("[INFO] ===== FastAPI Startup Started =====")
         print(f"[INFO] Environment: {ENVIRONMENT}")
         print(f"[INFO] Connection Driver: mssql-python (TDS protocol, native)")
+        # Auto-apply critical schema migrations
+        _ensure_schema()
         print("[INFO] ===== FastAPI Startup Complete =====")
     except Exception as e:
         print(f"[ERROR] Startup failed: {str(e)}")
         print(f"[ERROR] {traceback.format_exc()}")
+
+def _ensure_schema():
+    """Ensure critical columns exist in production DB (auto-migration)."""
+    try:
+        conn_string = get_db_connection_string()
+        if not conn_string:
+            print("[WARNING] _ensure_schema: no connection string, skipping")
+            return
+        conn = connect(conn_string)
+        cur = conn.cursor()
+
+        migrations = [
+            # (table, column, datatype)
+            ("UserAuthorization", "customerId", "INT NULL"),
+            ("UserAuthorization", "entityId", "NVARCHAR(50) NULL"),
+            ("UserAuthorization", "effectiveDate", "DATETIME NOT NULL DEFAULT GETDATE()"),
+            ("UserAuthorization", "expiryDate", "DATETIME NULL"),
+            ("UserAppPushNotification", "customerId", "INT NULL"),
+            ("UserAppPushNotification", "entityId", "NVARCHAR(50) NULL"),
+        ]
+
+        for table, col, dtype in migrations:
+            try:
+                cur.execute(f"""
+                    IF NOT EXISTS (
+                        SELECT 1 FROM sys.columns
+                        WHERE object_id = OBJECT_ID('dbo.{table}') AND name = '{col}'
+                    )
+                    BEGIN
+                        ALTER TABLE dbo.{table} ADD [{col}] {dtype};
+                    END
+                """)
+                conn.commit()
+            except Exception as col_err:
+                print(f"[WARNING] _ensure_schema: {table}.{col} -> {col_err}")
+
+        # Verify columns actually exist now
+        for table, col, _ in migrations:
+            try:
+                cur.execute(f"""
+                    SELECT COUNT(*) FROM sys.columns
+                    WHERE object_id = OBJECT_ID('dbo.{table}') AND name = '{col}'
+                """)
+                row = cur.fetchone()
+                exists = row[0] if row else 0
+                status = "OK" if exists else "MISSING"
+                print(f"[INFO] _ensure_schema: {table}.{col} -> {status}")
+            except Exception as chk_err:
+                print(f"[WARNING] _ensure_schema check {table}.{col} -> {chk_err}")
+
+        cur.close()
+        conn.close()
+        print("[INFO] _ensure_schema: complete")
+    except Exception as e:
+        print(f"[ERROR] _ensure_schema failed: {e}")
 
 # Define CORS origins based on environment
 def get_cors_origins():
@@ -2540,6 +2597,7 @@ def get_latest_telemetry(entity_id: str):
         cur = conn.cursor()
         
         # Use ? placeholder with varargs execute (matches working endpoint pattern)
+        # ✅ FIX: Join with Entity to get entity's entityTypeId and filter attributes by type
         query = """
         WITH LatestPerAttribute AS (
           SELECT
@@ -2554,11 +2612,13 @@ def get_latest_telemetry(entity_id: str):
             pa.protocolAttributeCode,
             pa.description,
             ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
-          FROM dbo.EntityTelemetry et WITH (NOLOCK)
+          FROM dbo.Entity e WITH (NOLOCK)
+          JOIN dbo.EntityTelemetry et WITH (NOLOCK) ON et.entityId = e.entityId
           JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+            AND eta.entityTypeId = e.entityTypeId
           LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
             AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE et.entityId = ?
+          WHERE e.entityId = ?
             AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
         )
         SELECT 
@@ -2660,6 +2720,7 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
         
         # Use ? placeholder with varargs execute (matches working endpoint pattern)
         # TOP 20000 = safety cap so COLUMNSTORE scan doesn't block uvicorn for minutes
+        # ✅ FIX: Join with Entity to get entity's entityTypeId and filter attributes by type
         query = """
         SELECT TOP 20000
             et.entityTypeAttributeId,
@@ -2668,9 +2729,11 @@ def get_telemetry_range(entity_id: str, startDate: str, endDate: str):
             et.endTimestampUTC,
             et.latitude,
             et.longitude
-        FROM dbo.EntityTelemetry et WITH (NOLOCK)
+        FROM dbo.Entity e WITH (NOLOCK)
+        JOIN dbo.EntityTelemetry et WITH (NOLOCK) ON et.entityId = e.entityId
         JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-        WHERE et.entityId = ?
+          AND eta.entityTypeId = e.entityTypeId
+        WHERE e.entityId = ?
           AND et.endTimestampUTC >= ?
           AND et.endTimestampUTC <= ?
         ORDER BY et.endTimestampUTC ASC
@@ -4649,13 +4712,16 @@ def invite_user_bulk(data: dict):
         cur = conn.cursor()
 
         # 1. Verify customer exists
+        print(f"[invite-bulk] Step 1: Checking customer {customer_id} exists...")
         cur.execute("SELECT customerId FROM Customers WHERE customerId = ?", (customer_id,))
         if not cur.fetchone():
             cur.close()
             return_db_connection(conn)
             raise HTTPException(status_code=404, detail="Customer not found")
+        print(f"[invite-bulk] Step 1: OK")
 
         # 2. Find or create AppUser by email
+        print(f"[invite-bulk] Step 2: Looking up AppUser for {email}...")
         cur.execute("SELECT userId, firebaseUid FROM dbo.AppUser WHERE email = ?", (email,))
         user_row = cur.fetchone()
 
@@ -4679,6 +4745,7 @@ def invite_user_bulk(data: dict):
                 print(f"[WARNING] Firebase user creation skipped: {fb_err}")
                 firebase_uid = f"pending_{email}"
 
+            print(f"[invite-bulk] Step 2b: Creating new AppUser for {email}...")
             cur.execute("""
                 INSERT INTO dbo.AppUser (firebaseUid, email, displayName, customerId, active)
                 VALUES (?, ?, ?, ?, 'Y')
@@ -4686,8 +4753,10 @@ def invite_user_bulk(data: dict):
             conn.commit()
             cur.execute("SELECT userId FROM dbo.AppUser WHERE email = ?", (email,))
             user_id = cur.fetchone()[0]
+            print(f"[invite-bulk] Step 2b: Created AppUser userId={user_id}")
 
         # 3. Create authorizations
+        print(f"[invite-bulk] Step 3: Creating {len(entity_ids)} authorization(s)...")
         results = []
         # For owner/admin with no entity_ids, create one customer-level auth
         if not entity_ids:
@@ -4762,20 +4831,37 @@ def _init_firebase_admin():
     
     sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
     sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+    project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
     
     try:
+        cred_data = None
         if sa_path and os.path.exists(sa_path):
             print(f"[FIREBASE] Initializing from file: {sa_path}")
             cred = credentials.Certificate(sa_path)
+            # Extract project_id from service account file if available
+            import json as _json
+            with open(sa_path, 'r') as f:
+                cred_data = _json.load(f)
+                if not project_id and 'project_id' in cred_data:
+                    project_id = cred_data['project_id']
         elif sa_json:
             print("[FIREBASE] Initializing from FIREBASE_SERVICE_ACCOUNT_JSON env var")
             import json as _json
-            cred = credentials.Certificate(_json.loads(sa_json))
+            cred_data = _json.loads(sa_json)
+            cred = credentials.Certificate(cred_data)
+            if not project_id and 'project_id' in cred_data:
+                project_id = cred_data['project_id']
         else:
             print("[FIREBASE] Initializing from Application Default Credentials")
             cred = credentials.ApplicationDefault()
         
-        firebase_admin.initialize_app(cred)
+        # Initialize with explicit project_id
+        options = {}
+        if project_id:
+            options['projectId'] = project_id
+            print(f"[FIREBASE] Using project ID: {project_id}")
+        
+        firebase_admin.initialize_app(cred, options=options if options else None)
         print("[FIREBASE] ✅ Admin SDK initialized successfully")
     except FileNotFoundError:
         raise ValueError(f"Firebase service account file not found: {sa_path}")

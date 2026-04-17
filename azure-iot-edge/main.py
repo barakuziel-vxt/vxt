@@ -656,7 +656,8 @@ async def main() -> None:
 
     # ── Fetch the full twin on first boot ──
     twin = await client.get_twin()
-    desired = twin.get("properties", {}).get("desired", {})
+    # SDK returns {"desired": {…}, "reported": {…}} (no "properties" wrapper)
+    desired = twin.get("desired", twin.get("properties", {}).get("desired", {}))
     log.info("Full twin fetched on boot (%d keys)", len(desired))
     await twin_patch_handler(desired)
 

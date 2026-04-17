@@ -407,9 +407,16 @@ class SubscriptionAnalysisWorker:
 
         sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
         sa_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+        project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
+        sa_dict = None
         if sa_path and os.path.exists(sa_path):
             cred = fb_credentials.Certificate(sa_path)
+            # Extract project_id from service account file if available
+            with open(sa_path, 'r') as f:
+                sa_dict = json.load(f)
+                if not project_id and 'project_id' in sa_dict:
+                    project_id = sa_dict['project_id']
         elif sa_json:
             import base64
             try:
@@ -417,6 +424,8 @@ class SubscriptionAnalysisWorker:
             except json.JSONDecodeError:
                 sa_dict = json.loads(base64.b64decode(sa_json).decode('utf-8'))
             cred = fb_credentials.Certificate(sa_dict)
+            if not project_id and 'project_id' in sa_dict:
+                project_id = sa_dict['project_id']
         else:
             logger.warning(
                 "Firebase not configured: set FIREBASE_SERVICE_ACCOUNT_PATH "
@@ -424,7 +433,13 @@ class SubscriptionAnalysisWorker:
             )
             return False
 
-        firebase_admin.initialize_app(cred)
+        # Initialize with explicit project_id
+        options = {}
+        if project_id:
+            options['projectId'] = project_id
+            logger.info(f"Firebase initializing with project ID: {project_id}")
+        
+        firebase_admin.initialize_app(cred, options=options if options else None)
         logger.info("Firebase Admin SDK initialized successfully")
         return True
 
