@@ -44,6 +44,6 @@ Write-Host "  - Simulators         : Generating SignalK maritime + Junction heal
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan
 Write-Host "  - Admin Dashboard (Local)  : http://localhost:3002" -ForegroundColor Yellow
-Write-Host "  - Admin Dashboard (Network): http://192.168.1.22:3002 (or your PC's IP)" -ForegroundColor Yellow
+Write-Host "  - Admin Dashboard (Network): http://192.168.1.36:3002 (or your PC's IP)" -ForegroundColor Yellow
 Write-Host "  - FastAPI Docs             : http://localhost:8000/docs" -ForegroundColor Yellow
 Write-Host "  - Redpanda Console         : http://localhost:8080" -ForegroundColor Yellow

@@ -169,132 +169,9 @@ function UserRolesView({ subId, subLabel, onBack }) {
   );
 }
 
-/* ─── Invite User sub-page (bulk invite to multiple subscriptions) ──── */
-function InviteUserView({ onBack }) {
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('viewer');
-  const [allSubs, setAllSubs] = useState([]);
-  const [selected, setSelected] = useState(new Set());
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [filter, setFilter] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${BASE}/customersubscriptions?status=Y`);
-        if (res.ok) setAllSubs(await res.json());
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
-
-  const toggleSub = (id) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-
-  const filtered = allSubs.filter(s => {
-    if (!filter) return true;
-    const q = filter.toLowerCase();
-    return (s.customerName||'').toLowerCase().includes(q) || (s.entityName||s.entityId||'').toLowerCase().includes(q) || (s.eventCode||'').toLowerCase().includes(q);
-  });
-
-  const selectAll = () => {
-    if (selected.size === filtered.length) setSelected(new Set());
-    else setSelected(new Set(filtered.map(s => s.customerSubscriptionId)));
-  };
-
-  const sendInvite = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) { alert('Please enter an email address'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) { alert('Please enter a valid email address'); return; }
-    if (selected.size === 0) { alert('Please select at least one subscription'); return; }
-    setSending(true);
-    try {
-      const res = await fetch(`${BASE}/invite-bulk`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedEmail, role, subscriptionIds: Array.from(selected) }),
-      });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
-      const result = await res.json();
-      alert(`\u2705 ${result.message}\n\nThe user can now open the VXT app and sign in with ${trimmedEmail}.\nThey will receive a verification email on first login.`);
-      onBack();
-    } catch (e) { alert(e.message); }
-    finally { setSending(false); }
-  };
-
-  return (
-    <div style={S.root}>
-      <div style={S.header}>
-        <button style={S.backBtn} onClick={onBack}>← Back</button>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.textPrimary, marginLeft: 12 }}>📨 Invite User</div>
-      </div>
-
-      <div style={{ padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
-        <label style={S.fieldLabel}>Email Address</label>
-        <input style={S.input} placeholder="user@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-
-        <label style={{ ...S.fieldLabel, marginTop: 12 }}>Role</label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {ROLES.map(r => (
-            <button key={r} style={{
-              padding: '8px 14px', borderRadius: 16, border: `1px solid ${C.border}`, background: C.bg,
-              color: C.textMuted, fontSize: 13, cursor: 'pointer',
-              ...(role === r ? { background: C.blue, borderColor: C.blue, color: '#fff', fontWeight: 600 } : {}),
-            }} onClick={() => setRole(r)}>{r === 'viewer' ? '👁️ Viewer' : r === 'admin' ? '🔧 Admin' : '👑 Owner'}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 14, color: C.textPrimary, fontWeight: 600 }}>Select Subscriptions ({selected.size}/{filtered.length})</span>
-          <button style={{ background: 'none', border: 'none', color: C.blue, fontSize: 13, fontWeight: 600, cursor: 'pointer' }} onClick={selectAll}>
-            {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
-          </button>
-        </div>
-        <input style={{ ...S.input, marginBottom: 8 }} placeholder="Filter subscriptions..." value={filter} onChange={e => setFilter(e.target.value)} />
-      </div>
-
-      {loading ? <div style={S.loader}>Loading...</div> : (
-        <div style={S.list}>
-          {filtered.map(s => {
-            const isSel = selected.has(s.customerSubscriptionId);
-            return (
-              <div key={s.customerSubscriptionId}
-                style={{ ...S.card, cursor: 'pointer', ...(isSel ? { borderColor: C.green, background: '#0d2818' } : {}) }}
-                onClick={() => toggleSub(s.customerSubscriptionId)}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{s.customerName}</div>
-                    <div style={{ fontSize: 13, color: C.green, marginTop: 2 }}>{s.entityName || s.entityId}</div>
-                    {s.eventCode && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Event: {s.eventCode}</div>}
-                  </div>
-                  <input type="checkbox" checked={isSel} readOnly />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div style={{ padding: '12px 16px', background: C.card, borderTop: `1px solid ${C.border}` }}>
-        <button style={{
-          ...S.saveBtn, width: '100%', padding: 14, fontSize: 15,
-          ...(!email.trim() || selected.size === 0 ? { background: C.border, opacity: 0.6 } : {}),
-        }} onClick={sendInvite} disabled={sending || !email.trim() || selected.size === 0}>
-          {sending ? 'Sending...' : `📨 Invite ${email.trim() ? email.trim().split('@')[0] : 'User'} to ${selected.size} subscription${selected.size !== 1 ? 's' : ''}`}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Main Subscription Management Page ───────────────────────────────── */
 export default function SubscriptionManagementRNPage() {
-  const [subPage, setSubPage] = useState('list'); // 'list' | 'userRoles' | 'inviteUser'
+  const [subPage, setSubPage] = useState('list'); // 'list' | 'userRoles'
   const [selectedSubId, setSelectedSubId] = useState(null);
   const [selectedSubLabel, setSelectedSubLabel] = useState('');
 
@@ -420,9 +297,7 @@ export default function SubscriptionManagementRNPage() {
   if (subPage === 'userRoles' && selectedSubId != null) {
     return <UserRolesView subId={selectedSubId} subLabel={selectedSubLabel} onBack={() => { setSubPage('list'); fetchSubscriptions(); }} />;
   }
-  if (subPage === 'inviteUser') {
-    return <InviteUserView onBack={() => { setSubPage('list'); fetchSubscriptions(); }} />;
-  }
+
 
   return (
     <div style={S.root}>
@@ -435,7 +310,6 @@ export default function SubscriptionManagementRNPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ ...S.addBtn, background: C.blue }} onClick={() => setSubPage('inviteUser')}>🔗 Invite User</button>
           <button style={S.addBtn} onClick={() => openEdit(null)}>+ New</button>
         </div>
       </div>

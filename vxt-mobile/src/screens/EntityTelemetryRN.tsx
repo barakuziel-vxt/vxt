@@ -48,7 +48,7 @@ function deriveDashboardUrl(localUrl: string): string {
     const u = new URL(localUrl);
     return `${u.protocol}//${u.hostname}:3002`;
   } catch {
-    return 'http://192.168.1.22:3002';  // fallback: current PC IP
+    return 'http://192.168.1.36:3002';  // fallback: current PC IP
   }
 }
 
