@@ -43,6 +43,7 @@ export default function UserAuthorizationScreen() {
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [myRole, setMyRole] = useState<string>('viewer');
 
   // Filters
   const [searchText, setSearchText] = useState('');
@@ -63,7 +64,14 @@ export default function UserAuthorizationScreen() {
       const emailParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
       const res = await fetch(`${baseUrl}/admin/authorizations${emailParam}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setAuthorizations(await res.json());
+      const allAuths: Authorization[] = await res.json();
+      setAuthorizations(allAuths);
+
+      // Determine current user's highest role
+      const myAuths = allAuths.filter(a => a.email?.toLowerCase() === userEmail.toLowerCase());
+      if (myAuths.some(a => a.role === 'owner')) setMyRole('owner');
+      else if (myAuths.some(a => a.role === 'admin')) setMyRole('admin');
+      else setMyRole('viewer');
     } catch (e: any) {
       Alert.alert('Error', `Failed to load authorizations: ${e.message}`);
     } finally {
@@ -76,10 +84,12 @@ export default function UserAuthorizationScreen() {
 
   const onRefresh = () => { setRefreshing(true); fetchAuthorizations(); };
 
-  const toggleActive = async (auth: Authorization) => {
-    const newActive = auth.active === 'Y' ? 'N' : 'Y';
+  const toggleActive = async (authItem: Authorization) => {
+    // Admin can only toggle active for viewers
+    if (myRole === 'admin' && authItem.role !== 'viewer') return;
+    const newActive = authItem.active === 'Y' ? 'N' : 'Y';
     try {
-      const res = await fetch(`${baseUrl}/authorizations/${auth.userAuthorizationId}`, {
+      const res = await fetch(`${baseUrl}/authorizations/${authItem.userAuthorizationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: newActive }),
@@ -87,7 +97,7 @@ export default function UserAuthorizationScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAuthorizations(prev =>
         prev.map(a =>
-          a.userAuthorizationId === auth.userAuthorizationId ? { ...a, active: newActive } : a
+          a.userAuthorizationId === authItem.userAuthorizationId ? { ...a, active: newActive } : a
         ),
       );
     } catch (e: any) {
@@ -95,9 +105,11 @@ export default function UserAuthorizationScreen() {
     }
   };
 
-  const updateRole = async (auth: Authorization, newRole: string) => {
+  const updateRole = async (authItem: Authorization, newRole: string) => {
+    // Admin cannot change roles
+    if (myRole === 'admin') return;
     try {
-      const res = await fetch(`${baseUrl}/authorizations/${auth.userAuthorizationId}`, {
+      const res = await fetch(`${baseUrl}/authorizations/${authItem.userAuthorizationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole }),
@@ -105,7 +117,27 @@ export default function UserAuthorizationScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAuthorizations(prev =>
         prev.map(a =>
-          a.userAuthorizationId === auth.userAuthorizationId ? { ...a, role: newRole } : a
+          a.userAuthorizationId === authItem.userAuthorizationId ? { ...a, role: newRole } : a
+        ),
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const updateExpiryDate = async (authItem: Authorization, newExpiry: string) => {
+    // Admin can only update expiry for viewers
+    if (myRole === 'admin' && authItem.role !== 'viewer') return;
+    try {
+      const res = await fetch(`${baseUrl}/authorizations/${authItem.userAuthorizationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiryDate: newExpiry || null }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAuthorizations(prev =>
+        prev.map(a =>
+          a.userAuthorizationId === authItem.userAuthorizationId ? { ...a, expiryDate: newExpiry || null } : a
         ),
       );
     } catch (e: any) {
@@ -220,12 +252,37 @@ export default function UserAuthorizationScreen() {
                   <Text style={styles.subInfo}>
                     {item.customerName} • {item.entityName || item.entityId || 'All Entities'}
                   </Text>
-                  {item.effectiveDate && (
-                    <Text style={styles.dateTxt}>
-                      Effective {new Date(item.effectiveDate).toLocaleDateString()}
-                      {item.expiryDate ? ` • Expires ${new Date(item.expiryDate).toLocaleDateString()}` : ''}
-                    </Text>
-                  )}
+                  <Text style={styles.dateTxt}>
+                    Effective: {item.effectiveDate ? new Date(item.effectiveDate).toLocaleDateString() : 'N/A'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                    <Text style={styles.dateTxt}>Expires: </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (myRole === 'admin' && item.role !== 'viewer') return;
+                        const currentVal = item.expiryDate ? item.expiryDate.split('T')[0] : '';
+                        Alert.prompt
+                          ? Alert.prompt(
+                              'Set Expiry Date',
+                              'Enter date (YYYY-MM-DD) or leave empty to remove',
+                              (val) => { if (val !== null) updateExpiryDate(item, val.trim()); },
+                              'plain-text',
+                              currentVal,
+                            )
+                          : (() => {
+                              const newDate = item.expiryDate ? '' : new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0];
+                              updateExpiryDate(item, newDate);
+                            })();
+                      }}
+                    >
+                      <Text style={[
+                        styles.dateTxt,
+                        { color: item.expiryDate ? C.orange : C.textMuted, textDecorationLine: 'underline' },
+                      ]}>
+                        {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'Not set (tap to set)'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   {item.createDate && (
                     <Text style={styles.dateTxt}>Added {new Date(item.createDate).toLocaleDateString()}</Text>
                   )}
@@ -236,6 +293,7 @@ export default function UserAuthorizationScreen() {
                     onValueChange={() => toggleActive(item)}
                     trackColor={{ false: C.border, true: C.green }}
                     thumbColor={item.active === 'Y' ? '#fff' : C.textMuted}
+                    disabled={myRole === 'admin' && item.role !== 'viewer'}
                   />
                   <Text style={[styles.statusTxt, { color: item.active === 'Y' ? C.green : C.red }]}>
                     {item.active === 'Y' ? 'Active' : 'Revoked'}
@@ -243,13 +301,14 @@ export default function UserAuthorizationScreen() {
                 </View>
               </View>
               {/* Role selector */}
-              <View style={styles.roleRow}>
+              <View style={[styles.roleRow, myRole === 'admin' && { opacity: 0.5 }]}>
                 <Text style={styles.roleLabel}>Role:</Text>
                 {ROLES.map(r => (
                   <TouchableOpacity
                     key={r}
                     style={[styles.roleChip, item.role === r && { backgroundColor: roleColor(r), borderColor: roleColor(r) }]}
                     onPress={() => updateRole(item, r)}
+                    disabled={myRole === 'admin'}
                   >
                     <Text style={[styles.roleChipText, item.role === r && { color: '#fff', fontWeight: '600' }]}>
                       {r}

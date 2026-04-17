@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Switch,
   Alert, ActivityIndicator, Modal, ScrollView, TextInput,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 
 const C = {
   bg:          '#0d1117',
@@ -35,15 +36,17 @@ interface PushSetting {
   entityName: string | null;
 }
 
-interface UserSubscription {
-  userAuthorizationId: number;
+interface CustomerSubscription {
+  customerSubscriptionId: number;
   customerId: number;
-  entityId: string | null;
-  role: string;
   customerName: string;
-  entityName: string | null;
-  effectiveDate: string;
-  expiryDate: string | null;
+  entityId: string;
+  entityName: string;
+  eventId: number | null;
+  eventCode: string | null;
+  subscriptionStartDate: string | null;
+  subscriptionEndDate: string | null;
+  active: string;
 }
 
 interface Props {
@@ -53,7 +56,7 @@ interface Props {
 }
 
 export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: Props) {
-  const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
+  const [subscriptions, setSubscriptions] = useState<CustomerSubscription[]>([]);
   const [pushSettings, setPushSettings] = useState<PushSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSetting, setSelectedSetting] = useState<PushSetting | null>(null);
@@ -77,8 +80,12 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
     if (!userId) return;
     setLoading(true);
     try {
+      const userEmail = auth().currentUser?.email || '';
+      const subsParams = new URLSearchParams();
+      subsParams.append('status', 'Y');
+      if (userEmail) subsParams.append('email', userEmail);
       const [subsRes, pushRes] = await Promise.all([
-        fetch(`${baseUrl}/users/${userId}/subscriptions`),
+        fetch(`${baseUrl}/customersubscriptions?${subsParams.toString()}`),
         fetch(`${baseUrl}/users/${userId}/push-settings`),
       ]);
       if (!subsRes.ok) throw new Error(`Subscriptions: HTTP ${subsRes.status}`);
@@ -97,7 +104,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const openSettings = (sub: UserSubscription) => {
+  const openSettings = (sub: CustomerSubscription) => {
     const existing = pushSettings.find(
       p => p.customerId === sub.customerId && p.entityId === sub.entityId,
     );
@@ -123,7 +130,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
     setModalOpen(true);
   };
 
-  const saveSettings = async (sub: UserSubscription) => {
+  const saveSettings = async (sub: CustomerSubscription) => {
     setSaving(true);
     try {
       if (selectedSetting) {
@@ -174,7 +181,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
     }
   };
 
-  const getPushStatusForSub = (sub: UserSubscription) => {
+  const getPushStatusForSub = (sub: CustomerSubscription) => {
     const setting = pushSettings.find(p => p.customerId === sub.customerId && p.entityId === sub.entityId);
     if (!setting) return { configured: false, enabled: false, severity: 'MEDIUM' };
     return { configured: true, enabled: setting.enabled === 'Y', severity: setting.minSeverity };
@@ -193,7 +200,7 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.title}>🔔 Notification Settings</Text>
-          <Text style={styles.subtitle}>Configure alerts per customer entity</Text>
+          <Text style={styles.subtitle}>Configure alerts per subscription</Text>
         </View>
       </View>
 
@@ -270,9 +277,17 @@ export default function NotificationSettingsScreen({ baseUrl, userId, onBack }: 
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{item.customerName}</Text>
                     <Text style={styles.cardSub}>{item.entityName || item.entityId || 'All Entities'}</Text>
-                    <Text style={[styles.roleBadge, { color: C.blue }]}>
-                      Role: {item.role}
-                    </Text>
+                    {item.eventCode ? (
+                      <Text style={[styles.roleBadge, { color: C.blue }]}>
+                        Event: {item.eventCode}
+                      </Text>
+                    ) : null}
+                    {item.subscriptionStartDate ? (
+                      <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                        {new Date(item.subscriptionStartDate).toLocaleDateString()}
+                        {item.subscriptionEndDate ? ` → ${new Date(item.subscriptionEndDate).toLocaleDateString()}` : ''}
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     {status.configured ? (

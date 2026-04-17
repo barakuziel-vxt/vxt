@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { DrawerContext } from '../context/DrawerContext';
 import { loadDataSource } from '../hooks/useDataSource';
+import auth from '@react-native-firebase/auth';
 
 const C = {
   bg:          '#0d1117',
@@ -499,6 +500,22 @@ export default function EntityAttributeScreen() {
     })();
   }, []);
 
+  // Fetch allowed entityTypeIds based on user's authorized entities
+  useEffect(() => {
+    (async () => {
+      if (!baseUrl) return;
+      const userEmail = auth().currentUser?.email;
+      if (!userEmail) return;
+      try {
+        const res = await fetch(`${baseUrl}/entities?email=${encodeURIComponent(userEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAllowedEntityTypeIds(new Set(data.map((e: any) => Number(e.entityTypeId))));
+        }
+      } catch { /* best-effort */ }
+    })();
+  }, [baseUrl]);
+
   const fetchData = useCallback(async () => {
     if (!baseUrl) return;
     setLoading(true);
@@ -521,6 +538,7 @@ export default function EntityAttributeScreen() {
   const getProtocolName = (id: number | null) => id ? protocols.find((p: any) => p.protocolId === id)?.protocolName || '' : '';
 
   const filtered = useMemo(() => attributes.filter(a => {
+    if (allowedEntityTypeIds && !allowedEntityTypeIds.has(a.entityTypeId)) return false;
     if (filterActive !== 'all' && a.active !== filterActive) return false;
     if (filterEntityType !== 'all' && a.entityTypeId !== parseInt(filterEntityType)) return false;
     if (filter) {
@@ -531,7 +549,7 @@ export default function EntityAttributeScreen() {
         || getEntityTypeName(a.entityTypeId).toLowerCase().includes(q);
     }
     return true;
-  }), [attributes, filter, filterActive, filterEntityType, entityTypes]);
+  }), [attributes, filter, filterActive, filterEntityType, entityTypes, allowedEntityTypeIds]);
 
   const toggleActive = async (attr: Attribute) => {
     if (!baseUrl) return;
@@ -568,7 +586,9 @@ export default function EntityAttributeScreen() {
       onBack={() => setSubPage('list')} />;
   }
 
-  const etPickerItems: DropdownItem[] = entityTypes.map((t: any) => ({ id: t.entityTypeId, label: t.entityTypeName }));
+  const etPickerItems: DropdownItem[] = entityTypes
+    .filter((t: any) => !allowedEntityTypeIds || allowedEntityTypeIds.has(t.entityTypeId))
+    .map((t: any) => ({ id: t.entityTypeId, label: t.entityTypeName }));
 
   const renderItem = ({ item: attr }: { item: Attribute }) => (
     <View style={[styles.card, attr.active === 'N' && { opacity: 0.55 }]}>

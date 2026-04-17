@@ -73,7 +73,7 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'Driver',         label: 'Driver Selection', icon: '🔌' },
   { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
   { key: 'Subscriptions',  label: 'Subscriptions',    icon: '📋' },
-  { key: 'CustomerEntities', label: 'Customer Entities', icon: '🏢' },
+  { key: 'CustomerEntities', label: 'Entities', icon: '🏢' },
   { key: 'EntityAttributes', label: 'Entity Attributes', icon: '⚙️' },
   { key: 'PushNotifications', label: 'Push Notifications', icon: '🔔' },
   { key: 'UserAuthorizations', label: 'User Authorizations', icon: '🔑' },
@@ -184,8 +184,9 @@ function AppShell() {
   const insets = useSafeAreaInsets();
   const [active, setActive]   = React.useState<Screen>('Telemetry');
   const [isOpen, setIsOpen]   = React.useState(false);
+  const [userRole, setUserRole] = React.useState<string>('viewer');
 
-  // Initialize push notifications
+  // Initialize push notifications + fetch user role
   React.useEffect(() => {
     (async () => {
       try {
@@ -193,8 +194,20 @@ function AppShell() {
         if (ds.baseUrl && profile.userId) {
           await initNotifications(ds.baseUrl, profile.userId);
         }
+        // Determine user's highest role
+        const userEmail = auth().currentUser?.email;
+        if (ds.baseUrl && userEmail) {
+          const res = await fetch(`${ds.baseUrl}/admin/authorizations?email=${encodeURIComponent(userEmail)}`);
+          if (res.ok) {
+            const auths = await res.json();
+            const myAuths = auths.filter((a: any) => a.email?.toLowerCase() === userEmail.toLowerCase());
+            if (myAuths.some((a: any) => a.role === 'owner')) setUserRole('owner');
+            else if (myAuths.some((a: any) => a.role === 'admin')) setUserRole('admin');
+            else setUserRole('viewer');
+          }
+        }
       } catch (e) {
-        console.warn('Push notification init failed:', e);
+        console.warn('Init failed:', e);
       }
     })();
   }, []);
@@ -280,7 +293,12 @@ function AppShell() {
           </View>
 
           {/* Menu items */}
-          {MENU_ITEMS.map(item => (
+          {MENU_ITEMS
+            .filter(item => {
+              if (item.key === 'UserAuthorizations' && userRole === 'viewer') return false;
+              return true;
+            })
+            .map(item => (
             <TouchableOpacity
               key={item.key}
               style={[styles.menuItem, active === item.key && styles.menuItemActive]}

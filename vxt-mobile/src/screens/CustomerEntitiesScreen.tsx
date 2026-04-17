@@ -41,6 +41,7 @@ export default function CustomerEntitiesScreen() {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Y' | 'N'>('all');
   const [subPage, setSubPage] = useState<SubPage>('list');
+  const [authorizedEntityIds, setAuthorizedEntityIds] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -48,6 +49,22 @@ export default function CustomerEntitiesScreen() {
       setBaseUrl(ds.baseUrl);
     })();
   }, []);
+
+  // Fetch authorized entity IDs for the current user
+  useEffect(() => {
+    (async () => {
+      if (!baseUrl) return;
+      const userEmail = auth().currentUser?.email;
+      if (!userEmail) return;
+      try {
+        const res = await fetch(`${baseUrl}/entities?email=${encodeURIComponent(userEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAuthorizedEntityIds(new Set(data.map((e: any) => String(e.entityId))));
+        }
+      } catch { /* best-effort */ }
+    })();
+  }, [baseUrl]);
 
   const fetchEntities = useCallback(async () => {
     if (!baseUrl) return;
@@ -72,6 +89,8 @@ export default function CustomerEntitiesScreen() {
   }, [baseUrl, statusFilter]);
 
   const filtered = entities.filter(e => {
+    // Filter by user authorization
+    if (authorizedEntityIds && !authorizedEntityIds.has(String(e.entityId))) return false;
     if (!filter) return true;
     const q = filter.toLowerCase();
     return (
@@ -105,7 +124,7 @@ export default function CustomerEntitiesScreen() {
           <Text style={styles.menuBtnText}>☰</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.title}>🏢 Customer Entities</Text>
+          <Text style={styles.title}>🏢 Entities</Text>
           <Text style={styles.subtitle}>Manage entities & invite users</Text>
         </View>
       </View>
