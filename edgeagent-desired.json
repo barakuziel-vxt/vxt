@@ -1,0 +1,315 @@
+{
+  "$metadata": {
+    "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+    "$lastUpdatedVersion": 5,
+    "modules": {
+      "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+      "$lastUpdatedVersion": 4,
+      "influxdb2": {
+        "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+        "$lastUpdatedVersion": 4,
+        "env": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4,
+          "DOCKER_INFLUXDB_INIT_BUCKET": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          },
+          "DOCKER_INFLUXDB_INIT_MODE": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          },
+          "DOCKER_INFLUXDB_INIT_ORG": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          },
+          "DOCKER_INFLUXDB_INIT_PASSWORD": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          },
+          "DOCKER_INFLUXDB_INIT_RETENTION": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          },
+          "DOCKER_INFLUXDB_INIT_USERNAME": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          }
+        },
+        "restartPolicy": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "settings": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4,
+          "createOptions": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          },
+          "image": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          }
+        },
+        "status": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "type": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "version": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        }
+      }
+    },
+    "properties": {
+      "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+      "$lastUpdatedVersion": 5,
+      "desired": {
+        "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+        "$lastUpdatedVersion": 5,
+        "systemModules": {
+          "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+          "$lastUpdatedVersion": 5,
+          "edgeAgent": {
+            "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+            "$lastUpdatedVersion": 5,
+            "env": {
+              "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+              "$lastUpdatedVersion": 5,
+              "sendRuntimeQualityTelemetry": {
+                "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+                "$lastUpdatedVersion": 5,
+                "value": {
+                  "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+                  "$lastUpdatedVersion": 5
+                }
+              }
+            }
+          },
+          "edgeHub": {
+            "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+            "$lastUpdatedVersion": 5,
+            "env": {
+              "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+              "$lastUpdatedVersion": 5,
+              "RuntimeLogLevel": {
+                "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+                "$lastUpdatedVersion": 5,
+                "value": {
+                  "$lastUpdated": "2026-04-17T22:03:51.6355105Z",
+                  "$lastUpdatedVersion": 5
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+      "$lastUpdatedVersion": 4,
+      "settings": {
+        "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+        "$lastUpdatedVersion": 4,
+        "loggingOptions": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "minDockerVersion": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "registryCredentials": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        }
+      },
+      "type": {
+        "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+        "$lastUpdatedVersion": 4
+      }
+    },
+    "schemaVersion": {
+      "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+      "$lastUpdatedVersion": 4
+    },
+    "systemModules": {
+      "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+      "$lastUpdatedVersion": 4,
+      "edgeAgent": {
+        "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+        "$lastUpdatedVersion": 4,
+        "settings": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4,
+          "createOptions": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          },
+          "image": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          }
+        },
+        "type": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        }
+      },
+      "edgeHub": {
+        "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+        "$lastUpdatedVersion": 4,
+        "env": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4,
+          "OptimizeForPerformance": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4,
+            "value": {
+              "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+              "$lastUpdatedVersion": 4
+            }
+          }
+        },
+        "restartPolicy": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "settings": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4,
+          "createOptions": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          },
+          "image": {
+            "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+            "$lastUpdatedVersion": 4
+          }
+        },
+        "status": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        },
+        "type": {
+          "$lastUpdated": "2026-04-08T22:06:38.7301410Z",
+          "$lastUpdatedVersion": 4
+        }
+      }
+    }
+  },
+  "$version": 5,
+  "modules": {
+    "influxdb2": {
+      "env": {
+        "DOCKER_INFLUXDB_INIT_BUCKET": {
+          "value": "signalk_history"
+        },
+        "DOCKER_INFLUXDB_INIT_MODE": {
+          "value": "setup"
+        },
+        "DOCKER_INFLUXDB_INIT_ORG": {
+          "value": "vxt"
+        },
+        "DOCKER_INFLUXDB_INIT_PASSWORD": {
+          "value": "VxtInflux2026!"
+        },
+        "DOCKER_INFLUXDB_INIT_RETENTION": {
+          "value": "24h"
+        },
+        "DOCKER_INFLUXDB_INIT_USERNAME": {
+          "value": "admin"
+        }
+      },
+      "restartPolicy": "always",
+      "settings": {
+        "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"8086/tcp\":[{\"HostPort\":\"8086\"}]},\"Mounts\":[{\"Type\":\"tmpfs\",\"Target\":\"/var/lib/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":524288000}},{\"Type\":\"tmpfs\",\"Target\":\"/etc/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":1048576}}]}}",
+        "image": "influxdb:2.7"
+      },
+      "status": "running",
+      "type": "docker",
+      "version": "1.0"
+    }
+  },
+  "properties": {
+    "desired": {
+      "systemModules": {
+        "edgeAgent": {
+          "env": {
+            "sendRuntimeQualityTelemetry": {
+              "value": "false"
+            }
+          }
+        },
+        "edgeHub": {
+          "env": {
+            "RuntimeLogLevel": {
+              "value": "Warning"
+            }
+          }
+        }
+      }
+    }
+  },
+  "runtime": {
+    "settings": {
+      "loggingOptions": "",
+      "minDockerVersion": "v1.25",
+      "registryCredentials": {}
+    },
+    "type": "docker"
+  },
+  "schemaVersion": "1.1",
+  "systemModules": {
+    "edgeAgent": {
+      "settings": {
+        "createOptions": "{}",
+        "image": "mcr.microsoft.com/azureiotedge-agent:1.5"
+      },
+      "type": "docker"
+    },
+    "edgeHub": {
+      "env": {
+        "OptimizeForPerformance": {
+          "value": "false"
+        }
+      },
+      "restartPolicy": "always",
+      "settings": {
+        "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"5671/tcp\":[{\"HostPort\":\"5671\"}],\"8883/tcp\":[{\"HostPort\":\"8883\"}],\"443/tcp\":[{\"HostPort\":\"8443\"}]}}}",
+        "image": "mcr.microsoft.com/azureiotedge-hub:1.5"
+      },
+      "status": "running",
+      "type": "docker"
+    }
+  }
+}

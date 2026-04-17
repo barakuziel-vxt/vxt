@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "desired": {
+      "systemModules": {
+        "edgeAgent": {
+          "env": {
+            "sendRuntimeQualityTelemetry": {
+              "value": "false"
+            }
+          }
+        },
+        "edgeHub": {
+          "env": {
+            "RuntimeLogLevel": {
+              "value": "Warning"
+            }
+          }
+        }
+      }
+    }
+  }
+}

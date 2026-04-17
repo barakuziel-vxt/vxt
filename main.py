@@ -4848,7 +4848,12 @@ def _init_firebase_admin():
         elif sa_json:
             print("[FIREBASE] Initializing from FIREBASE_SERVICE_ACCOUNT_JSON env var")
             import json as _json
-            cred_data = _json.loads(sa_json)
+            import base64 as _b64
+            try:
+                cred_data = _json.loads(sa_json)
+            except _json.JSONDecodeError:
+                # Try base64-decoded JSON
+                cred_data = _json.loads(_b64.b64decode(sa_json).decode('utf-8'))
             cred = credentials.Certificate(cred_data)
             if not project_id and 'project_id' in cred_data:
                 project_id = cred_data['project_id']

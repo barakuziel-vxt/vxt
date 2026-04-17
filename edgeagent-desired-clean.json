@@ -1,0 +1,58 @@
+{
+  "properties": null,
+  "modules": {
+    "influxdb2": {
+      "env": {
+        "DOCKER_INFLUXDB_INIT_BUCKET": { "value": "signalk_history" },
+        "DOCKER_INFLUXDB_INIT_MODE": { "value": "setup" },
+        "DOCKER_INFLUXDB_INIT_ORG": { "value": "vxt" },
+        "DOCKER_INFLUXDB_INIT_PASSWORD": { "value": "VxtInflux2026!" },
+        "DOCKER_INFLUXDB_INIT_RETENTION": { "value": "720h" },
+        "DOCKER_INFLUXDB_INIT_USERNAME": { "value": "admin" }
+      },
+      "restartPolicy": "always",
+      "settings": {
+        "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"8086/tcp\":[{\"HostPort\":\"8086\"}]},\"Mounts\":[{\"Type\":\"tmpfs\",\"Target\":\"/var/lib/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":524288000}},{\"Type\":\"tmpfs\",\"Target\":\"/etc/influxdb2\",\"TmpfsOptions\":{\"SizeBytes\":1048576}}]}}",
+        "image": "influxdb:2.7"
+      },
+      "status": "running",
+      "type": "docker",
+      "version": "1.0"
+    }
+  },
+  "runtime": {
+    "settings": {
+      "loggingOptions": "",
+      "minDockerVersion": "v1.25",
+      "registryCredentials": {}
+    },
+    "type": "docker"
+  },
+  "schemaVersion": "1.1",
+  "systemModules": {
+    "edgeAgent": {
+      "env": {
+        "sendRuntimeQualityTelemetry": { "value": "false" }
+      },
+      "settings": {
+        "createOptions": "{}",
+        "image": "mcr.microsoft.com/azureiotedge-agent:1.5"
+      },
+      "type": "docker"
+    },
+    "edgeHub": {
+      "env": {
+        "OptimizeForPerformance": { "value": "false" },
+        "RuntimeLogLevel": { "value": "Warning" },
+        "UpstreamProtocol": { "value": "AmqpWs" }
+      },
+      "restartPolicy": "always",
+      "settings": {
+        "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"5671/tcp\":[{\"HostPort\":\"5671\"}],\"8883/tcp\":[{\"HostPort\":\"8883\"}],\"443/tcp\":[{\"HostPort\":\"8443\"}]}}}",
+        "image": "mcr.microsoft.com/azureiotedge-hub:1.5"
+      },
+      "status": "running",
+      "type": "docker"
+    }
+  }
+}
