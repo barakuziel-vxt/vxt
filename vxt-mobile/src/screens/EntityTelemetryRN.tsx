@@ -93,8 +93,9 @@ export default function EntityTelemetryRN() {
   const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver = ds.type === 'driver';
-  // All modes: load from bundled APK assets (bridge proxies API calls)
-  const webViewUrl = `file:///android_asset/www/index.html?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
+  // Load directly from Azure-deployed admin-dashboard (single source of truth)
+  // Falls back to local if Azure is unavailable
+  const webViewUrl = `https://vxt-app.azurewebsites.net/?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
 
   // ── Bridge: handle requests from WebView ─────────────────────────────────────
   async function handleBridgeMessage(event: WebViewMessageEvent) {
