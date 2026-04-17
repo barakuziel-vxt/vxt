@@ -4649,7 +4649,7 @@ def invite_user_bulk(data: dict):
         cur = conn.cursor()
 
         # 1. Verify customer exists
-        cur.execute("SELECT customerId FROM dbo.Customer WHERE customerId = ?", (customer_id,))
+        cur.execute("SELECT customerId FROM Customers WHERE customerId = ?", (customer_id,))
         if not cur.fetchone():
             cur.close()
             return_db_connection(conn)
