@@ -3081,7 +3081,7 @@ def get_customer_subscriptions(status: str = None, email: str = None):
         
         if email:
             join_clause = """
-                JOIN UserAuthorization ua ON ua.customerId = cs.customerId AND ua.entityId = cs.entityId AND ua.active = 'Y'
+                JOIN UserAuthorization ua ON ua.customerId = cs.customerId AND (ua.entityId = cs.entityId OR (ua.entityId IS NULL AND cs.entityId IS NULL)) AND ua.active = 'Y'
                 JOIN AppUser au ON au.userId = ua.userId
             """
             where_clauses.append("LOWER(au.email) = ?")
