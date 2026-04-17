@@ -162,7 +162,7 @@ function hazardPointToLayer(feature, latlng) {
     iconSize: [20, 20],
     iconAnchor: [10, 10]
   });
-  return LeafletMarker(latlng, { icon });
+  return new LeafletMarker(latlng, { icon });
 }
 
 function onEachDepthContour(feature, layer) {
@@ -177,6 +177,51 @@ function depthContourStyle(feature) {
     100: { color: '#d97706', weight: 1, opacity: 0.3 }
   };
   return depths[feature.properties.depth] || { color: '#999', weight: 1 };
+}
+
+// Depth contours (isobaths)
+function getDepthContours(centerLat, centerLon) {
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { depth: 10, name: '10m Isobath' },
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [centerLon - 0.3, centerLat - 0.25],
+            [centerLon + 0.2, centerLat - 0.15],
+            [centerLon + 0.1, centerLat + 0.05]
+          ]
+        }
+      },
+      {
+        type: 'Feature',
+        properties: { depth: 50, name: '50m Isobath' },
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [centerLon - 0.4, centerLat - 0.35],
+            [centerLon + 0.3, centerLat - 0.2],
+            [centerLon + 0.2, centerLat + 0.1]
+          ]
+        }
+      },
+      {
+        type: 'Feature',
+        properties: { depth: 100, name: '100m Isobath' },
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [centerLon - 0.5, centerLat - 0.45],
+            [centerLon + 0.4, centerLat - 0.25],
+            [centerLon + 0.3, centerLat + 0.15]
+          ]
+        }
+      }
+    ]
+  };
 }
 
 export default function LocationMap({ telemetryData, title = 'Location History' }) {
