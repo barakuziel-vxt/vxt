@@ -157,8 +157,8 @@ export class GatewayService {
 
     // Create transport based on gateway type
     if (config.gatewayType === 'kafka') {
-      // Derive API base URL from bootstrap server (e.g., "192.168.1.22:9092" → "http://192.168.1.22:8000")
-      const bootstrapHost = config.kafkaBootstrap.split(':')[0] || '192.168.1.22';
+      // Derive API base URL from bootstrap server (e.g., "192.168.1.36:9092" → "http://192.168.1.36:8000")
+      const bootstrapHost = config.kafkaBootstrap.split(':')[0] || '192.168.1.36';
       const apiBase = `http://${bootstrapHost}:8000`;
       
       this.addLog(`Connecting to Kafka broker: ${config.kafkaBootstrap} / topic: ${config.kafkaTopic}`, 'info');

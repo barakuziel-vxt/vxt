@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,13 @@ import {
   Platform,
 } from 'react-native';
 import auth from '@react-native-firebase/auth';
-import { loadDataSource, DEFAULT_LOCAL_URL, DEFAULT_CLOUD_URL } from '../hooks/useDataSource';
+import {
+  loadDataSource,
+  saveDataSource,
+  DataSourceType,
+  DEFAULT_LOCAL_URL,
+  DEFAULT_CLOUD_URL,
+} from '../hooks/useDataSource';
 
 const C = {
   bg:          '#0d1117',
@@ -36,6 +42,29 @@ export default function LoginScreen({ onAuthenticated }: Props) {
   const [step, setStep] = useState<Step>('email');
   const [busy, setBusy] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+
+  // Endpoint settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [dsType, setDsType] = useState<DataSourceType>('local');
+  const [cloudUrl, setCloudUrl] = useState(DEFAULT_CLOUD_URL);
+  const [localUrl, setLocalUrl] = useState(DEFAULT_LOCAL_URL);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  useEffect(() => {
+    loadDataSource().then(ds => {
+      setDsType(ds.type);
+      setCloudUrl(ds.cloudUrl);
+      setLocalUrl(ds.localUrl);
+      setSettingsLoaded(true);
+    });
+  }, []);
+
+  const handleSaveSettings = async () => {
+    await saveDataSource(dsType, cloudUrl, localUrl);
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  };
 
   const getBaseUrl = async (): Promise<string> => {
     try {
@@ -237,6 +266,60 @@ export default function LoginScreen({ onAuthenticated }: Props) {
               We'll send a verification email to confirm you own this address.
             </Text>
           </View>
+
+          {/* Endpoint settings toggle */}
+          <TouchableOpacity
+            style={styles.settingsToggle}
+            onPress={() => setShowSettings(prev => !prev)}
+          >
+            <Text style={styles.settingsToggleText}>
+              {showSettings ? '▼' : '▶'} ⚙️ API Endpoint Settings
+            </Text>
+          </TouchableOpacity>
+
+          {showSettings && settingsLoaded && (
+            <View style={styles.settingsPanel}>
+              <Text style={styles.settingsSectionTitle}>Select API Endpoint</Text>
+
+              {(['cloud', 'local'] as DataSourceType[]).map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.settingsOption, dsType === t && styles.settingsOptionActive]}
+                  onPress={() => setDsType(t)}
+                >
+                  <View style={[styles.settingsRadioOuter, dsType === t && { borderColor: C.blue }]}>
+                    {dsType === t && <View style={styles.settingsRadioInner} />}
+                  </View>
+                  <Text style={styles.settingsOptionText}>
+                    {t === 'cloud' ? '☁️ Cloud' : '🏠 Local'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              <Text style={styles.settingsUrlLabel}>
+                {dsType === 'cloud' ? 'Cloud API URL' : 'Local Server URL'}
+              </Text>
+              <TextInput
+                style={styles.settingsUrlInput}
+                value={dsType === 'cloud' ? cloudUrl : localUrl}
+                onChangeText={dsType === 'cloud' ? setCloudUrl : setLocalUrl}
+                placeholder={dsType === 'cloud' ? DEFAULT_CLOUD_URL : DEFAULT_LOCAL_URL}
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+
+              <TouchableOpacity
+                style={[styles.settingsSaveBtn, settingsSaved && { backgroundColor: C.green }]}
+                onPress={handleSaveSettings}
+              >
+                <Text style={styles.settingsSaveBtnText}>
+                  {settingsSaved ? '✓ Saved' : 'Save Endpoint'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -341,5 +424,99 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.textMuted,
     lineHeight: 18,
+  },
+  settingsToggle: {
+    width: '100%',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  settingsToggleText: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontWeight: '600',
+  },
+  settingsPanel: {
+    width: '100%',
+    backgroundColor: C.card,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 8,
+  },
+  settingsSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.textPrimary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 6,
+  },
+  settingsOptionActive: {
+    borderColor: C.blue,
+    backgroundColor: '#0d1f38',
+  },
+  settingsRadioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  settingsRadioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: C.blue,
+  },
+  settingsOptionText: {
+    fontSize: 14,
+    color: C.textPrimary,
+    fontWeight: '600',
+  },
+  settingsUrlLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.textMuted,
+    marginTop: 8,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  settingsUrlInput: {
+    backgroundColor: '#0d1117',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    color: C.textPrimary,
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  settingsSaveBtn: {
+    marginTop: 10,
+    backgroundColor: C.blue,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  settingsSaveBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

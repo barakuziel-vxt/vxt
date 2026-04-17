@@ -162,7 +162,11 @@ def get_cors_origins():
         "http://192.168.1.22:3000",
         "http://192.168.1.22:3001",
         "http://192.168.1.22:3002",
-        "http://192.168.1.22:5173"
+        "http://192.168.1.22:5173",
+        "http://192.168.1.36:3000",
+        "http://192.168.1.36:3001",
+        "http://192.168.1.36:3002",
+        "http://192.168.1.36:5173"
     ]
     
     if ENVIRONMENT.lower() == 'production':
@@ -2044,8 +2048,7 @@ def get_entities(entityTypeId: int = None, email: str = None):
                        e.gender, e.birthDate, e.active
                 FROM Entity e
                 JOIN EntityType et ON e.entityTypeId = et.entityTypeId
-                JOIN CustomerSubscriptions cs ON cs.entityId = e.entityId AND cs.active = 'Y'
-                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN UserAuthorization ua ON ua.entityId = e.entityId AND ua.active = 'Y'
                 JOIN AppUser au ON au.userId = ua.userId
                 WHERE LOWER(au.email) = ?
             """
@@ -3078,7 +3081,7 @@ def get_customer_subscriptions(status: str = None, email: str = None):
         
         if email:
             join_clause = """
-                JOIN UserAuthorization ua ON ua.customerSubscriptionId = cs.customerSubscriptionId AND ua.active = 'Y'
+                JOIN UserAuthorization ua ON ua.customerId = cs.customerId AND ua.entityId = cs.entityId AND ua.active = 'Y'
                 JOIN AppUser au ON au.userId = ua.userId
             """
             where_clauses.append("LOWER(au.email) = ?")

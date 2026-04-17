@@ -42,7 +42,7 @@ function deriveDashboardUrl(localUrl: string): string {
     const u = new URL(localUrl);
     return `${u.protocol}//${u.hostname}:3002`;
   } catch {
-    return 'http://192.168.1.22:3002';
+    return 'http://192.168.1.36:3002';
   }
 }
 
@@ -129,8 +129,8 @@ export default function ReportManuallyRN() {
 
             if (isKafkaGateway && gatewayConfig) {
               // ── Route to Kafka via REST API endpoint ─────────────────────
-              // Derive API base from bootstrap address (e.g., "192.168.1.22:9092" → "http://192.168.1.22:8000")
-              const bootstrapHost = (gatewayConfig.kafkaBootstrap || '192.168.1.22').split(':')[0];
+              // Derive API base from bootstrap address (e.g., "192.168.1.36:9092" → "http://192.168.1.36:8000")
+              const bootstrapHost = (gatewayConfig.kafkaBootstrap || '192.168.1.36').split(':')[0];
               const kafkaApiBase = `http://${bootstrapHost}:8000`;
               
               console.log('[ReportManuallyRN] Kafka route:', { kafkaApiBase, bootstrap: gatewayConfig.kafkaBootstrap, topic: gatewayConfig.kafkaTopic });
@@ -142,7 +142,7 @@ export default function ReportManuallyRN() {
                 timestamp:               d.timestamp || new Date().toISOString(),
                 source:                  d.source || 'Manual',
                 gatewayType:             'kafka',
-                kafkaBootstrap:          gatewayConfig.kafkaBootstrap || '192.168.1.22:9092',
+                kafkaBootstrap:          gatewayConfig.kafkaBootstrap || '192.168.1.36:9092',
                 kafkaTopic:              gatewayConfig.kafkaTopic || 'iot-telemetry',
               };
 

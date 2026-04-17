@@ -256,12 +256,12 @@ export default function GatewayStatusScreen() {
             <Text style={styles.formLabel}>Bootstrap Server</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="192.168.1.22:9092"
+              placeholder="192.168.1.36:9092"
               placeholderTextColor={C.textMuted}
               value={activeConfig.kafkaBootstrap}
               onChangeText={(val) => updateConfig({ kafkaBootstrap: val })}
             />
-            <Text style={styles.formHint}>Default: 192.168.1.22:9092 (Redpanda on network)</Text>
+            <Text style={styles.formHint}>Default: 192.168.1.36:9092 (Redpanda on network)</Text>
           </View>
 
           <View style={styles.formGroup}>
