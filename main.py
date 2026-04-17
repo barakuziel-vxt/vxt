@@ -5274,7 +5274,7 @@ def get_all_authorizations(email: str = None):
                 CONCAT(ent.entityFirstName, ' ', ISNULL(ent.entityLastName, '')) AS entityName
             FROM dbo.UserAuthorization ua
             JOIN dbo.AppUser au ON au.userId = ua.userId
-            JOIN dbo.Customer c ON c.customerId = ua.customerId
+            JOIN Customers c ON c.customerId = ua.customerId
             LEFT JOIN dbo.Entity ent ON ent.entityId = ua.entityId
             {where_clause}
             ORDER BY au.email, c.customerName
