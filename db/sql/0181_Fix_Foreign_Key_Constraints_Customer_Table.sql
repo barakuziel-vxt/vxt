@@ -23,7 +23,75 @@ PRINT '=========================================================================
 GO
 
 -- ============================================================================
--- STEP 1: Fix AppUser Table
+-- STEP 0: Ensure AppUser has customerId column
+-- ============================================================================
+PRINT '[0/4] Ensuring AppUser table has customerId column...';
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('[dbo].[AppUser]') AND name = 'customerId')
+BEGIN
+    ALTER TABLE [dbo].[AppUser] ADD [customerId] INT NULL;
+    PRINT '  ✓ Added missing column: customerId';
+END
+ELSE
+BEGIN
+    PRINT '  ✓ customerId column already exists';
+END
+GO
+
+-- ============================================================================
+-- STEP 1: Ensure UserAuthorization has customerId and entityId columns
+-- ============================================================================
+PRINT '[1/4] Ensuring UserAuthorization table has customerId and entityId columns...';
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('[dbo].[UserAuthorization]') AND name = 'customerId')
+BEGIN
+    ALTER TABLE [dbo].[UserAuthorization] ADD [customerId] INT NULL;
+    PRINT '  ✓ Added missing column: customerId';
+END
+ELSE
+BEGIN
+    PRINT '  ✓ customerId column already exists';
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('[dbo].[UserAuthorization]') AND name = 'entityId')
+BEGIN
+    ALTER TABLE [dbo].[UserAuthorization] ADD [entityId] NVARCHAR(50) NULL;
+    PRINT '  ✓ Added missing column: entityId';
+END
+ELSE
+BEGIN
+    PRINT '  ✓ entityId column already exists';
+END
+GO
+
+-- ============================================================================
+-- STEP 2: Ensure UserAppPushNotification has customerId and entityId columns
+-- ============================================================================
+PRINT '[2/4] Ensuring UserAppPushNotification table has customerId and entityId columns...';
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('[dbo].[UserAppPushNotification]') AND name = 'customerId')
+BEGIN
+    ALTER TABLE [dbo].[UserAppPushNotification] ADD [customerId] INT NULL;
+    PRINT '  ✓ Added missing column: customerId';
+END
+ELSE
+BEGIN
+    PRINT '  ✓ customerId column already exists';
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('[dbo].[UserAppPushNotification]') AND name = 'entityId')
+BEGIN
+    ALTER TABLE [dbo].[UserAppPushNotification] ADD [entityId] NVARCHAR(50) NULL;
+    PRINT '  ✓ Added missing column: entityId';
+END
+ELSE
+BEGIN
+    PRINT '  ✓ entityId column already exists';
+END
+GO
+
+-- ============================================================================
+-- STEP 3: Fix AppUser Table
 -- ============================================================================
 PRINT '[1/3] Fixing AppUser table...';
 
