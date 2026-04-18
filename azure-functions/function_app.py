@@ -149,30 +149,17 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
                 }])
 
             # Call sp_RegisterEvent stored procedure
-            cursor.execute("""
-                DECLARE @eventLogId BIGINT;
-                EXEC dbo.sp_RegisterEvent
-                    @entityId = ?,
-                    @eventId = ?,
-                    @cumulativeScore = ?,
-                    @probability = 1.0,
-                    @triggeredAt = ?,
-                    @analysisWindowInMin = 0,
-                    @processingTimeMs = 0,
-                    @detailsJson = ?,
-                    @eventLogId = @eventLogId OUTPUT;
-                SELECT @eventLogId AS eventLogId;
-            """, (
-                str(entity_id), str(event_id), str(score),
-                triggered_at, details_json,
-            ))
-
-            event_log_id = None
-            row = cursor.fetchone()
-            if row and row[0]:
-                event_log_id = int(row[0])
-
+            cursor.execute(
+                "EXEC dbo.sp_RegisterEvent "
+                "@entityId=?, @eventId=?, @cumulativeScore=?, "
+                "@probability=1.0, @triggeredAt=?, "
+                "@analysisWindowInMin=0, @processingTimeMs=0, "
+                "@detailsJson=?",
+                (str(entity_id), str(event_id), str(score),
+                 triggered_at, details_json),
+            )
             conn.commit()
+            event_log_id = None
             logger.info(
                 "[ALERT] ✅ EventLog created via sp_RegisterEvent: id=%s entity=%s event=%s path=%s state=%s score=%s",
                 event_log_id, entity_id, event_id, path, state, score,
