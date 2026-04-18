@@ -485,6 +485,20 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                 if state in ("alarm", "emergency"):
                                     # Strip 'notifications.' prefix for the alert path
                                     alert_path = path.removeprefix("notifications.")
+
+                                    # For geofence notifications (navigation.geofence.<id>),
+                                    # resolve to the configured attribute (e.g. navigation.position)
+                                    # so the API can link EventLogDetails to the correct attribute.
+                                    if alert_path.startswith("navigation.geofence."):
+                                        fence_id_str = alert_path.rsplit(".", 1)[-1]
+                                        for gf in vxt_config.get("geofences", []):
+                                            gf_id = str(gf.get("id", ""))
+                                            if gf_id == fence_id_str:
+                                                attr = gf.get("attribute", "")
+                                                if attr:
+                                                    alert_path = attr.replace("/", ".")
+                                                break
+
                                     eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
                                     alert_msg = json.dumps({
                                         "type": "ALERT",

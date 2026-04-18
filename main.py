@@ -4209,11 +4209,14 @@ def _get_device_config(entity_id: str) -> dict:
             })
         alarms = dict(alarms)
 
-        # 4. Geofences
+        # 4. Geofences (with linked attribute for event details)
         geo_rows = _query_as_dicts(conn, """
             SELECT g.customerGeofenceCriteriaId,
-                   g.geofenceName, g.geoType, g.coordinates
+                   g.geofenceName, g.geoType, g.coordinates,
+                   a.entityTypeAttributeCode
             FROM CustomerGeofenceCriteria g
+            LEFT JOIN EntityTypeAttribute a
+                 ON a.entityTypeAttributeId = g.entityTypeAttributeId
             WHERE g.customerId = ? AND g.active = 'Y'
         """, (customer_id,))
 
@@ -4230,6 +4233,10 @@ def _get_device_config(entity_id: str) -> dict:
                 "type": row["geoType"],
                 "coordinates": coords,
             }
+            # Include the linked SignalK attribute (e.g. "navigation/position")
+            attr_code = row.get("entityTypeAttributeCode")
+            if attr_code:
+                fence["attribute"] = attr_code.replace(".", "/")
             geofences.append(fence)
 
         return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences}
