@@ -128,6 +128,8 @@ if (-not $Direct) {
 
     # Push prod (triggers GitHub Actions → build image → deploy to Edge)
     Write-Host "Pushing to prod (triggers CI/CD pipeline)..." -ForegroundColor Yellow
+    # Bypass pre-push hook (only deploy scripts may push to prod)
+    $env:VXT_DEPLOY_SCRIPT = "1"
     git push origin prod
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Failed to push to prod" -ForegroundColor Red
