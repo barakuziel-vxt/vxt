@@ -48,17 +48,17 @@
             "restartPolicy": "always",
             "settings": {
               "image": "ghcr.io/barakuziel-vxt/vxt-orchestrator:__TAG__",
-              "createOptions": "{\"HostConfig\":{\"NetworkMode\":\"host\"}}"
+              "createOptions": "{\"HostConfig\":{\"ExtraHosts\":[\"host.docker.internal:host-gateway\"]}}"
             },
             "env": {
               "SIGNALK_BASE_URL": {
-                "value": "http://localhost:3000"
+                "value": "http://host.docker.internal:3000"
               },
               "SIGNALK_TOKEN": {
                 "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiaWF0IjoxNzc1NzU5MjYyfQ.UpuEAvDSuXBjTD5MfSbuzLKO_buyP2Pgp2U253VlTGo"
               },
               "INFLUXDB_URL": {
-                "value": "http://localhost:8086"
+                "value": "http://host.docker.internal:8086"
               },
               "INFLUXDB_TOKEN": {
                 "value": "vxt-influx-fixed-token-2026-halos"
