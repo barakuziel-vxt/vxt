@@ -1,0 +1,30 @@
+#!/bin/sh
+# ──────────────────────────────────────────────────────────────────────────────
+# Pre-push hook: Block direct pushes to the 'prod' branch
+# ──────────────────────────────────────────────────────────────────────────────
+# Only push-to-prod.ps1 and push-to-raspberry.ps1 should push to prod.
+# They set VXT_DEPLOY_SCRIPT=1 to bypass this hook.
+#
+# To install: git config core.hooksPath .githooks
+# ──────────────────────────────────────────────────────────────────────────────
+
+remote="$1"
+
+while read local_ref local_sha remote_ref remote_sha; do
+    if echo "$remote_ref" | grep -q "refs/heads/prod"; then
+        if [ -z "$VXT_DEPLOY_SCRIPT" ]; then
+            echo ""
+            echo "  ❌  Direct push to 'prod' is BLOCKED"
+            echo ""
+            echo "  Production deploys must go through the controlled scripts:"
+            echo "    • push-to-prod.ps1          (general deployment)"
+            echo "    • push-to-raspberry.ps1      (IoT Edge deployment)"
+            echo ""
+            echo "  If you really need to bypass, set VXT_DEPLOY_SCRIPT=1"
+            echo ""
+            exit 1
+        fi
+    fi
+done
+
+exit 0

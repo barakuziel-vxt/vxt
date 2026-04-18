@@ -62,6 +62,8 @@ Write-Host "✓ Merged main" -ForegroundColor Green
 Write-Host "Pushing to prod (will trigger Azure deployment)..." -ForegroundColor Yellow
 # Use SSH deploy key for authentication
 $env:GIT_SSH_COMMAND = "ssh -i $env:USERPROFILE\.ssh\deploy_prod -o StrictHostKeyChecking=accept-new"
+# Bypass pre-push hook (only deploy scripts may push to prod)
+$env:VXT_DEPLOY_SCRIPT = "1"
 git push origin prod
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to push to prod" -ForegroundColor Red
