@@ -63,7 +63,7 @@ def auto_detect_provider(event: Dict) -> str:
     if 'context' in event and 'updates' in event:
         return 'N2KToSignalK'
     # Orchestrator real-time ALERT (alarm / emergency from SignalK notifications)
-    if event.get('type') == 'ALERT' and 'path' in event:
+    if event.get('type') in ('ALERT', 'GEOFENCE_BREACH') and 'path' in event:
         return 'ALERT'
     logger.warning(f"[AutoDetect] Unrecognised payload keys: {list(event.keys())} — defaulting to SignalK")
     return 'N2KToSignalK'  # default fallback
@@ -82,12 +82,20 @@ API_BASE_URL = os.environ.get(
 
 def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
     """
-    Handle a real-time ALERT message from the orchestrator.
+    Handle a real-time ALERT or GEOFENCE_BREACH message from the orchestrator.
 
     Expected payload (sent by azure-iot-edge/main.py websocket_listener):
+        ALERT:
         {"type": "ALERT", "path": "propulsion.main.oilPressure",
          "state": "emergency", "message": "...", "timestamp": "...",
          "entityId": "234567891"}
+
+        GEOFENCE_BREACH:
+        {"type": "GEOFENCE_BREACH", "path": "navigation.position",
+         "state": "alarm", "message": "...", "timestamp": "...",
+         "entityId": "234567891", "fenceId": 1,
+         "fenceName": "Haifa port Restricted Zone 1",
+         "latitude": 32.844, "longitude": 35.0215}
 
     Calls the FastAPI /api/register-event endpoint which inserts into
     EventLog + EventLogDetails.
@@ -99,6 +107,7 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
     path = event.get('path', '')
     state = event.get('state', '')
     ts_raw = event.get('timestamp', '')
+    event_type = event.get('type', 'ALERT')
 
     if not entity_id or not path:
         logger.warning("[ALERT] Missing entityId or path — skipping: %s", event)
@@ -106,13 +115,23 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
 
     score = _STATE_SCORE.get(state, 1)
 
-    payload = json.dumps({
+    payload_dict = {
         "entityId": str(entity_id),
         "path": str(path),
+        "type": str(event_type),
         "state": str(state),
         "score": score,
         "timestamp": str(ts_raw) if ts_raw else None,
-    })
+    }
+
+    # Forward geofence-specific fields
+    if event_type == "GEOFENCE_BREACH":
+        payload_dict["fenceId"] = event.get("fenceId")
+        payload_dict["fenceName"] = event.get("fenceName", "")
+        payload_dict["latitude"] = event.get("latitude")
+        payload_dict["longitude"] = event.get("longitude")
+
+    payload = json.dumps(payload_dict)
 
     url = f"{API_BASE_URL}/api/register-event"
     try:

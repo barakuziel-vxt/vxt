@@ -2594,9 +2594,14 @@ def post_register_event(data: dict):
     Body fields:
       entityId              (str, required) - entity identifier
       path                  (str, required) - attribute code e.g. "propulsion.main.oilPressure"
+      type                  (str, optional) - "ALERT" or "GEOFENCE_BREACH", defaults to "ALERT"
       state                 (str, optional) - alarm state: normal/caution/warning/emergency
       score                 (int, optional) - cumulative score, default derived from state
       timestamp             (str, optional) - ISO 8601, defaults to server UTC now
+      fenceId               (int, optional) - geofence ID (for GEOFENCE_BREACH)
+      fenceName             (str, optional) - geofence name (for GEOFENCE_BREACH)
+      latitude              (float, optional) - vessel latitude (for GEOFENCE_BREACH)
+      longitude             (float, optional) - vessel longitude (for GEOFENCE_BREACH)
     """
     import re
     from datetime import datetime as _dt
@@ -2606,6 +2611,7 @@ def post_register_event(data: dict):
     state = data.get("state", "")
     ts_raw = data.get("timestamp", "")
     score = data.get("score")
+    event_type = data.get("type", "ALERT")
 
     if not entity_id or not path:
         raise HTTPException(status_code=400, detail="entityId and path are required")
@@ -2631,18 +2637,23 @@ def post_register_event(data: dict):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Look up the SIGNALK_ALARM* event for this entity's type
+        # Look up the matching event definition for this entity's type
+        if event_type == "GEOFENCE_BREACH":
+            event_code_filter = "GEOFENCE_BREACH"
+        else:
+            event_code_filter = "SIGNALK_ALARM%"
+
         cur.execute(
             "SELECT ev.eventId FROM dbo.[Event] ev "
             "JOIN dbo.Entity e ON e.entityTypeId = ev.entityTypeId "
-            "WHERE e.entityId = ? AND ev.eventCode LIKE 'SIGNALK_ALARM%' AND ev.active = 'Y'",
-            (str(entity_id),),
+            "WHERE e.entityId = ? AND ev.eventCode LIKE ? AND ev.active = 'Y'",
+            (str(entity_id), event_code_filter),
         )
         row = cur.fetchone()
         if not row:
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail=f"No SIGNALK_ALARM event for entity {entity_id}")
+            raise HTTPException(status_code=404, detail=f"No {event_code_filter} event for entity {entity_id}")
         event_id = int(row[0])
 
         # Look up entityTypeAttributeId for this path
@@ -2655,12 +2666,24 @@ def post_register_event(data: dict):
         attr_row = cur.fetchone()
         attr_id = int(attr_row[0]) if attr_row else None
 
+        # Build analysisMetadata for GEOFENCE_BREACH events
+        analysis_metadata = None
+        if event_type == "GEOFENCE_BREACH":
+            meta = {
+                "fenceId": data.get("fenceId"),
+                "fenceName": data.get("fenceName", ""),
+                "event": "GEOFENCE_BREACH",
+                "latitude": data.get("latitude"),
+                "longitude": data.get("longitude"),
+            }
+            analysis_metadata = json.dumps(meta)
+
         # INSERT into EventLog
         cur.execute(
             "INSERT INTO dbo.EventLog "
-            "(entityId, eventId, cumulativeScore, probability, triggeredAt, AnalysisWindowInMin, processingTimeMs) "
-            "VALUES (?, ?, ?, 1.0, ?, 0, 0)",
-            (str(entity_id), str(event_id), str(score), triggered_at),
+            "(entityId, eventId, cumulativeScore, probability, triggeredAt, AnalysisWindowInMin, processingTimeMs, analysisMetadata) "
+            "VALUES (?, ?, ?, 1.0, ?, 0, 0, ?)",
+            (str(entity_id), str(event_id), str(score), triggered_at, analysis_metadata),
         )
         conn.commit()
 

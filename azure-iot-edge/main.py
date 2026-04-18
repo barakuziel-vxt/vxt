@@ -487,27 +487,46 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                     alert_path = path.removeprefix("notifications.")
 
                                     # For geofence notifications (navigation.geofence.<id>),
-                                    # resolve to the configured attribute (e.g. navigation.position)
-                                    # so the API can link EventLogDetails to the correct attribute.
+                                    # send as GEOFENCE_BREACH with fence details + lat/lon
+                                    eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
                                     if alert_path.startswith("navigation.geofence."):
                                         fence_id_str = alert_path.rsplit(".", 1)[-1]
+                                        gf_data = value.get("data", {})
+                                        fence_name = gf_data.get("fenceName", "")
+                                        fence_id = gf_data.get("fenceId", fence_id_str)
+                                        lat = gf_data.get("lat")
+                                        lon = gf_data.get("lon")
+                                        # Resolve attribute from twin config
+                                        resolved_attr = "navigation.position"
                                         for gf in vxt_config.get("geofences", []):
-                                            gf_id = str(gf.get("id", ""))
-                                            if gf_id == fence_id_str:
+                                            if str(gf.get("id", "")) == fence_id_str:
                                                 attr = gf.get("attribute", "")
                                                 if attr:
-                                                    alert_path = attr.replace("/", ".")
+                                                    resolved_attr = attr.replace("/", ".")
+                                                if not fence_name:
+                                                    fence_name = gf.get("name", "")
                                                 break
-
-                                    eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
-                                    alert_msg = json.dumps({
-                                        "type": "ALERT",
-                                        "path": alert_path,
-                                        "state": state,
-                                        "message": value.get("message", ""),
-                                        "timestamp": ts,
-                                        "entityId": eid,
-                                    })
+                                        alert_msg = json.dumps({
+                                            "type": "GEOFENCE_BREACH",
+                                            "path": resolved_attr,
+                                            "state": state,
+                                            "message": value.get("message", ""),
+                                            "timestamp": ts,
+                                            "entityId": eid,
+                                            "fenceId": fence_id,
+                                            "fenceName": fence_name,
+                                            "latitude": lat,
+                                            "longitude": lon,
+                                        })
+                                    else:
+                                        alert_msg = json.dumps({
+                                            "type": "ALERT",
+                                            "path": alert_path,
+                                            "state": state,
+                                            "message": value.get("message", ""),
+                                            "timestamp": ts,
+                                            "entityId": eid,
+                                        })
                                     try:
                                         await client.send_message(alert_msg)
                                         log.warning(
