@@ -74,6 +74,12 @@ def auto_detect_provider(event: Dict) -> str:
 # ============================================================================
 _STATE_SCORE = {"alarm": 2, "emergency": 3}
 
+# API base URL for the FastAPI backend (register-event endpoint)
+API_BASE_URL = os.environ.get(
+    'API_BASE_URL',
+    'https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net',
+)
+
 def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
     """
     Handle a real-time ALERT message from the orchestrator.
@@ -83,13 +89,15 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
          "state": "emergency", "message": "...", "timestamp": "...",
          "entityId": "234567891"}
 
-    Uses the existing dbo.sp_RegisterEvent stored procedure to insert into
-    EventLog + EventLogDetails consistently with the analysis worker.
+    Calls the FastAPI /api/register-event endpoint which inserts into
+    EventLog + EventLogDetails.
     """
+    import urllib.request
+    import urllib.error
+
     entity_id = event.get('entityId')
     path = event.get('path', '')
     state = event.get('state', '')
-    message = event.get('message', '')
     ts_raw = event.get('timestamp', '')
 
     if not entity_id or not path:
@@ -98,99 +106,36 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
 
     score = _STATE_SCORE.get(state, 1)
 
-    # Parse timestamp — mssql-python needs native datetime, not strings
-    triggered_at = _parse_dt(ts_raw) if ts_raw else datetime.utcnow()
+    payload = json.dumps({
+        "entityId": str(entity_id),
+        "path": str(path),
+        "state": str(state),
+        "score": score,
+        "timestamp": str(ts_raw) if ts_raw else None,
+    })
 
+    url = f"{API_BASE_URL}/api/register-event"
     try:
-        proc = get_processor()
-        conn = proc.get_db_connection()
-        cursor = conn.cursor()
-
-        try:
-            # Look up the SIGNALK_ALARM* event for this entity's type
-            cursor.execute("""
-                SELECT ev.eventId
-                FROM dbo.[Event] ev
-                JOIN dbo.Entity e ON e.entityTypeId = ev.entityTypeId
-                WHERE e.entityId = ?
-                  AND ev.eventCode LIKE 'SIGNALK_ALARM%'
-                  AND ev.active = 'Y'
-            """, (str(entity_id),))
-            row = cursor.fetchone()
-            if not row:
-                logger.warning(
-                    "[ALERT] No SIGNALK_ALARM* event for entity %s — skipping", entity_id
-                )
-                cursor.close()
-                conn.close()
-                return False
-            event_id = int(row[0])
-
-            # Look up entityTypeAttributeId for this path (for EventLogDetails)
-            cursor.execute("""
-                SELECT eta.entityTypeAttributeId
-                FROM dbo.EntityTypeAttribute eta
-                JOIN dbo.Entity e ON e.entityTypeId = eta.entityTypeId
-                WHERE e.entityId = ?
-                  AND eta.entityTypeAttributeCode = ?
-                  AND eta.active = 'Y'
-            """, (str(entity_id), str(path)))
-            attr_row = cursor.fetchone()
-            attr_id = int(attr_row[0]) if attr_row else None
-
-            # Build details JSON for EventLogDetails (attribute-level breakdown)
-            details = None
-            if attr_id:
-                details = [{
-                    "entityTypeAttributeId": attr_id,
-                    "entityTelemetryId": None,
-                    "scoreContribution": score,
-                    "withinRange": "N",
-                }]
-
-            # INSERT into EventLog directly (mssql-python doesn't support EXEC with params)
-            cursor.execute(
-                "INSERT INTO dbo.EventLog "
-                "(entityId, eventId, cumulativeScore, probability, triggeredAt, AnalysisWindowInMin, processingTimeMs) "
-                "VALUES (?, ?, ?, 1.0, ?, 0, 0)",
-                (str(entity_id), str(event_id), str(score), triggered_at),
-            )
-            conn.commit()
-
-            # Get the inserted eventLogId for EventLogDetails
-            event_log_id = None
-            if details:
-                cursor.execute(
-                    "SELECT MAX(eventLogId) FROM dbo.EventLog WHERE entityId = ?",
-                    (str(entity_id),),
-                )
-                row = cursor.fetchone()
-                if row and row[0]:
-                    event_log_id = int(row[0])
-                    for d in details:
-                        cursor.execute(
-                            "INSERT INTO dbo.EventLogDetails "
-                            "(eventLogId, entityTypeAttributeId, entityTelemetryId, scoreContribution, withinRange) "
-                            "VALUES (?, ?, ?, ?, ?)",
-                            (str(event_log_id),
-                             str(d["entityTypeAttributeId"]),
-                             str(d["entityTelemetryId"]) if d["entityTelemetryId"] else None,
-                             str(d["scoreContribution"]),
-                             str(d["withinRange"])),
-                        )
-                    conn.commit()
+        req = urllib.request.Request(
+            url,
+            data=payload.encode('utf-8'),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = json.loads(resp.read().decode('utf-8'))
+            event_log_id = body.get("eventLogId")
             logger.info(
-                "[ALERT] ✅ EventLog created via sp_RegisterEvent: id=%s entity=%s event=%s path=%s state=%s score=%s",
-                event_log_id, entity_id, event_id, path, state, score,
+                "[ALERT] ✅ EventLog created via API: id=%s entity=%s event=%s path=%s state=%s score=%s",
+                event_log_id, entity_id, body.get("eventId"), path, state, score,
             )
             return True
-
-        finally:
-            cursor.close()
-            conn.close()
-
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode('utf-8', errors='replace')[:300] if e.fp else str(e)
+        logger.error("[ALERT] API %s returned %s: %s", url, e.code, detail)
+        return False
     except Exception as e:
-        logger.error("[ALERT] Failed to register event: %s", str(e)[:300])
+        logger.error("[ALERT] Failed to call register-event API: %s", str(e)[:300])
         return False
 
 

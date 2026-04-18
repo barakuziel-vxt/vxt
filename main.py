@@ -2583,6 +2583,126 @@ def post_manual_report(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/register-event")
+def post_register_event(data: dict):
+    """
+    Register an event in EventLog (+ optional EventLogDetails).
+
+    Called by the Azure Function when an ALERT is received from IoT Hub.
+    Replicates the logic of sp_RegisterEvent using direct INSERTs.
+
+    Body fields:
+      entityId              (str, required) - entity identifier
+      path                  (str, required) - attribute code e.g. "propulsion.main.oilPressure"
+      state                 (str, optional) - alarm state: normal/caution/warning/emergency
+      score                 (int, optional) - cumulative score, default derived from state
+      timestamp             (str, optional) - ISO 8601, defaults to server UTC now
+    """
+    import re
+    from datetime import datetime as _dt
+
+    entity_id = data.get("entityId", "")
+    path = data.get("path", "")
+    state = data.get("state", "")
+    ts_raw = data.get("timestamp", "")
+    score = data.get("score")
+
+    if not entity_id or not path:
+        raise HTTPException(status_code=400, detail="entityId and path are required")
+    if not re.match(r'^[a-zA-Z0-9_.-]+$', entity_id):
+        raise HTTPException(status_code=400, detail="Invalid entityId")
+
+    # Derive score from state if not provided
+    _STATE_SCORE = {"normal": 0, "caution": 1, "warning": 2, "emergency": 3}
+    if score is None:
+        score = _STATE_SCORE.get(state, 1)
+
+    # Parse timestamp
+    triggered_at = _dt.utcnow()
+    if ts_raw:
+        try:
+            from dateutil import parser as _dp
+            triggered_at = _dp.parse(str(ts_raw)).replace(tzinfo=None)
+        except Exception:
+            pass
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Look up the SIGNALK_ALARM* event for this entity's type
+        cur.execute(
+            "SELECT ev.eventId FROM dbo.[Event] ev "
+            "JOIN dbo.Entity e ON e.entityTypeId = ev.entityTypeId "
+            "WHERE e.entityId = ? AND ev.eventCode LIKE 'SIGNALK_ALARM%' AND ev.active = 'Y'",
+            (str(entity_id),),
+        )
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail=f"No SIGNALK_ALARM event for entity {entity_id}")
+        event_id = int(row[0])
+
+        # Look up entityTypeAttributeId for this path
+        cur.execute(
+            "SELECT eta.entityTypeAttributeId FROM dbo.EntityTypeAttribute eta "
+            "JOIN dbo.Entity e ON e.entityTypeId = eta.entityTypeId "
+            "WHERE e.entityId = ? AND eta.entityTypeAttributeCode = ? AND eta.active = 'Y'",
+            (str(entity_id), str(path)),
+        )
+        attr_row = cur.fetchone()
+        attr_id = int(attr_row[0]) if attr_row else None
+
+        # INSERT into EventLog
+        cur.execute(
+            "INSERT INTO dbo.EventLog "
+            "(entityId, eventId, cumulativeScore, probability, triggeredAt, AnalysisWindowInMin, processingTimeMs) "
+            "VALUES (?, ?, ?, 1.0, ?, 0, 0)",
+            (str(entity_id), str(event_id), str(score), triggered_at),
+        )
+        conn.commit()
+
+        # Get inserted eventLogId and insert details
+        event_log_id = None
+        if attr_id:
+            cur.execute(
+                "SELECT MAX(eventLogId) FROM dbo.EventLog WHERE entityId = ?",
+                (str(entity_id),),
+            )
+            id_row = cur.fetchone()
+            if id_row and id_row[0]:
+                event_log_id = int(id_row[0])
+                cur.execute(
+                    "INSERT INTO dbo.EventLogDetails "
+                    "(eventLogId, entityTypeAttributeId, entityTelemetryId, scoreContribution, withinRange) "
+                    "VALUES (?, ?, NULL, ?, ?)",
+                    (str(event_log_id), str(attr_id), str(score), "N"),
+                )
+                conn.commit()
+
+        cur.close()
+        return_db_connection(conn)
+        return {
+            "status": "success",
+            "eventLogId": event_log_id,
+            "entityId": entity_id,
+            "eventId": event_id,
+            "score": score,
+        }
+
+    except HTTPException:
+        if conn:
+            return_db_connection(conn)
+        raise
+    except Exception as e:
+        if conn:
+            return_db_connection(conn)
+        print(f"[ERROR] post_register_event: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # TELEMETRY AND EVENTS ANALYTICS ENDPOINTS
 # ============================================================================
