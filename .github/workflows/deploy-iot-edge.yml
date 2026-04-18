@@ -1,0 +1,159 @@
+name: Build & Deploy IoT Edge Module
+
+# Triggers on push to prod branch when orchestrator code changes
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - 'azure-iot-edge/main.py'
+      - 'azure-iot-edge/requirements.txt'
+      - 'azure-iot-edge/Dockerfile'
+      - 'azure-iot-edge/deployment.template.json'
+      - '.github/workflows/deploy-iot-edge.yml'
+  workflow_dispatch:
+    inputs:
+      device_id:
+        description: 'Target device ID (blank = halos-edge)'
+        required: false
+        default: 'halos-edge'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: barakuziel-vxt/vxt-orchestrator
+  IOT_HUB_NAME: VXT-IoT-Hub
+  DEFAULT_DEVICE_ID: halos-edge
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      full_image: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for ARM64 cross-build)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./azure-iot-edge
+          file: ./azure-iot-edge/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Make package public (allow IoT Edge to pull without auth)
+        run: |
+          # Set package visibility to public so IoT Edge can pull without credentials
+          # This uses the GITHUB_TOKEN which has packages:write permission
+          curl -s -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/orgs/barakuziel-vxt/packages/container/vxt-orchestrator/visibility \
+            -d '{"visibility":"public"}' || echo "Note: Could not set public visibility (may need org admin). Falling back to registry credentials."
+
+      - name: Image digest
+        run: |
+          echo "## 🐳 Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ghcr.io/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-to-edge:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Determine target device
+        id: device
+        run: |
+          DEVICE="${{ github.event.inputs.device_id }}"
+          if [ -z "$DEVICE" ]; then
+            DEVICE="${{ env.DEFAULT_DEVICE_ID }}"
+          fi
+          echo "device_id=$DEVICE" >> $GITHUB_OUTPUT
+          echo "Deploying to device: $DEVICE"
+
+      - name: Generate deployment manifest
+        run: |
+          # Replace __TAG__ placeholder with the actual image SHA tag
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+
+          # Replace placeholders in template
+          # Use github.actor + GITHUB_TOKEN for registry credentials
+          sed -e "s|__TAG__|${SHORT_SHA}|g" \
+              -e "s|\$GHCR_USERNAME|${{ github.actor }}|g" \
+              -e "s|\$GHCR_TOKEN|${{ secrets.GITHUB_TOKEN }}|g" \
+              azure-iot-edge/deployment.template.json > deployment.json
+
+          echo "Generated deployment manifest:"
+          cat deployment.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" | head -30
+
+      - name: Deploy to IoT Edge device
+        run: |
+          az extension add --name azure-iot --yes 2>/dev/null || true
+
+          az iot edge set-modules \
+            --hub-name ${{ env.IOT_HUB_NAME }} \
+            --device-id ${{ steps.device.outputs.device_id }} \
+            --content deployment.json
+
+          echo "## ✅ Deployed to Edge" >> $GITHUB_STEP_SUMMARY
+          echo "**Device:** ${{ steps.device.outputs.device_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Hub:** ${{ env.IOT_HUB_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ghcr.io/${{ env.IMAGE_NAME }}:${GITHUB_SHA:0:7}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify deployment status
+        run: |
+          echo "Waiting 10s for Edge agent to process..."
+          sleep 10
+
+          az iot hub module-identity list \
+            --hub-name ${{ env.IOT_HUB_NAME }} \
+            --device-id ${{ steps.device.outputs.device_id }} \
+            --query "[].{Module:moduleId, ConnectionState:connectionState}" \
+            -o table

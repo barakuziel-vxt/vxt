@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+.venv
+deploy_to_pi.py
+.dockerignore
+Dockerfile
+*.md
