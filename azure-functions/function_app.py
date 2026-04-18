@@ -62,8 +62,131 @@ def auto_detect_provider(event: Dict) -> str:
     # SignalK maritime
     if 'context' in event and 'updates' in event:
         return 'N2KToSignalK'
+    # Orchestrator real-time ALERT (alarm / emergency from SignalK notifications)
+    if event.get('type') == 'ALERT' and 'path' in event:
+        return 'ALERT'
     logger.warning(f"[AutoDetect] Unrecognised payload keys: {list(event.keys())} — defaulting to SignalK")
     return 'N2KToSignalK'  # default fallback
+
+
+# ============================================================================
+# ALERT → EventLog processor
+# ============================================================================
+_STATE_SCORE = {"alarm": 2, "emergency": 3}
+
+def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
+    """
+    Handle a real-time ALERT message from the orchestrator.
+
+    Expected payload (sent by azure-iot-edge/main.py websocket_listener):
+        {"type": "ALERT", "path": "propulsion.main.oilPressure",
+         "state": "emergency", "message": "...", "timestamp": "...",
+         "entityId": "234567891"}
+
+    Uses the existing dbo.sp_RegisterEvent stored procedure to insert into
+    EventLog + EventLogDetails consistently with the analysis worker.
+    """
+    entity_id = event.get('entityId')
+    path = event.get('path', '')
+    state = event.get('state', '')
+    message = event.get('message', '')
+    ts_raw = event.get('timestamp', '')
+
+    if not entity_id or not path:
+        logger.warning("[ALERT] Missing entityId or path — skipping: %s", event)
+        return False
+
+    score = _STATE_SCORE.get(state, 1)
+
+    # Parse timestamp
+    triggered_at = _parse_dt(ts_raw) if ts_raw else datetime.utcnow()
+    triggered_str = triggered_at.strftime('%Y-%m-%dT%H:%M:%S.%f')
+
+    try:
+        proc = get_processor()
+        conn = proc.get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Look up the SIGNALK_ALARM* event for this entity's type
+            cursor.execute("""
+                SELECT ev.eventId
+                FROM dbo.[Event] ev
+                JOIN dbo.Entity e ON e.entityTypeId = ev.entityTypeId
+                WHERE e.entityId = ?
+                  AND ev.eventCode LIKE 'SIGNALK_ALARM%'
+                  AND ev.active = 'Y'
+            """, (str(entity_id),))
+            row = cursor.fetchone()
+            if not row:
+                logger.warning(
+                    "[ALERT] No SIGNALK_ALARM* event for entity %s — skipping", entity_id
+                )
+                cursor.close()
+                conn.close()
+                return False
+            event_id = int(row[0])
+
+            # Look up entityTypeAttributeId for this path (for EventLogDetails)
+            cursor.execute("""
+                SELECT eta.entityTypeAttributeId
+                FROM dbo.EntityTypeAttribute eta
+                JOIN dbo.Entity e ON e.entityTypeId = eta.entityTypeId
+                WHERE e.entityId = ?
+                  AND eta.entityTypeAttributeCode = ?
+                  AND eta.active = 'Y'
+            """, (str(entity_id), str(path)))
+            attr_row = cursor.fetchone()
+            attr_id = int(attr_row[0]) if attr_row else None
+
+            # Build details JSON for sp_RegisterEvent (attribute-level breakdown)
+            details_json = None
+            if attr_id:
+                details_json = json.dumps([{
+                    "entityTypeAttributeId": attr_id,
+                    "entityTelemetryId": None,
+                    "scoreContribution": score,
+                    "withinRange": "N",
+                }])
+
+            # Call sp_RegisterEvent stored procedure
+            cursor.execute("""
+                DECLARE @eventLogId BIGINT;
+                EXEC dbo.sp_RegisterEvent
+                    @entityId = ?,
+                    @eventId = ?,
+                    @cumulativeScore = ?,
+                    @probability = 1.0,
+                    @triggeredAt = ?,
+                    @analysisWindowInMin = 0,
+                    @processingTimeMs = 0,
+                    @detailsJson = ?,
+                    @eventLogId = @eventLogId OUTPUT;
+                SELECT @eventLogId AS eventLogId;
+            """, (
+                str(entity_id), str(event_id), str(score),
+                triggered_str, details_json,
+            ))
+
+            event_log_id = None
+            row = cursor.fetchone()
+            if row and row[0]:
+                event_log_id = int(row[0])
+
+            conn.commit()
+            logger.info(
+                "[ALERT] ✅ EventLog created via sp_RegisterEvent: id=%s entity=%s event=%s path=%s state=%s score=%s",
+                event_log_id, entity_id, event_id, path, state, score,
+            )
+            return True
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    except Exception as e:
+        logger.error("[ALERT] Failed to register event: %s", str(e)[:300])
+        return False
 
 
 # ============================================================================
@@ -413,9 +536,13 @@ def iot_hub_consumer(messages) -> None:
                 event_payload = body or {}
                 event_payload['deviceId'] = device_id
             
-            # Process event
-            inserted_count = processor.process_event(event_payload)
-            logger.info(f"[PROC {idx}] Inserted: {inserted_count} | Device: {device_id}")
+            # Route ALERT messages to EventLog, everything else to telemetry
+            if isinstance(event_payload, dict) and event_payload.get('type') == 'ALERT':
+                ok = process_alert(event_payload, DB_SERVER, DB_NAME)
+                logger.info(f"[ALERT {idx}] Processed: {ok} | Device: {device_id}")
+            else:
+                inserted_count = processor.process_event(event_payload)
+                logger.info(f"[PROC {idx}] Inserted: {inserted_count} | Device: {device_id}")
             
         except Exception as e:
             logger.error(f"Error processing message {idx}: {str(e)[:100]}")

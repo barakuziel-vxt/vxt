@@ -482,12 +482,14 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                 if state in ("alarm", "emergency"):
                                     # Strip 'notifications.' prefix for the alert path
                                     alert_path = path.removeprefix("notifications.")
+                                    eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
                                     alert_msg = json.dumps({
                                         "type": "ALERT",
                                         "path": alert_path,
                                         "state": state,
                                         "message": value.get("message", ""),
                                         "timestamp": ts,
+                                        "entityId": eid,
                                     })
                                     try:
                                         await client.send_message(alert_msg)
