@@ -35,6 +35,9 @@ log = logging.getLogger("vxt-orchestrator")
 # ---------------------------------------------------------------------------
 # Global in-RAM twin state
 # ---------------------------------------------------------------------------
+# End-to-End Testing: Deployed via GitHub Actions CI/CD
+# This orchestrator now streams events and telemetry through the full pipeline:
+# IoT Edge → IoT Hub → Azure Function → REST API → Azure DB → Dashboard
 vxt_config: dict = {}
 last_sent_values: dict[str, float] = {}
 _last_influx_filter_paths: set[str] = set()  # avoid plugin restart on unchanged config
