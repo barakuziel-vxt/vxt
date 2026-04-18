@@ -98,9 +98,8 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
 
     score = _STATE_SCORE.get(state, 1)
 
-    # Parse timestamp — SQL Server datetime accepts max 3 decimal places
+    # Parse timestamp — mssql-python needs native datetime, not strings
     triggered_at = _parse_dt(ts_raw) if ts_raw else datetime.utcnow()
-    triggered_str = triggered_at.strftime('%Y-%m-%dT%H:%M:%S.') + f"{triggered_at.microsecond // 1000:03d}"
 
     try:
         proc = get_processor()
@@ -165,7 +164,7 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
                 SELECT @eventLogId AS eventLogId;
             """, (
                 str(entity_id), str(event_id), str(score),
-                triggered_str, details_json,
+                triggered_at, details_json,
             ))
 
             event_log_id = None
