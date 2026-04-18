@@ -52,6 +52,7 @@ def auto_detect_provider(event: Dict) -> str:
     Junction events:       { "user": {...}, "event_type": "8867-4", ... }
     SignalK events:        { "context": "vessels.urn:...", "updates": [...] }
     SamsungHealth events:  { "sourceDriver": "SamsungHealth", "measurements": {...}, "entityId": "..." }
+    Event (from orchestrator): { "eventCode": "...", "path": "...", "entityId": "...", ... }
     """
     # SamsungHealth (VXT Mobile gateway, device SW5) — check FIRST, most specific
     if 'sourceDriver' in event and 'measurements' in event:
@@ -62,17 +63,16 @@ def auto_detect_provider(event: Dict) -> str:
     # SignalK maritime
     if 'context' in event and 'updates' in event:
         return 'N2KToSignalK'
-    # Orchestrator real-time ALERT (alarm / emergency from SignalK notifications)
-    if event.get('type') in ('ALERT', 'GEOFENCE_BREACH') and 'path' in event:
-        return 'ALERT'
+    # Orchestrator event (alarm, geofence, etc.) — identified by eventCode field
+    if 'eventCode' in event and 'entityId' in event:
+        return 'EVENT'
     logger.warning(f"[AutoDetect] Unrecognised payload keys: {list(event.keys())} — defaulting to SignalK")
     return 'N2KToSignalK'  # default fallback
 
 
 # ============================================================================
-# ALERT → EventLog processor
+# EVENT → register-event API forwarder (generic, no hardcoded event types)
 # ============================================================================
-_STATE_SCORE = {"alarm": 2, "emergency": 3}
 
 # API base URL for the FastAPI backend (register-event endpoint)
 API_BASE_URL = os.environ.get(
@@ -80,57 +80,31 @@ API_BASE_URL = os.environ.get(
     'https://vxt-web-app-g5gbaee2f4bmgphb.northeurope-01.azurewebsites.net',
 )
 
-def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
+def process_event_message(event: Dict) -> bool:
     """
-    Handle a real-time ALERT or GEOFENCE_BREACH message from the orchestrator.
+    Forward an event message from the orchestrator to the register-event API.
 
-    Expected payload (sent by azure-iot-edge/main.py websocket_listener):
-        ALERT:
-        {"type": "ALERT", "path": "propulsion.main.oilPressure",
-         "state": "emergency", "message": "...", "timestamp": "...",
-         "entityId": "234567891"}
+    The orchestrator resolves the eventCode from the device twin and sends
+    the full payload.  This function is a generic pass-through — it does NOT
+    inspect or branch on event type names.
 
-        GEOFENCE_BREACH:
-        {"type": "GEOFENCE_BREACH", "path": "navigation.position",
-         "state": "alarm", "message": "...", "timestamp": "...",
-         "entityId": "234567891", "fenceId": 1,
-         "fenceName": "Haifa port Restricted Zone 1",
-         "latitude": 32.844, "longitude": 35.0215}
-
-    Calls the FastAPI /api/register-event endpoint which inserts into
-    EventLog + EventLogDetails.
+    Expected payload (set by orchestrator using twin config):
+        {"eventCode": "<from_twin>", "path": "...", "state": "...",
+         "message": "...", "timestamp": "...", "entityId": "...",
+         ... any extra fields the orchestrator attached ...}
     """
     import urllib.request
     import urllib.error
 
     entity_id = event.get('entityId')
-    path = event.get('path', '')
-    state = event.get('state', '')
-    ts_raw = event.get('timestamp', '')
-    event_type = event.get('type', 'ALERT')
+    event_code = event.get('eventCode', '')
 
-    if not entity_id or not path:
-        logger.warning("[ALERT] Missing entityId or path — skipping: %s", event)
+    if not entity_id or not event_code:
+        logger.warning("[EVENT] Missing entityId or eventCode — skipping: %s", event)
         return False
 
-    score = _STATE_SCORE.get(state, 1)
-
-    payload_dict = {
-        "entityId": str(entity_id),
-        "path": str(path),
-        "type": str(event_type),
-        "state": str(state),
-        "score": score,
-        "timestamp": str(ts_raw) if ts_raw else None,
-    }
-
-    # Forward geofence-specific fields
-    if event_type == "GEOFENCE_BREACH":
-        payload_dict["fenceId"] = event.get("fenceId")
-        payload_dict["fenceName"] = event.get("fenceName", "")
-        payload_dict["latitude"] = event.get("latitude")
-        payload_dict["longitude"] = event.get("longitude")
-
+    # Strip internal fields the IoT Hub trigger may have injected
+    payload_dict = {k: v for k, v in event.items() if k != 'deviceId'}
     payload = json.dumps(payload_dict)
 
     url = f"{API_BASE_URL}/api/register-event"
@@ -143,18 +117,17 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = json.loads(resp.read().decode('utf-8'))
-            event_log_id = body.get("eventLogId")
             logger.info(
-                "[ALERT] ✅ EventLog created via API: id=%s entity=%s event=%s path=%s state=%s score=%s",
-                event_log_id, entity_id, body.get("eventId"), path, state, score,
+                "[EVENT] ✅ EventLog created: id=%s entity=%s eventCode=%s",
+                body.get("eventLogId"), entity_id, event_code,
             )
             return True
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', errors='replace')[:300] if e.fp else str(e)
-        logger.error("[ALERT] API %s returned %s: %s", url, e.code, detail)
+        logger.error("[EVENT] API %s returned %s: %s", url, e.code, detail)
         return False
     except Exception as e:
-        logger.error("[ALERT] Failed to call register-event API: %s", str(e)[:300])
+        logger.error("[EVENT] Failed to call register-event API: %s", str(e)[:300])
         return False
 
 
@@ -505,10 +478,10 @@ def iot_hub_consumer(messages) -> None:
                 event_payload = body or {}
                 event_payload['deviceId'] = device_id
             
-            # Route ALERT messages to EventLog, everything else to telemetry
-            if isinstance(event_payload, dict) and event_payload.get('type') == 'ALERT':
-                ok = process_alert(event_payload, DB_SERVER, DB_NAME)
-                logger.info(f"[ALERT {idx}] Processed: {ok} | Device: {device_id}")
+            # Route: eventCode present → event registration, otherwise → telemetry
+            if isinstance(event_payload, dict) and 'eventCode' in event_payload:
+                ok = process_event_message(event_payload)
+                logger.info(f"[EVENT {idx}] Processed: {ok} | Device: {device_id}")
             else:
                 inserted_count = processor.process_event(event_payload)
                 logger.info(f"[PROC {idx}] Inserted: {inserted_count} | Device: {device_id}")

@@ -489,6 +489,7 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                     # For geofence notifications (navigation.geofence.<id>),
                                     # send as GEOFENCE_BREACH with fence details + lat/lon
                                     eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
+                                    events_map = vxt_config.get("events", {})
                                     if alert_path.startswith("navigation.geofence."):
                                         fence_id_str = alert_path.rsplit(".", 1)[-1]
                                         gf_data = value.get("data", {})
@@ -506,8 +507,13 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                                 if not fence_name:
                                                     fence_name = gf.get("name", "")
                                                 break
+                                        # Resolve eventCode from twin events
+                                        event_code = events_map.get(resolved_attr.replace(".", "/"), {}).get("eventCode", "")
+                                        if not event_code:
+                                            log.warning("No eventCode in twin for attr %s, skipping", resolved_attr)
+                                            continue
                                         alert_msg = json.dumps({
-                                            "type": "GEOFENCE_BREACH",
+                                            "eventCode": event_code,
                                             "path": resolved_attr,
                                             "state": state,
                                             "message": value.get("message", ""),
@@ -519,8 +525,15 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                             "longitude": lon,
                                         })
                                     else:
+                                        # Resolve eventCode from twin events using alert_path
+                                        attr_key = alert_path.replace(".", "/")
+                                        event_info = events_map.get(attr_key, {})
+                                        event_code = event_info.get("eventCode", "")
+                                        if not event_code:
+                                            log.warning("No eventCode in twin for path %s, skipping", alert_path)
+                                            continue
                                         alert_msg = json.dumps({
-                                            "type": "ALERT",
+                                            "eventCode": event_code,
                                             "path": alert_path,
                                             "state": state,
                                             "message": value.get("message", ""),
@@ -633,12 +646,20 @@ async def _on_geofences_updated(geofences: list) -> None:
     update_geofences(geofences)
 
 
+async def _on_events_updated(events: dict) -> None:
+    """Log the events map received from the twin."""
+    log.info("── Events config updated ──")
+    for attr_path, info in events.items():
+        log.info("  %s → %s", attr_path, info.get("eventCode", "?"))
+
+
 # Map of top-level twin keys → handler coroutines
 _SECTION_ROUTERS = {
     "telemetry": _on_telemetry_updated,
     "storage":   _on_storage_updated,
     "alarms":    _on_alarms_updated,
     "geofences": _on_geofences_updated,
+    "events":    _on_events_updated,
 }
 
 

@@ -2588,20 +2588,20 @@ def post_register_event(data: dict):
     """
     Register an event in EventLog (+ optional EventLogDetails).
 
-    Called by the Azure Function when an ALERT is received from IoT Hub.
+    Called by the Azure Function when an event is received from IoT Hub.
     Replicates the logic of sp_RegisterEvent using direct INSERTs.
 
     Body fields:
       entityId              (str, required) - entity identifier
       path                  (str, required) - attribute code e.g. "propulsion.main.oilPressure"
-      type                  (str, optional) - "ALERT" or "GEOFENCE_BREACH", defaults to "ALERT"
+      eventCode             (str, required) - event code from twin e.g. "GEOFENCE_BREACH", "SIGNALK_ALARM_L380"
       state                 (str, optional) - alarm state: normal/caution/warning/emergency
       score                 (int, optional) - cumulative score, default derived from state
       timestamp             (str, optional) - ISO 8601, defaults to server UTC now
-      fenceId               (int, optional) - geofence ID (for GEOFENCE_BREACH)
-      fenceName             (str, optional) - geofence name (for GEOFENCE_BREACH)
-      latitude              (float, optional) - vessel latitude (for GEOFENCE_BREACH)
-      longitude             (float, optional) - vessel longitude (for GEOFENCE_BREACH)
+      fenceId               (int, optional) - geofence ID (for geofence events)
+      fenceName             (str, optional) - geofence name (for geofence events)
+      latitude              (float, optional) - vessel latitude (for geofence events)
+      longitude             (float, optional) - vessel longitude (for geofence events)
     """
     import re
     from datetime import datetime as _dt
@@ -2611,12 +2611,14 @@ def post_register_event(data: dict):
     state = data.get("state", "")
     ts_raw = data.get("timestamp", "")
     score = data.get("score")
-    event_type = data.get("type", "ALERT")
+    event_code = data.get("eventCode", "")
 
-    if not entity_id or not path:
-        raise HTTPException(status_code=400, detail="entityId and path are required")
+    if not entity_id or not path or not event_code:
+        raise HTTPException(status_code=400, detail="entityId, path, and eventCode are required")
     if not re.match(r'^[a-zA-Z0-9_.-]+$', entity_id):
         raise HTTPException(status_code=400, detail="Invalid entityId")
+    if not re.match(r'^[a-zA-Z0-9_.-]+$', event_code):
+        raise HTTPException(status_code=400, detail="Invalid eventCode")
 
     # Derive score from state if not provided
     _STATE_SCORE = {"normal": 0, "caution": 1, "warning": 2, "emergency": 3}
@@ -2638,22 +2640,17 @@ def post_register_event(data: dict):
         cur = conn.cursor()
 
         # Look up the matching event definition for this entity's type
-        if event_type == "GEOFENCE_BREACH":
-            event_code_filter = "GEOFENCE_BREACH"
-        else:
-            event_code_filter = "SIGNALK_ALARM%"
-
         cur.execute(
             "SELECT ev.eventId FROM dbo.[Event] ev "
             "JOIN dbo.Entity e ON e.entityTypeId = ev.entityTypeId "
-            "WHERE e.entityId = ? AND ev.eventCode LIKE ? AND ev.active = 'Y'",
-            (str(entity_id), event_code_filter),
+            "WHERE e.entityId = ? AND ev.eventCode = ? AND ev.active = 'Y'",
+            (str(entity_id), str(event_code)),
         )
         row = cur.fetchone()
         if not row:
             cur.close()
             return_db_connection(conn)
-            raise HTTPException(status_code=404, detail=f"No {event_code_filter} event for entity {entity_id}")
+            raise HTTPException(status_code=404, detail=f"No event '{event_code}' for entity {entity_id}")
         event_id = int(row[0])
 
         # Look up entityTypeAttributeId for this path
@@ -2666,13 +2663,13 @@ def post_register_event(data: dict):
         attr_row = cur.fetchone()
         attr_id = int(attr_row[0]) if attr_row else None
 
-        # Build analysisMetadata for GEOFENCE_BREACH events
+        # Build analysisMetadata for events with location data (e.g. geofence)
         analysis_metadata = None
-        if event_type == "GEOFENCE_BREACH":
+        if data.get("latitude") is not None or data.get("fenceId") is not None:
             meta = {
                 "fenceId": data.get("fenceId"),
                 "fenceName": data.get("fenceName", ""),
-                "event": "GEOFENCE_BREACH",
+                "event": event_code,
                 "latitude": data.get("latitude"),
                 "longitude": data.get("longitude"),
             }
@@ -4262,7 +4259,55 @@ def _get_device_config(entity_id: str) -> dict:
                 fence["attribute"] = attr_code.replace(".", "/")
             geofences.append(fence)
 
-        return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences}
+        # 5. Events – map attribute paths to event codes (driven entirely from DB)
+        #    a) Events with explicit EventAttribute links (e.g. GEOFENCE_BREACH → navigation.position)
+        event_attr_rows = _query_as_dicts(conn, """
+            SELECT ev.eventCode, ev.eventId,
+                   eta.entityTypeAttributeCode
+            FROM Event ev
+            JOIN EventAttribute ea ON ea.eventId = ev.eventId AND ea.active = 'Y'
+            JOIN EntityTypeAttribute eta ON eta.entityTypeAttributeId = ea.entityTypeAttributeId
+                                        AND eta.active = 'Y'
+            WHERE ev.entityTypeId = ? AND ev.active = 'Y'
+        """, (entity_type_id,))
+
+        events = {}
+        for row in event_attr_rows:
+            path = row["entityTypeAttributeCode"].replace(".", "/")
+            events[path] = {
+                "eventCode": row["eventCode"],
+                "eventId": row["eventId"],
+            }
+
+        #    b) Events without EventAttribute links → apply to all scored attributes
+        unlinked_rows = _query_as_dicts(conn, """
+            SELECT ev.eventCode, ev.eventId
+            FROM Event ev
+            WHERE ev.entityTypeId = ? AND ev.active = 'Y'
+              AND NOT EXISTS (
+                  SELECT 1 FROM EventAttribute ea
+                  WHERE ea.eventId = ev.eventId AND ea.active = 'Y'
+              )
+        """, (entity_type_id,))
+
+        if unlinked_rows:
+            scored_attrs = _query_as_dicts(conn, """
+                SELECT DISTINCT eta.entityTypeAttributeCode
+                FROM EntityTypeAttributeScore s
+                JOIN EntityTypeAttribute eta
+                     ON eta.entityTypeAttributeId = s.EntityTypeAttributeId
+                WHERE eta.entityTypeId = ? AND eta.active = 'Y' AND s.active = 'Y'
+            """, (entity_type_id,))
+            alarm_event = unlinked_rows[0]
+            for attr_row in scored_attrs:
+                path = attr_row["entityTypeAttributeCode"].replace(".", "/")
+                if path not in events:
+                    events[path] = {
+                        "eventCode": alarm_event["eventCode"],
+                        "eventId": alarm_event["eventId"],
+                    }
+
+        return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences, "events": events}
     finally:
         return_db_connection(conn)
 
@@ -4272,7 +4317,7 @@ def get_device_twin(entity_id: str):
     """Generate the full Device Twin JSON for a given entity."""
     config = _get_device_config(entity_id)
 
-    if not config["telemetry"] and not config["alarms"] and not config["geofences"]:
+    if not config["telemetry"] and not config["alarms"] and not config["geofences"] and not config["events"]:
         raise HTTPException(status_code=404,
                             detail=f"No configuration found for entity_id '{entity_id}'")
 
@@ -4300,6 +4345,7 @@ def get_device_twin(entity_id: str):
                     **config["alarms"],
                 },
                 "geofences": config["geofences"],
+                "events": config["events"],
             }
         }
     }
@@ -4311,7 +4357,7 @@ def push_device_twin(entity_id: str):
     """Generate twin JSON, save to DB, and push desired properties to Azure IoT Hub."""
     config = _get_device_config(entity_id)
 
-    if not config["telemetry"] and not config["alarms"] and not config["geofences"]:
+    if not config["telemetry"] and not config["alarms"] and not config["geofences"] and not config["events"]:
         raise HTTPException(status_code=404,
                             detail=f"No configuration found for entity_id '{entity_id}'")
 
@@ -4337,6 +4383,7 @@ def push_device_twin(entity_id: str):
             **config["alarms"],
         },
         "geofences": config["geofences"],
+        "events": config["events"],
     }
 
     twin = {"properties": {"desired": desired}}

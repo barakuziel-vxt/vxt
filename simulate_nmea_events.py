@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+# Run all scenarios (default)
+#python simulate_nmea_events.py --target halos.local
+
+# Run just oil pressure alarms
+#python simulate_nmea_events.py --target halos.local --scenario oil_pressure
+
+# Run just geofence violations
+#python simulate_nmea_events.py --target halos.local --scenario geofence
+
+# Run oscillation test for 30 seconds
+#python simulate_nmea_events.py --target halos.local --scenario oscillation --duration 30
+
 """
 Simulate NMEA Events – Alarm Threshold & Geofence Violations
 =============================================================
@@ -178,10 +190,10 @@ async def scenario_geofence_haifa_entry_exit(config: Config) -> None:
     log.info("=" * 60)
 
     positions = [
-        (32.850, 35.000, "Outside Haifa port"),
-        (32.8256, 35.0204, "Entering Haifa port"),  # Inside polygon
-        (32.820, 35.025, "Deep inside Haifa port"),
-        (32.850, 35.000, "Exiting Haifa port"),
+        (32.860, 35.000, "Outside Haifa port"),
+        (32.8440, 35.0215, "Entering Haifa port"),  # Inside polygon center
+        (32.8450, 35.0300, "Deep inside Haifa port"),  # Still inside polygon
+        (32.860, 35.000, "Exiting Haifa port"),
     ]
 
     for lat, lon, label in positions:
@@ -198,11 +210,11 @@ async def scenario_combined_emergency(config: Config) -> None:
 
     log.info("  [1/4] Normal operations…")
     send_nmea_sentences(config, create_oil_pressure_nmea(2000))
-    send_nmea_sentences(config, create_position_nmea(32.850, 35.000))
+    send_nmea_sentences(config, create_position_nmea(32.860, 35.000))
     await asyncio.sleep(2)
 
     log.info("  [2/4] Vessel moving toward Haifa port…")
-    send_nmea_sentences(config, create_position_nmea(32.8256, 35.0204))
+    send_nmea_sentences(config, create_position_nmea(32.8440, 35.0215))
     await asyncio.sleep(2)
 
     log.info("  [3/4] Oil pressure rising (Warning level)…")
