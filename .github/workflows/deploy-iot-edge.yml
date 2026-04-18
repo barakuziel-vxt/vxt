@@ -125,9 +125,13 @@ jobs:
 
           # Replace placeholders in template
           # Use github.actor + GITHUB_TOKEN for registry credentials
+          # Escape special chars in connection string for sed
+          ESCAPED_CONN_STR=$(printf '%s\n' "${{ secrets.DEVICE_CONNECTION_STRING }}" | sed 's/[&/\]/\\&/g')
+
           sed -e "s|__TAG__|${SHORT_SHA}|g" \
               -e "s|\$GHCR_USERNAME|${{ github.actor }}|g" \
               -e "s|\$GHCR_TOKEN|${{ secrets.GITHUB_TOKEN }}|g" \
+              -e "s|\$DEVICE_CONNECTION_STRING|${ESCAPED_CONN_STR}|g" \
               azure-iot-edge/deployment.template.json > deployment.json
 
           echo "Generated deployment manifest:"

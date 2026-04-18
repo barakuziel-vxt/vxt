@@ -51,6 +51,9 @@
               "createOptions": "{\"HostConfig\":{\"ExtraHosts\":[\"host.docker.internal:host-gateway\"]}}"
             },
             "env": {
+              "DEVICE_CONNECTION_STRING": {
+                "value": "$DEVICE_CONNECTION_STRING"
+              },
               "SIGNALK_BASE_URL": {
                 "value": "http://host.docker.internal:3000"
               },

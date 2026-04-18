@@ -170,10 +170,17 @@ if (-not $Direct) {
     $manifest = Get-Content $TEMPLATE -Raw
     $manifest = $manifest -replace "__TAG__", $Tag
 
-    # For direct deploy, remove registry credentials (use public or already-authed)
-    # Replace credential placeholders with empty strings
+    # For direct deploy, replace credential and secret placeholders
     $manifest = $manifest -replace '\$GHCR_USERNAME', ""
     $manifest = $manifest -replace '\$GHCR_TOKEN', ""
+
+    # Get device connection string from az CLI
+    $deviceCs = az iot hub device-identity connection-string show --hub-name $IOT_HUB --device-id $DEVICE_ID --query connectionString -o tsv
+    if ($LASTEXITCODE -ne 0 -or -not $deviceCs) {
+        Write-Host "ERROR: Could not retrieve device connection string" -ForegroundColor Red
+        exit 1
+    }
+    $manifest = $manifest -replace '\$DEVICE_CONNECTION_STRING', $deviceCs
 
     $deploymentFile = "$PSScriptRoot/deployment.generated.json"
     $manifest | Set-Content $deploymentFile -Encoding UTF8
