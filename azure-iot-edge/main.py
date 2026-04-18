@@ -104,19 +104,18 @@ def _to_measurement_path(path: str) -> str:
 # Local API functions – talk to SignalK / InfluxDB on localhost
 # ---------------------------------------------------------------------------
 def update_influx_filters(paths_array: list[str]) -> bool:
-    """POST allow-list paths to the signalk-to-influxdb2 plugin config.
+    """Update only the filteringRules on the existing SignalK InfluxDB plugin config.
 
-    Converts plain SignalK paths to regex filteringRules for the v2 plugin.
-    Deep value paths (e.g. navigation.position.value.latitude) are truncated
-    to their SignalK measurement level (e.g. navigation.position).
+    Reads the current plugin config (managed by the marine docker), updates
+    only the filteringRules list, and POSTs it back. Does NOT touch the
+    InfluxDB connection settings (url, token, org, bucket) — those belong
+    to the marine docker setup.
     """
-    url = f"{SIGNALK_BASE}/plugins/signalk-to-influxdb2/config"
+    config_url = f"{SIGNALK_BASE}/plugins/signalk-to-influxdb2/config"
     # Convert paths to regex filteringRules, deduplicating measurement-level paths
     seen = set()
     filtering_rules = []
     for path in paths_array:
-        # Strip deep value sub-paths that don't correspond to InfluxDB measurements
-        # e.g. "navigation.position.value.latitude" -> "navigation.position"
         meas_path = _to_measurement_path(path)
         if meas_path in seen:
             continue
@@ -131,29 +130,30 @@ def update_influx_filters(paths_array: list[str]) -> bool:
         return True
     _last_influx_filter_paths = seen
 
-    payload = {
-        "enabled": True,
-        "configuration": {
-            "outputDailyLog": False,
-            "influxes": [{
-                "url": os.getenv("INFLUXDB_URL", "http://localhost:8086"),
-                "token": os.getenv("INFLUXDB_TOKEN", ""),
-                "org": os.getenv("INFLUXDB_ORG", "vxt"),
-                "bucket": os.getenv("INFLUXDB_BUCKET", "signalk_history"),
-                "onlySelf": True,
-                "resolution": 200,
-                "useSKTimestamp": True,
-                "filteringRules": filtering_rules,
-            }]
-        }
-    }
+    # GET existing plugin config from SignalK (owned by marine docker)
     try:
-        resp = requests.post(url, json=payload, headers=SK_HEADERS, timeout=5)
+        get_resp = requests.get(config_url, headers=SK_HEADERS, timeout=5)
+        get_resp.raise_for_status()
+        payload = get_resp.json()
+    except (requests.ConnectionError, requests.HTTPError) as exc:
+        log.error("  Cannot read InfluxDB v2 plugin config: %s", exc)
+        return False
+
+    # Update only the filteringRules in the existing config
+    try:
+        for influx in payload["configuration"]["influxes"]:
+            influx["filteringRules"] = filtering_rules
+    except (KeyError, TypeError):
+        log.error("  Unexpected plugin config structure – cannot update filteringRules")
+        return False
+
+    try:
+        resp = requests.post(config_url, json=payload, headers=SK_HEADERS, timeout=5)
         resp.raise_for_status()
         log.info("  InfluxDB v2 filter config applied (%d paths)", len(paths_array))
         return True
     except requests.ConnectionError:
-        log.error("  Cannot reach InfluxDB v2 plugin at %s", url)
+        log.error("  Cannot reach InfluxDB v2 plugin at %s", config_url)
     except requests.HTTPError as exc:
         log.error("  InfluxDB v2 plugin returned %s: %s", exc.response.status_code, exc.response.text[:200])
     return False
