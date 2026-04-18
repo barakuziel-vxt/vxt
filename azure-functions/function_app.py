@@ -138,28 +138,47 @@ def process_alert(event: Dict, db_server: str, db_name: str) -> bool:
             attr_row = cursor.fetchone()
             attr_id = int(attr_row[0]) if attr_row else None
 
-            # Build details JSON for sp_RegisterEvent (attribute-level breakdown)
-            details_json = None
+            # Build details JSON for EventLogDetails (attribute-level breakdown)
+            details = None
             if attr_id:
-                details_json = json.dumps([{
+                details = [{
                     "entityTypeAttributeId": attr_id,
                     "entityTelemetryId": None,
                     "scoreContribution": score,
                     "withinRange": "N",
-                }])
+                }]
 
-            # Call sp_RegisterEvent stored procedure
+            # INSERT into EventLog directly (mssql-python doesn't support EXEC with params)
             cursor.execute(
-                "EXEC dbo.sp_RegisterEvent "
-                "@entityId=?, @eventId=?, @cumulativeScore=?, "
-                "@probability=1.0, @triggeredAt=?, "
-                "@analysisWindowInMin=0, @processingTimeMs=0, "
-                "@detailsJson=?",
-                (str(entity_id), str(event_id), str(score),
-                 triggered_at, details_json),
+                "INSERT INTO dbo.EventLog "
+                "(entityId, eventId, cumulativeScore, probability, triggeredAt, AnalysisWindowInMin, processingTimeMs) "
+                "VALUES (?, ?, ?, 1.0, ?, 0, 0)",
+                (str(entity_id), str(event_id), str(score), triggered_at),
             )
             conn.commit()
+
+            # Get the inserted eventLogId for EventLogDetails
             event_log_id = None
+            if details:
+                cursor.execute(
+                    "SELECT MAX(eventLogId) FROM dbo.EventLog WHERE entityId = ?",
+                    (str(entity_id),),
+                )
+                row = cursor.fetchone()
+                if row and row[0]:
+                    event_log_id = int(row[0])
+                    for d in details:
+                        cursor.execute(
+                            "INSERT INTO dbo.EventLogDetails "
+                            "(eventLogId, entityTypeAttributeId, entityTelemetryId, scoreContribution, withinRange) "
+                            "VALUES (?, ?, ?, ?, ?)",
+                            (str(event_log_id),
+                             str(d["entityTypeAttributeId"]),
+                             str(d["entityTelemetryId"]) if d["entityTelemetryId"] else None,
+                             str(d["scoreContribution"]),
+                             str(d["withinRange"])),
+                        )
+                    conn.commit()
             logger.info(
                 "[ALERT] ✅ EventLog created via sp_RegisterEvent: id=%s entity=%s event=%s path=%s state=%s score=%s",
                 event_log_id, entity_id, event_id, path, state, score,
