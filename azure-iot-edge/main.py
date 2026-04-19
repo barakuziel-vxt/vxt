@@ -7,6 +7,13 @@ Responsibilities:
   3. Alarm Translator  – convert generic AttributeScore → SignalK alarm zones
   4. Bulk Telemetry    – tiered interval GET from SignalK History API → Azure
   5. Real-Time Deadband – WebSocket subscription with configurable deadbands
+
+DEPLOYMENT NOTES:
+  • imagePullPolicy: "never" — uses locally cached image on Pi reboot.
+    Prevents registry auth failures after extended shutdown (GitHub token expiry).
+    Fallback for permanent fix: use long-lived GHCR_PAT in CI pipeline.
+  • Auto-recovery: edgeAgent restarts this container on failure.
+    On reboot, edgeAgent skips pull and starts from cache (~4 min to full operation).
 """
 
 import asyncio

@@ -46,6 +46,7 @@
             "type": "docker",
             "status": "running",
             "restartPolicy": "always",
+            "imagePullPolicy": "on-create",
             "settings": {
               "image": "ghcr.io/barakuziel-vxt/vxt-orchestrator:__TAG__",
               "createOptions": "{\"HostConfig\":{\"ExtraHosts\":[\"host.docker.internal:host-gateway\"]}}"

@@ -124,13 +124,15 @@ jobs:
           SHORT_SHA="${SHORT_SHA:0:7}"
 
           # Replace placeholders in template
-          # Use github.actor + GITHUB_TOKEN for registry credentials
-          # Escape special chars in connection string for sed
+          # Use GHCR_PAT (long-lived PAT) for registry credentials embedded in the
+          # IoT Hub deployment manifest. IMPORTANT: unlike GITHUB_TOKEN (expires ~1hr),
+          # GHCR_PAT must be a classic PAT with read:packages scope stored as a
+          # repository secret. Without it, edgeAgent fails to pull after token expiry.
           ESCAPED_CONN_STR=$(printf '%s\n' "${{ secrets.DEVICE_CONNECTION_STRING }}" | sed 's/[&/\]/\\&/g')
 
           sed -e "s|__TAG__|${SHORT_SHA}|g" \
               -e "s|\$GHCR_USERNAME|${{ github.actor }}|g" \
-              -e "s|\$GHCR_TOKEN|${{ secrets.GITHUB_TOKEN }}|g" \
+              -e "s|\$GHCR_TOKEN|${{ secrets.GHCR_PAT }}|g" \
               -e "s|\$DEVICE_CONNECTION_STRING|${ESCAPED_CONN_STR}|g" \
               azure-iot-edge/deployment.template.json > deployment.json
 
