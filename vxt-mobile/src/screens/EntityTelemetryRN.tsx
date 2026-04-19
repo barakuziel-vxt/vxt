@@ -93,9 +93,8 @@ export default function EntityTelemetryRN() {
   const [webViewKey, setWebViewKey] = useState(0);
 
   const isDriver = ds.type === 'driver';
-  // Load directly from Azure-deployed admin-dashboard (single source of truth)
-  // Falls back to local if Azure is unavailable
-  const webViewUrl = `https://vxt-app.azurewebsites.net/?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
+  // Load from Azure Static Web Apps (admin-dashboard deployment)
+  const webViewUrl = `https://ambitious-sand-0b08c3f03.6.azurestaticapps.net/?embedded=true${isDriver ? '&mode=driver' : ''}&dsType=${ds.type}&activeDriver=${encodeURIComponent(activeDriver || 'SamsungHealth')}&cloudUrl=${encodeURIComponent(ds.cloudUrl)}&localUrl=${encodeURIComponent(ds.localUrl)}#telemetryRN`;
 
   // ── Bridge: handle requests from WebView ─────────────────────────────────────
   async function handleBridgeMessage(event: WebViewMessageEvent) {
