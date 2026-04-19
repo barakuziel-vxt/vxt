@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, GeoJSON, LayersControl } from 'react-leaflet';
-import { DivIcon, LatLngBounds, Marker as LeafletMarker } from 'leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, LayersControl } from 'react-leaflet';
+import { DivIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Component to recenter map
@@ -10,7 +10,6 @@ function RecenterMap({ positions }) {
   useEffect(() => {
     if (!positions || positions.length === 0) return;
     
-    // Calculate bounds
     const lats = positions.map(p => p.lat).filter(l => l != null);
     const lons = positions.map(p => p.lon).filter(l => l != null);
     
@@ -21,207 +20,16 @@ function RecenterMap({ positions }) {
     const minLon = Math.min(...lons);
     const maxLon = Math.max(...lons);
     
-    // Add padding
     const latPad = (maxLat - minLat) * 0.1 || 0.05;
     const lonPad = (maxLon - minLon) * 0.1 || 0.05;
     
-    const bounds = [
+    map.fitBounds([
       [minLat - latPad, minLon - lonPad],
       [maxLat + latPad, maxLon + lonPad]
-    ];
-    
-    map.fitBounds(bounds, { padding: [50, 50] });
+    ], { padding: [50, 50] });
   }, [positions, map]);
   
   return null;
-}
-
-// Marine components - shipping lanes
-function getShippingLanes(centerLat, centerLon) {
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: { name: 'Major Shipping Route', type: 'shipping_lane' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [centerLon - 0.5, centerLat],
-            [centerLon + 0.5, centerLat + 0.2]
-          ]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { name: 'Alternative Route', type: 'shipping_lane' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [centerLon - 0.3, centerLat - 0.3],
-            [centerLon + 0.3, centerLat + 0.1]
-          ]
-        }
-      }
-    ]
-  };
-}
-
-// Marine components - navigational hazards
-function getNavigationalHazards(centerLat, centerLon) {
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: { name: 'Shallow Water Warning', type: 'shallow_water' },
-        geometry: {
-          type: 'Point',
-          coordinates: [centerLon + 0.1, centerLat + 0.15]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { name: 'Rock Formation', type: 'rock' },
-        geometry: {
-          type: 'Point',
-          coordinates: [centerLon - 0.2, centerLat + 0.1]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { name: 'Wreck Site', type: 'wreck' },
-        geometry: {
-          type: 'Point',
-          coordinates: [centerLon + 0.25, centerLat - 0.1]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { name: 'Reef Zone', type: 'reef' },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [centerLon - 0.05, centerLat - 0.2],
-            [centerLon + 0.05, centerLat - 0.2],
-            [centerLon + 0.05, centerLat - 0.1],
-            [centerLon - 0.05, centerLat - 0.1],
-            [centerLon - 0.05, centerLat - 0.2]
-          ]]
-        }
-      }
-    ]
-  };
-}
-
-// GeoJSON styling functions
-function onEachShippingLane(feature, layer) {
-  const popup = `<div style="font-size:11px"><strong>${feature.properties.name}</strong><br/>Type: ${feature.properties.type}</div>`;
-  layer.bindPopup(popup);
-}
-
-function shippingLaneStyle(feature) {
-  return {
-    color: '#0ea5e9',
-    weight: 3,
-    opacity: 0.8,
-    dashArray: '8, 4'
-  };
-}
-
-function onEachHazard(feature, layer) {
-  const hazardEmoji = {
-    shallow_water: '⚠️',
-    rock: '🪨',
-    wreck: '⚓',
-    reef: '🌊'
-  };
-  const popup = `<div style="font-size:11px"><strong>${feature.properties.name}</strong><br/>Hazard: ${feature.properties.type}</div>`;
-  layer.bindPopup(popup);
-}
-
-function hazardStyle(feature) {
-  const types = {
-    shallow_water: { color: '#f97316', weight: 2, fillOpacity: 0.3 },
-    rock: { color: '#6b7280', weight: 2, fillOpacity: 0.3 },
-    wreck: { color: '#7c3aed', weight: 2, fillOpacity: 0.3 },
-    reef: { color: '#10b981', weight: 2, fillOpacity: 0.25 }
-  };
-  return types[feature.properties.type] || { color: '#666', weight: 2, fillOpacity: 0.2 };
-}
-
-function hazardPointToLayer(feature, latlng) {
-  const hazardEmoji = {
-    shallow_water: '⚠️',
-    rock: '🪨',
-    wreck: '⚓',
-    reef: '🌊'
-  };
-  const icon = new DivIcon({
-    html: `<div style="font-size:16px">${hazardEmoji[feature.properties.type] || '📍'}</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-  });
-  return new LeafletMarker(latlng, { icon });
-}
-
-function onEachDepthContour(feature, layer) {
-  const popup = `<div style="font-size:11px"><strong>${feature.properties.name}</strong><br/>Depth: ${feature.properties.depth}m</div>`;
-  layer.bindPopup(popup);
-}
-
-function depthContourStyle(feature) {
-  const depths = {
-    10: { color: '#fbbf24', weight: 2, opacity: 0.8, dashArray: '4, 2' },
-    50: { color: '#f59e0b', weight: 2, opacity: 0.7, dashArray: '6, 3' },
-    100: { color: '#d97706', weight: 2, opacity: 0.6, dashArray: '8, 4' }
-  };
-  return depths[feature.properties.depth] || { color: '#999', weight: 2, opacity: 0.5 };
-}
-
-// Depth contours (isobaths)
-function getDepthContours(centerLat, centerLon) {
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: { depth: 10, name: '10m Isobath' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [centerLon - 0.3, centerLat - 0.25],
-            [centerLon + 0.2, centerLat - 0.15],
-            [centerLon + 0.1, centerLat + 0.05]
-          ]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { depth: 50, name: '50m Isobath' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [centerLon - 0.4, centerLat - 0.35],
-            [centerLon + 0.3, centerLat - 0.2],
-            [centerLon + 0.2, centerLat + 0.1]
-          ]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: { depth: 100, name: '100m Isobath' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [centerLon - 0.5, centerLat - 0.45],
-            [centerLon + 0.4, centerLat - 0.25],
-            [centerLon + 0.3, centerLat + 0.15]
-          ]
-        }
-      }
-    ]
-  };
 }
 
 export default function LocationMap({ telemetryData, title = 'Location History' }) {
@@ -314,59 +122,49 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
         borderRadius: '8px',
         overflow: 'hidden',
         border: '1px solid #334155',
-        boxSizing: 'border-box',
-        marginLeft: '-4px',
-        paddingLeft: '0px'
       }}>
         <MapContainer
           center={[centerPoint.lat, centerPoint.lon]}
           zoom={12}
-          style={{ height: '100%', width: '100%', boxSizing: 'border-box' }}
+          style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={true}
         >
           <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="OpenTopoMap">
+            <LayersControl.BaseLayer checked name="OpenStreetMap">
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                maxZoom={19}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer name="OpenTopoMap">
               <TileLayer
                 url="https://tile.opentopomap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors'
                 maxZoom={17}
               />
             </LayersControl.BaseLayer>
-            
-            <LayersControl.Overlay name="🌊 Depth Contours" checked>
-              <GeoJSON
-                data={getDepthContours(centerPoint.lat, centerPoint.lon)}
-                style={depthContourStyle}
-                onEachFeature={onEachDepthContour}
-              />
-            </LayersControl.Overlay>
-            
-            <LayersControl.Overlay name="🛣️ Shipping Lanes" checked>
-              <GeoJSON
-                data={getShippingLanes(centerPoint.lat, centerPoint.lon)}
-                style={shippingLaneStyle}
-                onEachFeature={onEachShippingLane}
-              />
-            </LayersControl.Overlay>
-            
-            <LayersControl.Overlay name="⚠️ Hazards & Obstacles">
-              <GeoJSON
-                data={getNavigationalHazards(centerPoint.lat, centerPoint.lon)}
-                style={hazardStyle}
-                pointToLayer={hazardPointToLayer}
-                onEachFeature={onEachHazard}
+
+            {/* Real nautical chart overlay from OpenSeaMap */}
+            <LayersControl.Overlay checked name="🌊 Nautical Chart (OpenSeaMap)">
+              <TileLayer
+                url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors'
+                maxZoom={18}
+                opacity={0.9}
               />
             </LayersControl.Overlay>
           </LayersControl>
-          
+
           {/* Draw smoothly curved path polyline */}
           <Polyline
             positions={smoothedCoordinates}
-            color="#000000"
+            color="#ff4444"
             weight={3}
-            opacity={1}
+            opacity={0.9}
           />
-          
+
           {/* Mark current/latest point */}
           <Marker position={[centerPoint.lat, centerPoint.lon]} icon={sailboatIcon}>
             <Popup>
@@ -378,13 +176,13 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
               </div>
             </Popup>
           </Marker>
-          
+
           {/* Recenter map when positions change */}
           <RecenterMap positions={locationPoints} />
         </MapContainer>
       </div>
       <div style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
-        {locationPoints.length} position points • Marine features enabled: Depth contours, Shipping lanes, Hazards
+        {locationPoints.length} position points • Nautical overlay: OpenSeaMap (real buoys, depth contours, shipping lanes)
       </div>
     </div>
   );
