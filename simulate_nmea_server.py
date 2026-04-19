@@ -68,8 +68,8 @@ from datetime import datetime, timezone
 DEFAULT_PORT = 10113
 DEFAULT_INTERVAL = 2  # seconds between sentence bursts
 
-# Seconds to spend at each waypoint before advancing (50s = 10x slower than before)
-WAYPOINT_STEP_SECONDS = 50
+# Seconds to spend at each waypoint before advancing (250s = 50x slower than original)
+WAYPOINT_STEP_SECONDS = 250
 
 # Actual GPS trace of Haifa harbor (same route as simulate_signalk_vessel.py)
 # Format: (lon, lat) — converted to {'lat', 'lon'} dicts below
@@ -95,7 +95,38 @@ _HAIFA_WAYPOINTS_RAW = [
     (35.0705084, 32.9196049), (35.0702444, 32.9196301), (35.0700572, 32.9195613),
     (35.0698748, 32.9194825),
 ]
-HAIFA_ROUTE_WAYPOINTS = [{'lat': lat, 'lon': lon} for lon, lat in _HAIFA_WAYPOINTS_RAW]
+def _interpolate_waypoints(waypoints_raw, divisions=5):
+    """Interpolate waypoints to create smoother path with more points.
+    
+    Args:
+        waypoints_raw: List of (lon, lat) tuples
+        divisions: Number of segments to divide each pair into (5 = add 4 intermediate points)
+    
+    Returns:
+        List of interpolated waypoints as (lon, lat) tuples
+    """
+    if divisions < 2:
+        return waypoints_raw
+    
+    interpolated = []
+    for i in range(len(waypoints_raw)):
+        lon1, lat1 = waypoints_raw[i]
+        interpolated.append((lon1, lat1))
+        
+        # Add intermediate points to next waypoint
+        if i < len(waypoints_raw) - 1:
+            lon2, lat2 = waypoints_raw[i + 1]
+            for j in range(1, divisions):
+                t = j / divisions  # 0.2, 0.4, 0.6, 0.8
+                lon_inter = lon1 + (lon2 - lon1) * t
+                lat_inter = lat1 + (lat2 - lat1) * t
+                interpolated.append((lon_inter, lat_inter))
+    
+    return interpolated
+
+# Interpolate waypoints to add 4 intermediate points between each pair (5x smoother)
+_HAIFA_WAYPOINTS_INTERPOLATED = _interpolate_waypoints(_HAIFA_WAYPOINTS_RAW, divisions=5)
+HAIFA_ROUTE_WAYPOINTS = [{'lat': lat, 'lon': lon} for lon, lat in _HAIFA_WAYPOINTS_INTERPOLATED]
 
 
 # ── NMEA helpers ────────────────────────────────────────────────────────────

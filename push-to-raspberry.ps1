@@ -36,7 +36,7 @@ Write-Host ""
 Write-Host "  Hub     : $IOT_HUB" -ForegroundColor Yellow
 Write-Host "  Device  : $DEVICE_ID" -ForegroundColor Yellow
 Write-Host "  Image   : ${IMAGE}:${Tag}" -ForegroundColor Yellow
-Write-Host "  Mode    : $(if ($Direct) { 'Direct deploy' } else { 'Git push → CI/CD → Deploy' })" -ForegroundColor Yellow
+Write-Host "  Mode    : $(if ($Direct) { 'Direct deploy' } else { 'Git push - CI/CD - Deploy' })" -ForegroundColor Yellow
 Write-Host ""
 
 # ── Verify az CLI is available and logged in ────────────────────────────────
@@ -150,7 +150,7 @@ if (-not $Direct) {
     Write-Host "    1. Build ARM64 Docker image (QEMU cross-build)" -ForegroundColor White
     Write-Host "    2. Push to ghcr.io/barakuziel-vxt/vxt-orchestrator" -ForegroundColor White
     Write-Host "    3. Deploy to IoT Edge device ($DEVICE_ID)" -ForegroundColor White
-    Write-Host "    4. Edge agent on Pi pulls image & starts module" -ForegroundColor White
+    Write-Host "    4. Edge agent on Pi pulls image and starts module"  -ForegroundColor White
     Write-Host ""
     Write-Host "  Monitor:" -ForegroundColor Cyan
     Write-Host "    https://github.com/barakuziel-vxt/vxt/actions" -ForegroundColor Blue

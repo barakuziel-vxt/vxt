@@ -63,11 +63,40 @@ class SignalKSimulator:
             logger.error(f"Failed to connect to Kafka: {e}")
             raise
     
+    def _interpolate_waypoints(self, waypoints_raw, divisions=5):
+        """Interpolate waypoints to create smoother path with more points.
+        
+        Args:
+            waypoints_raw: List of (lon, lat) tuples
+            divisions: Number of segments to divide each pair into (5 = add 4 intermediate points)
+        
+        Returns:
+            List of interpolated waypoints as (lon, lat) tuples
+        """
+        if divisions < 2:
+            return waypoints_raw
+        
+        interpolated = []
+        for i in range(len(waypoints_raw)):
+            lon1, lat1 = waypoints_raw[i]
+            interpolated.append((lon1, lat1))
+            
+            # Add intermediate points to next waypoint
+            if i < len(waypoints_raw) - 1:
+                lon2, lat2 = waypoints_raw[i + 1]
+                for j in range(1, divisions):
+                    t = j / divisions  # 0.2, 0.4, 0.6, 0.8
+                    lon_inter = lon1 + (lon2 - lon1) * t
+                    lat_inter = lat1 + (lat2 - lat1) * t
+                    interpolated.append((lon_inter, lat_inter))
+        
+        return interpolated
+    
     def _generate_sailing_route(self):
         """Generate waypoints for sailing around Haifa Port
         
         Uses actual GPS traces from Haifa harbor with realistic port docking pattern
-        61 waypoints tracing actual vessel path around the harbor
+        Interpolates to create 5x smoother path with ~290 waypoints total
         """
         # Actual traced waypoints from Haifa harbor (lon, lat format from map tool)
         waypoints_raw = [
@@ -131,11 +160,14 @@ class SignalKSimulator:
             (35.0698748, 32.9194825)
         ]
         
-        # Convert to waypoint format (lon, lat) -> {'lat': lat, 'lon': lon}
-        waypoints = [{'lat': lat, 'lon': lon} for lon, lat in waypoints_raw]
+        # Interpolate waypoints to add 4 intermediate points between each pair (5x smoother)
+        waypoints_interpolated = self._interpolate_waypoints(waypoints_raw, divisions=5)
         
-        logger.info(f"Generated sailing route with {len(waypoints)} actual harbor waypoints")
-        logger.info(f"  Haifa Harbor trace: Real GPS coordinates from Leaflet map trace")
+        # Convert to waypoint format (lon, lat) -> {'lat': lat, 'lon': lon}
+        waypoints = [{'lat': lat, 'lon': lon} for lon, lat in waypoints_interpolated]
+        
+        logger.info(f"Generated sailing route with {len(waypoints)} interpolated waypoints (from {len(waypoints_raw)} original)")
+        logger.info(f"  Haifa Harbor trace: Real GPS coordinates with 5x interpolation")
         logger.info(f"  Route: Complex docking pattern around Haifa port")
         logger.info(f"  Latitude range: {min(w['lat'] for w in waypoints):.4f} to {max(w['lat'] for w in waypoints):.4f}")
         logger.info(f"  Longitude range: {min(w['lon'] for w in waypoints):.4f} to {max(w['lon'] for w in waypoints):.4f}")
