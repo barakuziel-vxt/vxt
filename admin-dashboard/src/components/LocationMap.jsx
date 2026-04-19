@@ -130,7 +130,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
           scrollWheelZoom={true}
         >
           <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="OpenStreetMap">
+            <LayersControl.BaseLayer name="OpenStreetMap">
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -138,7 +138,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
               />
             </LayersControl.BaseLayer>
 
-            <LayersControl.BaseLayer name="OpenTopoMap">
+            <LayersControl.BaseLayer checked name="OpenTopoMap">
               <TileLayer
                 url="https://tile.opentopomap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors'

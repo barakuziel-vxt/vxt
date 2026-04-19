@@ -68,8 +68,8 @@ from datetime import datetime, timezone
 DEFAULT_PORT = 10113
 DEFAULT_INTERVAL = 2  # seconds between sentence bursts
 
-# Seconds to spend at each waypoint before advancing
-WAYPOINT_STEP_SECONDS = 5
+# Seconds to spend at each waypoint before advancing (50s = 10x slower than before)
+WAYPOINT_STEP_SECONDS = 50
 
 # Actual GPS trace of Haifa harbor (same route as simulate_signalk_vessel.py)
 # Format: (lon, lat) — converted to {'lat', 'lon'} dicts below
@@ -147,8 +147,8 @@ def generate_sentences(t: float) -> list:
     # Position: follow actual Haifa harbor GPS trace, advancing one waypoint every WAYPOINT_STEP_SECONDS
     waypoint_idx = int(t / WAYPOINT_STEP_SECONDS) % len(HAIFA_ROUTE_WAYPOINTS)
     waypoint = HAIFA_ROUTE_WAYPOINTS[waypoint_idx]
-    lat = waypoint['lat'] + random.uniform(-0.0002, 0.0002)
-    lon = waypoint['lon'] + random.uniform(-0.0002, 0.0002)
+    lat = waypoint['lat']
+    lon = waypoint['lon']
 
     # Speed over ground (knots) and course over ground (degrees true)
     sog_knots = 5.5 + math.sin(t / 90) * 2.0 + math.sin(t / 30) * 0.5
