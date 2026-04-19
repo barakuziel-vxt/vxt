@@ -68,9 +68,34 @@ from datetime import datetime, timezone
 DEFAULT_PORT = 10113
 DEFAULT_INTERVAL = 2  # seconds between sentence bursts
 
-# Base coordinates: Haifa port marina
-BASE_LAT = 32.8153
-BASE_LON = 34.9533
+# Seconds to spend at each waypoint before advancing
+WAYPOINT_STEP_SECONDS = 5
+
+# Actual GPS trace of Haifa harbor (same route as simulate_signalk_vessel.py)
+# Format: (lon, lat) — converted to {'lat', 'lon'} dicts below
+_HAIFA_WAYPOINTS_RAW = [
+    (35.0315595, 32.8059605), (35.0304437, 32.8062310), (35.0293064, 32.8064474),
+    (35.0285125, 32.8068620), (35.0282979, 32.8081422), (35.0285983, 32.8089896),
+    (35.0286241, 32.8099920), (35.0286026, 32.8109476), (35.0283666, 32.8117949),
+    (35.0280018, 32.8124800), (35.0270791, 32.8132192), (35.0253754, 32.8148129),
+    (35.0237875, 32.8157324), (35.0226631, 32.8162985), (35.0209465, 32.8170737),
+    (35.0190582, 32.8179210), (35.0175991, 32.8195975), (35.0168052, 32.8210578),
+    (35.0160456, 32.8266640), (35.0169253, 32.8272606), (35.0179768, 32.8281980),
+    (35.0188136, 32.8297121), (35.0193071, 32.8312443), (35.0194144, 32.8321816),
+    (35.0195217, 32.8333171), (35.0203028, 32.8335522), (35.0210752, 32.8337324),
+    (35.0226631, 32.8338766), (35.0250235, 32.8339487), (35.0294867, 32.8334080),
+    (35.0336065, 32.8323986), (35.0381985, 32.8308484), (35.0413227, 32.8315365),
+    (35.0447559, 32.8339158), (35.0473566, 32.8399213), (35.0489445, 32.8434538),
+    (35.0502491, 32.8553910), (35.0500774, 32.8629592), (35.0524978, 32.8816849),
+    (35.0554676, 32.8922633), (35.0610294, 32.9014277), (35.0663509, 32.9054621),
+    (35.0705566, 32.9092081), (35.0723848, 32.9119321), (35.0736294, 32.9143452),
+    (35.0725393, 32.9161717), (35.0717669, 32.9171621), (35.0715737, 32.9176843),
+    (35.0715308, 32.9183146), (35.0715051, 32.9186410), (35.0715373, 32.9191002),
+    (35.0712905, 32.9194154), (35.0711226, 32.9195032), (35.0708544, 32.9195509),
+    (35.0705084, 32.9196049), (35.0702444, 32.9196301), (35.0700572, 32.9195613),
+    (35.0698748, 32.9194825),
+]
+HAIFA_ROUTE_WAYPOINTS = [{'lat': lat, 'lon': lon} for lon, lat in _HAIFA_WAYPOINTS_RAW]
 
 
 # ── NMEA helpers ────────────────────────────────────────────────────────────
@@ -119,9 +144,11 @@ def generate_sentences(t: float) -> list:
     utc_date = now.strftime("%d%m%y")
 
     # Computed values
-    # Position: sailing along Haifa coast with gentle drift
-    lat = BASE_LAT + math.sin(t / 300) * 0.01 + math.sin(t / 120) * 0.003 + random.uniform(-0.0002, 0.0002)
-    lon = BASE_LON + math.cos(t / 400) * 0.012 + math.sin(t / 150) * 0.004 + random.uniform(-0.0002, 0.0002)
+    # Position: follow actual Haifa harbor GPS trace, advancing one waypoint every WAYPOINT_STEP_SECONDS
+    waypoint_idx = int(t / WAYPOINT_STEP_SECONDS) % len(HAIFA_ROUTE_WAYPOINTS)
+    waypoint = HAIFA_ROUTE_WAYPOINTS[waypoint_idx]
+    lat = waypoint['lat'] + random.uniform(-0.0002, 0.0002)
+    lon = waypoint['lon'] + random.uniform(-0.0002, 0.0002)
 
     # Speed over ground (knots) and course over ground (degrees true)
     sog_knots = 5.5 + math.sin(t / 90) * 2.0 + math.sin(t / 30) * 0.5
@@ -406,8 +433,10 @@ def run_udp_sender(args):
             burst_count += 1
 
             # Extract computed values for display
-            lat_disp = BASE_LAT + math.sin(t / 300) * 0.01
-            lon_disp = BASE_LON + math.cos(t / 400) * 0.012
+            waypoint_idx = int(t / WAYPOINT_STEP_SECONDS) % len(HAIFA_ROUTE_WAYPOINTS)
+            wp = HAIFA_ROUTE_WAYPOINTS[waypoint_idx]
+            lat_disp = wp['lat']
+            lon_disp = wp['lon']
             sog = 5.5 + math.sin(t / 90) * 2.0
             depth = 18.7 + math.sin(t / 180) * 0.3
             rpm = 1500 + math.sin(t / 60) * 400

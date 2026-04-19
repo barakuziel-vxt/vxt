@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, LayersControl } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, Polyline, Marker, Popup, useMap, LayersControl } from 'react-leaflet';
 import { DivIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -155,6 +155,19 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
                 opacity={0.9}
               />
             </LayersControl.Overlay>
+
+            {/* GEBCO bathymetric depth overlay (global ocean floor data) */}
+            <LayersControl.Overlay name="🔵 Ocean Depth (GEBCO)">
+              <WMSTileLayer
+                url="https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?"
+                layers="GEBCO_LATEST"
+                format="image/png"
+                transparent={true}
+                opacity={0.55}
+                attribution='&copy; <a href="https://www.gebco.net">GEBCO</a>'
+                version="1.1.1"
+              />
+            </LayersControl.Overlay>
           </LayersControl>
 
           {/* Draw smoothly curved path polyline */}
@@ -182,7 +195,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
         </MapContainer>
       </div>
       <div style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
-        {locationPoints.length} position points • Nautical overlay: OpenSeaMap (real buoys, depth contours, shipping lanes)
+        {locationPoints.length} position points • Overlays: OpenSeaMap nautical chart, GEBCO ocean depth
       </div>
     </div>
   );
