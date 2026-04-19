@@ -63,9 +63,9 @@ OIL_PRESSURE_THRESHOLDS = [
     {"min": 3200, "max": 4099, "score": 3, "label": "Emergency"},
 ]
 
-# Base coordinates: Haifa port
-BASE_LAT = 32.8256
-BASE_LON = 35.0204
+# Base coordinates: Haifa port (south end of harbor trace, in water)
+BASE_LAT = 32.8060
+BASE_LON = 35.0316
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper Functions – NMEA 0183
@@ -190,10 +190,10 @@ async def scenario_geofence_haifa_entry_exit(config: Config) -> None:
     log.info("=" * 60)
 
     positions = [
-        (32.860, 35.000, "Outside Haifa port"),
-        (32.8440, 35.0215, "Entering Haifa port"),  # Inside polygon center
-        (32.8450, 35.0300, "Deep inside Haifa port"),  # Still inside polygon
-        (32.860, 35.000, "Exiting Haifa port"),
+        (32.8629, 35.0501, "Open bay — outside Haifa port"),
+        (32.8297, 35.0188, "Approaching Haifa harbor entrance"),
+        (32.8339, 35.0251, "Inside Haifa harbor"),
+        (32.8629, 35.0501, "Departing — back to open bay"),
     ]
 
     for lat, lon, label in positions:
@@ -210,11 +210,11 @@ async def scenario_combined_emergency(config: Config) -> None:
 
     log.info("  [1/4] Normal operations…")
     send_nmea_sentences(config, create_oil_pressure_nmea(2000))
-    send_nmea_sentences(config, create_position_nmea(32.860, 35.000))
+    send_nmea_sentences(config, create_position_nmea(32.8629, 35.0501))
     await asyncio.sleep(2)
 
     log.info("  [2/4] Vessel moving toward Haifa port…")
-    send_nmea_sentences(config, create_position_nmea(32.8440, 35.0215))
+    send_nmea_sentences(config, create_position_nmea(32.8297, 35.0188))
     await asyncio.sleep(2)
 
     log.info("  [3/4] Oil pressure rising (Warning level)…")
