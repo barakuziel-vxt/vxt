@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { eventAPI, eventAttributeAPI, analyzeFunctionAPI, entityTypeAttributeScoreAPI } from '../services/eventApi';
 import { entityTypeAPI } from '../services/api';
 import { entityTypeAttributeAPI } from '../services/api';
-import '../styles/ManagementPage.css';
 
 export default function EventPage() {
   // State for events
@@ -317,40 +316,42 @@ export default function EventPage() {
   };
 
   return (
-    <div className="management-page">
-      <h1>Event Management</h1>
-      {error && <div style={{color:'#ff6666', padding:'10px', backgroundColor:'#3a1a1a', marginBottom:'10px', borderRadius:'4px', border:'1px solid #5f2d2d'}}>{error}</div>}
-      {loading && <p>Loading...</p>}
+    <div className="page">
+      <h2>Event Management</h2>
+      <p className="page-subtitle">Manage events and configure event attributes</p>
+      {error && <div className="alert alert-error">{error}</div>}
+      {loading && <div className="empty-state"><h3>Loading...</h3></div>}
 
-      {/* Filters */}
-      <div className="filter-section">
-        <label htmlFor="filterEntityType">Entity Type:</label>
-        <select
-          id="filterEntityType"
-          value={filterEntityTypeId}
-          onChange={(e) => setFilterEntityTypeId(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">ALL</option>
-          {entityTypes.map((type) => (
-            <option key={type.entityTypeId} value={type.entityTypeId}>
-              {type.entityTypeName}
-            </option>
-          ))}
-        </select>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label htmlFor="filterEntityType" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>Entity Type</label>
+            <select
+              id="filterEntityType"
+              value={filterEntityTypeId}
+              onChange={(e) => setFilterEntityTypeId(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
+            >
+              <option value="">All Entity Types</option>
+              {entityTypes.map((type) => (
+                <option key={type.entityTypeId} value={type.entityTypeId}>
+                  {type.entityTypeName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEventModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New Event
+        </button>
       </div>
-
-      {/* Add Event Button */}
-      <button className="add-button" onClick={() => handleOpenEventModal()}>
-        + Add New Event
-      </button>
 
       {/* Events Table */}
       <div className="table-container">
         {filteredEvents.length === 0 ? (
-          <p className="no-data">No events found</p>
+          <div className="empty-state"><h3>No events found</h3><p>Create your first event to get started</p></div>
         ) : (
-          <table className="data-table">
+          <table className="table">
             <thead>
               <tr>
                 <th>Event Code</th>
@@ -369,7 +370,10 @@ export default function EventPage() {
                   <td>{event.eventDescription}</td>
                   <td>{getEntityTypeName(event.entityTypeId)}</td>
                   <td>
-                    <span className={`risk-badge risk-${event.risk.toLowerCase()}`}>
+                    <span className="badge" style={{
+                      backgroundColor: event.risk === 'CRITICAL' ? '#5f0000' : event.risk === 'HIGH' ? '#5f2000' : event.risk === 'MEDIUM' ? '#3f3f00' : event.risk === 'LOW' ? 'rgba(63, 185, 80, 0.1)' : '#21262d',
+                      color: event.risk === 'CRITICAL' ? '#ff4444' : event.risk === 'HIGH' ? '#ff8844' : event.risk === 'MEDIUM' ? '#ffdd44' : event.risk === 'LOW' ? '#3fb950' : '#999999'
+                    }}>
                       {event.risk}
                     </span>
                   </td>
@@ -380,7 +384,7 @@ export default function EventPage() {
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
-                        className="action-button edit"
+                        className="btn btn-sm btn-secondary"
                         onClick={() => {
                           setSelectedEvent(event);
                           loadEventAttributes(event.eventId);
@@ -390,7 +394,7 @@ export default function EventPage() {
                         Edit
                       </button>
                       <button
-                        className="action-button delete"
+                        className="btn btn-sm btn-danger"
                         onClick={() => handleDeleteEvent(event.eventId)}
                       >
                         Delete
@@ -406,18 +410,14 @@ export default function EventPage() {
 
       {/* Event Modal */}
       {showEventModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal">
+          <div className="modal-content" style={{ maxWidth: '700px' }}>
             <div className="modal-header">
-              <h2>
+              <h3>
                 {modalMode === 'add' ? 'Create New Event' : 'Edit Event'}
-              </h2>
-              <button className="close-button" onClick={handleCloseEventModal}>
-                ×
-              </button>
+              </h3>
             </div>
-            <div className="modal-body">
-              <form>
+            <form>
                 {/* Event Details Section */}
                 <div className="form-section">
                   <h3>Event Details</h3>
@@ -622,11 +622,11 @@ export default function EventPage() {
                                   This will include baseline comparisons, statistical findings, and confidence metrics.
                                 </p>
                                 <div style={{ 
-                                  backgroundColor: '#1a3a1a', 
+                                  backgroundColor: 'rgba(63, 185, 80, 0.1)', 
                                   padding: '12px', 
                                   borderRadius: '4px',
-                                  borderLeft: '4px solid #44dd44',
-                                  color: '#44dd44'
+                                  borderLeft: '4px solid #3fb950',
+                                  color: '#3fb950'
                                 }}>
                                   <strong>✓ Python/AI Function:</strong> Analysis metadata will be stored in EventLog and displayed when events are triggered.
                                 </div>
@@ -684,12 +684,11 @@ export default function EventPage() {
                   </div>
                 )}
               </form>
-            </div>
             <div className="modal-footer">
-              <button className="button-cancel" onClick={handleCloseEventModal}>
+              <button className="btn btn-secondary" onClick={handleCloseEventModal}>
                 Cancel
               </button>
-              <button className="button-save" onClick={handleSaveEvent}>
+              <button className="btn btn-primary" onClick={handleSaveEvent}>
                 {modalMode === 'add' ? 'Create Event' : 'Save Changes'}
               </button>
             </div>

@@ -6,7 +6,7 @@
 }
 
 .app-header {
-  background-color: #252525;
+  background-color: #161b22;
   color: var(--text-color);
   padding: 20px 30px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -27,7 +27,7 @@
 
 .app-sidebar {
   width: 250px;
-  background-color: #252525;
+  background-color: #161b22;
   border-right: 1px solid var(--border-color);
   padding: 20px;
   overflow-y: auto;
@@ -54,7 +54,7 @@
   margin-bottom: 8px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   color: var(--text-color);
@@ -64,15 +64,15 @@
 }
 
 .nav-button:hover {
-  background-color: #3a3a3a;
+  background-color: #21262d;
   border-color: var(--border-color);
 }
 
 .nav-button.active {
-  background-color: #667eea;
+  background-color: #388bfd;
   color: white;
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  border-color: #388bfd;
+  box-shadow: 0 2px 8px rgba(56, 139, 253, 0.3);
 }
 
 .nav-link {
@@ -100,9 +100,9 @@
 
 /* Common styles for pages */
 .page {
-  background: #2d2d2d;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: var(--light-bg);
+  border-radius: 0;
+  box-shadow: none;
   padding: 30px;
   color: var(--text-color);
 }
@@ -110,7 +110,7 @@
 .page-header {
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #3a3a3a;
+  border-bottom: 2px solid var(--border-color);
 }
 
 .page-header h2 {
@@ -136,7 +136,7 @@
 .btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
@@ -144,34 +144,34 @@
 }
 
 .btn-primary {
-  background-color: #667eea;
+  background-color: #388bfd;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #5568d3;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  background-color: #1f6feb;
+  box-shadow: 0 4px 12px rgba(56, 139, 253, 0.3);
 }
 
 .btn-secondary {
-  background-color: #3a3a3a;
+  background-color: #21262d;
   color: var(--text-color);
   border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-  background-color: #4a4a4a;
+  background-color: #30363d;
 }
 
 /* Delete button — red tint to distinguish from Edit */
 .btn-danger {
-  background-color: #8b2020;
+  background-color: #da3633;
   color: white;
   border: none;
 }
 
 .btn-danger:hover {
-  background-color: #a83030;
+  background-color: #f85149;
 }
 
 /* Table action cells: always flex row so buttons sit side by side */
@@ -197,7 +197,7 @@ td .btn-sm + .btn-sm,
 td .btn + .btn,
 div .btn-sm + .btn-sm,
 div .btn + .btn {
-  background-color: #8b2020 !important;
+  background-color: #da3633 !important;
   color: white !important;
   border: none !important;
 }
@@ -206,7 +206,7 @@ td .btn-sm + .btn-sm:hover,
 td .btn + .btn:hover,
 div .btn-sm + .btn-sm:hover,
 div .btn + .btn:hover {
-  background-color: #a83030 !important;
+  background-color: #f85149 !important;
 }
 
 .btn-success {
@@ -226,12 +226,11 @@ div .btn + .btn:hover {
 .table-container {
   overflow-x: auto;
   margin-bottom: 20px;
-  /* Scroll shadow hint: right-side gradient fades when content is scrollable */
   background:
-    linear-gradient(to right, #2d2d2d 10px, transparent) left center,
-    linear-gradient(to left,  #2d2d2d 10px, transparent) right center,
-    linear-gradient(to right, rgba(102,126,234,0.3), transparent) left center,
-    linear-gradient(to left,  rgba(102,126,234,0.3), transparent) right center;
+    linear-gradient(to right, #0d1117 10px, transparent) left center,
+    linear-gradient(to left,  #0d1117 10px, transparent) right center,
+    linear-gradient(to right, rgba(56,139,253,0.3), transparent) left center,
+    linear-gradient(to left,  rgba(56,139,253,0.3), transparent) right center;
   background-size: 30px 100%, 30px 100%, 15px 100%, 15px 100%;
   background-repeat: no-repeat;
   background-attachment: local, local, scroll, scroll;
@@ -243,12 +242,12 @@ div .btn + .btn:hover {
 .table thead th:first-child {
   position: sticky;
   left: 0;
-  background-color: #2d2d2d;
+  background-color: #0d1117;
   z-index: 1;
 }
 
 .table thead th:first-child {
-  background-color: #3a3a3a;
+  background-color: #21262d;
 }
 
 .table {
@@ -258,7 +257,7 @@ div .btn + .btn:hover {
 }
 
 .table thead {
-  background-color: #3a3a3a;
+  background-color: #21262d;
   border-bottom: 2px solid var(--border-color);
 }
 
@@ -271,12 +270,12 @@ div .btn + .btn:hover {
 
 .table td {
   padding: 12px;
-  border-bottom: 1px solid #353535;
+  border-bottom: 1px solid var(--border-color);
   color: var(--text-color);
 }
 
 .table tbody tr:hover {
-  background-color: #353535;
+  background-color: #21262d;
 }
 
 .table-actions {
@@ -285,9 +284,9 @@ div .btn + .btn:hover {
 }
 
 .form-section {
-  background-color: #353535;
+  background-color: #161b22;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
 }
@@ -317,10 +316,10 @@ div .btn + .btn:hover {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
-  background-color: #2d2d2d;
+  background-color: #0d1117;
   color: var(--text-color);
 }
 
@@ -328,8 +327,8 @@ div .btn + .btn:hover {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #388bfd;
+  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.1);
 }
 
 .form-row {
@@ -344,7 +343,7 @@ div .btn + .btn:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -352,8 +351,8 @@ div .btn + .btn:hover {
 }
 
 .modal-content {
-  background: #2d2d2d;
-  border-radius: 8px;
+  background: #161b22;
+  border-radius: 12px;
   padding: 30px;
   max-width: 600px;
   width: 90%;
@@ -361,12 +360,13 @@ div .btn + .btn:hover {
   overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
 
 .modal-header {
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #3a3a3a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h3 {
@@ -378,7 +378,7 @@ div .btn + .btn:hover {
 .modal-footer {
   margin-top: 20px;
   padding-top: 15px;
-  border-top: 1px solid #3a3a3a;
+  border-top: 1px solid var(--border-color);
   display: flex;
   gap: 10px;
   justify-content: flex-end;
@@ -392,21 +392,21 @@ div .btn + .btn:hover {
 }
 
 .alert-success {
-  background-color: #1a3a1a;
-  color: #44dd44;
-  border: 1px solid #2a4a2a;
+  background-color: rgba(63, 185, 80, 0.1);
+  color: #3fb950;
+  border: 1px solid rgba(63, 185, 80, 0.3);
 }
 
 .alert-error {
-  background-color: #3a1a1a;
-  color: #ff6666;
-  border: 1px solid #5f2d2d;
+  background-color: rgba(218, 54, 51, 0.1);
+  color: #f85149;
+  border: 1px solid rgba(218, 54, 51, 0.3);
 }
 
 .alert-warning {
-  background-color: #3a3a1a;
-  color: #ffdd44;
-  border: 1px solid #4a4a2a;
+  background-color: rgba(210, 153, 34, 0.1);
+  color: #d29922;
+  border: 1px solid rgba(210, 153, 34, 0.3);
 }
 
 .empty-state {
@@ -429,18 +429,18 @@ div .btn + .btn:hover {
 }
 
 .badge-active {
-  background-color: #1a3a1a;
-  color: #44dd44;
+  background-color: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
 }
 
 .badge-inactive {
-  background-color: #3a1a1a;
-  color: #ff6666;
+  background-color: rgba(218, 54, 51, 0.15);
+  color: #f85149;
 }
 
 .badge-primary {
-  background-color: #1a2a3a;
-  color: #66bbff;
+  background-color: rgba(56, 139, 253, 0.15);
+  color: #388bfd;
 }
 
 .badge-secondary {
@@ -449,18 +449,18 @@ div .btn + .btn:hover {
 }
 
 .badge-info {
-  background-color: #1a2a3a;
-  color: #66bbff;
+  background-color: rgba(56, 139, 253, 0.15);
+  color: #388bfd;
 }
 
 .badge-success {
-  background-color: #1a3a1a;
-  color: #44dd44;
+  background-color: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
 }
 
 .badge-danger {
-  background-color: #3a1a1a;
-  color: #ff6666;
+  background-color: rgba(218, 54, 51, 0.15);
+  color: #f85149;
 }
 
 .page-subtitle {
@@ -477,9 +477,9 @@ div .btn + .btn:hover {
   align-items: flex-end;
   flex-wrap: wrap;
   padding: 10px 12px;
-  background-color: #252525;
+  background-color: #161b22;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .filter-group {
@@ -521,8 +521,8 @@ div .btn + .btn:hover {
 .filter-group select {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--light-bg);
+  border-radius: 8px;
+  background-color: #0d1117;
   color: var(--text-color);
   font-size: 13px;
   transition: all 0.3s ease;
@@ -531,8 +531,8 @@ div .btn + .btn:hover {
 .filter-group input:focus,
 .filter-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #388bfd;
+  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.1);
 }
 
 .btn-sm {
@@ -641,7 +641,7 @@ div .btn + .btn:hover {
     height: calc(100vh - 60px);
     z-index: 1000;
     transition: left 0.3s ease;
-    background-color: #252525;
+    background-color: #161b22;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
   }
 
@@ -771,12 +771,12 @@ div .btn + .btn:hover {
     display: table-cell !important;
     position: sticky;
     right: 0;
-    background-color: #2d2d2d;
+    background-color: #0d1117;
     z-index: 1;
   }
 
   .table thead th:last-child {
-    background-color: #3a3a3a;
+    background-color: #21262d;
   }
 
   .chart-container {

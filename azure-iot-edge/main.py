@@ -494,7 +494,7 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                     alert_path = path.removeprefix("notifications.")
 
                                     # For geofence notifications (navigation.geofence.<id>),
-                                    # send as GEOFENCE_BREACH with fence details + lat/lon
+                                    # send as GEOFENCE_BREACH with all event attributes
                                     eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
                                     events_map = vxt_config.get("events", {})
                                     if alert_path.startswith("navigation.geofence."):
@@ -504,46 +504,72 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                         fence_id = gf_data.get("fenceId", fence_id_str)
                                         lat = gf_data.get("lat")
                                         lon = gf_data.get("lon")
-                                        # Resolve attribute from twin config
-                                        resolved_attr = "navigation.position"
+                                        
+                                        # Find the geofence event in the events map and get its attributes
+                                        geofence_event = None
+                                        for event_code, event_info in events_map.items():
+                                            if isinstance(event_info, dict) and event_info.get("eventCode") == "GEOFENCE_BREACH":
+                                                geofence_event = event_info
+                                                break
+                                        
+                                        if not geofence_event:
+                                            log.warning("No GEOFENCE_BREACH event in twin config, skipping")
+                                            continue
+                                        
+                                        # Build attributes array with actual lat/lon values
+                                        attributes = {}
+                                        event_attrs = geofence_event.get("attributes", [])
+                                        for attr_path in event_attrs:
+                                            if "latitude" in attr_path.lower():
+                                                attributes[attr_path] = lat
+                                            elif "longitude" in attr_path.lower():
+                                                attributes[attr_path] = lon
+                                        
+                                        # Resolve fence name from twin if not in data
                                         for gf in vxt_config.get("geofences", []):
                                             if str(gf.get("id", "")) == fence_id_str:
-                                                attr = gf.get("attribute", "")
-                                                if attr:
-                                                    resolved_attr = attr.replace("/", ".")
                                                 if not fence_name:
                                                     fence_name = gf.get("name", "")
                                                 break
-                                        # Resolve eventCode from twin events
-                                        event_code = events_map.get(resolved_attr.replace(".", "/"), {}).get("eventCode", "")
-                                        if not event_code:
-                                            log.warning("No eventCode in twin for attr %s, skipping", resolved_attr)
-                                            continue
+                                        
+                                        event_code = geofence_event.get("eventCode", "GEOFENCE_BREACH")
+                                        event_id = geofence_event.get("eventId", 0)
+                                        
                                         alert_msg = json.dumps({
                                             "eventCode": event_code,
-                                            "path": resolved_attr,
+                                            "eventId": event_id,
+                                            "attributes": attributes,
                                             "state": state,
                                             "message": value.get("message", ""),
                                             "timestamp": ts,
                                             "entityId": eid,
                                             "fenceId": fence_id,
                                             "fenceName": fence_name,
-                                            "latitude": lat,
-                                            "longitude": lon,
                                         })
                                     else:
-                                        # Resolve eventCode from twin events using alert_path
-                                        attr_key = alert_path.replace(".", "/")
-                                        event_info = events_map.get(attr_key, {})
-                                        event_code = event_info.get("eventCode", "")
-                                        if not event_code:
-                                            log.warning("No eventCode in twin for path %s, skipping", alert_path)
+                                        # Generic alarm/emergency alert - resolve from events map
+                                        # Events map now contains event_code → {eventCode, eventId, attributes: [...]}
+                                        resolved_event = None
+                                        for event_code, event_info in events_map.items():
+                                            if isinstance(event_info, dict):
+                                                # event_info structure: {eventCode, eventId, attributes: [...]}
+                                                event_attrs = event_info.get("attributes", [])
+                                                # Check if alert_path matches any of the event's attributes
+                                                if alert_path.replace(".", "/") in event_attrs or \
+                                                   any(alert_path in attr for attr in event_attrs):
+                                                    resolved_event = event_info
+                                                    break
+                                        
+                                        if not resolved_event:
+                                            log.warning("No event mapping in twin for alert %s, skipping", alert_path)
                                             continue
+                                        
                                         alert_msg = json.dumps({
-                                            "eventCode": event_code,
-                                            "path": alert_path,
+                                            "eventCode": resolved_event.get("eventCode", ""),
+                                            "eventId": resolved_event.get("eventId", 0),
+                                            "attributes": {alert_path.replace(".", "/"): value},
                                             "state": state,
-                                            "message": value.get("message", ""),
+                                            "message": value.get("message", "") if isinstance(value, dict) else str(value),
                                             "timestamp": ts,
                                             "entityId": eid,
                                         })

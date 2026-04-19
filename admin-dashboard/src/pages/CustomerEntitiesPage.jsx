@@ -86,26 +86,26 @@ function InviteUserView({ onBack }) {
   };
 
   const IS = {
-    root: { background: '#0d1117', minHeight: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: '#e6edf3' },
-    header: { display: 'flex', alignItems: 'center', padding: '14px 16px', background: '#161b22', borderBottom: '1px solid #30363d' },
-    backBtn: { background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#e6edf3', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-    fieldLabel: { display: 'block', fontSize: 13, fontWeight: 600, color: '#8b949e', marginTop: 12, marginBottom: 4 },
-    input: { width: '100%', boxSizing: 'border-box', background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '10px 12px', color: '#e6edf3', fontSize: 14, outline: 'none' },
-    select: { width: '100%', boxSizing: 'border-box', background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '10px 12px', color: '#e6edf3', fontSize: 14, outline: 'none' },
-    saveBtn: { background: '#3fb950', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
-    card: { background: '#161b22', borderRadius: 10, padding: '10px 14px', border: '1px solid #30363d' },
+    root: { background: '#0d1117', minHeight: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: 'var(--text-color)', display: 'flex', flexDirection: 'column' },
+    header: { display: 'flex', alignItems: 'center', padding: '20px 24px', background: '#161b22', borderBottom: '1px solid var(--border-color)' },
+    backBtn: { background: 'none', border: '1px solid var(--border-color)', borderRadius: 4, padding: '8px 12px', color: 'var(--text-color)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease' },
+    fieldLabel: { display: 'block', fontSize: 14, fontWeight: 500, color: 'var(--text-color)', marginTop: 12, marginBottom: 6 },
+    input: { width: '100%', boxSizing: 'border-box', background: '#0d1117', border: '1px solid var(--border-color)', borderRadius: 4, padding: '10px 12px', color: 'var(--text-color)', fontSize: 14, outline: 'none' },
+    select: { width: '100%', boxSizing: 'border-box', background: '#0d1117', border: '1px solid var(--border-color)', borderRadius: 4, padding: '10px 12px', color: 'var(--text-color)', fontSize: 14, outline: 'none' },
+    saveBtn: { background: '#388bfd', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 14, transition: 'all 0.3s ease' },
+    card: { background: '#161b22', borderRadius: 4, padding: '12px 14px', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' },
     loader: { color: '#388bfd', textAlign: 'center', padding: 40 },
-    list: { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 },
+    list: { padding: '0 24px 20px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 },
   };
 
   return (
     <div style={IS.root}>
       <div style={IS.header}>
         <button style={IS.backBtn} onClick={onBack}>← Back</button>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e6edf3', marginLeft: 12 }}>📨 Invite User</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-color)', marginLeft: 12 }}>📨 Invite User</div>
       </div>
 
-      <div style={{ padding: '10px 16px', background: '#161b22', borderBottom: '1px solid #30363d' }}>
+      <div style={{ padding: '16px 24px', background: '#161b22', borderBottom: '1px solid var(--border-color)' }}>
         <label style={IS.fieldLabel}>Email Address</label>
         <input style={IS.input} placeholder="user@example.com" value={email} onChange={e => setEmail(e.target.value)} />
 
@@ -113,15 +113,15 @@ function InviteUserView({ onBack }) {
         <div style={{ display: 'flex', gap: 8 }}>
           {ROLES.map(r => (
             <button key={r} style={{
-              padding: '8px 14px', borderRadius: 16, border: '1px solid #30363d', background: '#0d1117',
-              color: '#8b949e', fontSize: 13, cursor: 'pointer',
+              padding: '8px 14px', borderRadius: 4, border: '1px solid var(--border-color)', background: '#0d1117',
+              color: 'var(--text-color)', fontSize: 13, cursor: 'pointer', fontWeight: 500, transition: 'all 0.3s ease',
               ...(role === r ? { background: '#388bfd', borderColor: '#388bfd', color: '#fff', fontWeight: 600 } : {}),
             }} onClick={() => setRole(r)}>{r === 'viewer' ? '👁️ Viewer' : r === 'admin' ? '🔧 Admin' : '👑 Owner'}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: '10px 16px', background: '#161b22', borderBottom: '1px solid #30363d' }}>
+      <div style={{ padding: '16px 24px', background: '#161b22', borderBottom: '1px solid var(--border-color)' }}>
         <label style={IS.fieldLabel}>Customer</label>
         <select style={IS.select} value={selectedCustomerId} onChange={e => { setSelectedCustomerId(e.target.value); setSelected(new Set()); }}>
           <option value="">All Customers</option>
@@ -129,8 +129,8 @@ function InviteUserView({ onBack }) {
         </select>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 8 }}>
-          <span style={{ fontSize: 14, color: '#e6edf3', fontWeight: 600 }}>Select Entities ({selected.size}/{filtered.length})</span>
-          <button style={{ background: 'none', border: 'none', color: '#388bfd', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} onClick={selectAll}>
+          <span style={{ fontSize: 14, color: 'var(--text-color)', fontWeight: 600 }}>Select Entities ({selected.size}/{filtered.length})</span>
+          <button style={{ background: 'none', border: 'none', color: '#388bfd', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'color 0.3s ease' }} onClick={selectAll}>
             {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
           </button>
         </div>
@@ -143,15 +143,15 @@ function InviteUserView({ onBack }) {
             const isSel = selected.has(e.customerEntityId);
             return (
               <div key={e.customerEntityId}
-                style={{ ...IS.card, cursor: 'pointer', ...(isSel ? { borderColor: '#3fb950', background: '#0d2818' } : {}) }}
+                style={{ ...IS.card, cursor: 'pointer', ...(isSel ? { borderColor: '#388bfd', background: '#21262d' } : {}) }}
                 onClick={() => toggleEntity(e.customerEntityId)}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>{e.customerName || 'Customer ' + e.customerId}</div>
-                    <div style={{ fontSize: 13, color: '#3fb950', marginTop: 2 }}>{e.entityName || e.entityId}</div>
-                    {e.entityTypeCode && <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>Type: {e.entityTypeCode}</div>}
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-color)' }}>{e.customerName || 'Customer ' + e.customerId}</div>
+                    <div style={{ fontSize: 13, color: '#388bfd', marginTop: 4 }}>{e.entityName || e.entityId}</div>
+                    {e.entityTypeCode && <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>Type: {e.entityTypeCode}</div>}
                   </div>
-                  <input type="checkbox" checked={isSel} readOnly />
+                  <input type="checkbox" checked={isSel} readOnly style={{ cursor: 'pointer' }} />
                 </div>
               </div>
             );
@@ -159,10 +159,10 @@ function InviteUserView({ onBack }) {
         </div>
       )}
 
-      <div style={{ padding: '12px 16px', background: '#161b22', borderTop: '1px solid #30363d' }}>
+      <div style={{ padding: '16px 24px', background: '#161b22', borderTop: '1px solid var(--border-color)' }}>
         <button style={{
-          ...IS.saveBtn, width: '100%', padding: 14, fontSize: 15,
-          ...(!email.trim() || selected.size === 0 ? { background: '#30363d', opacity: 0.6 } : {}),
+          ...IS.saveBtn, width: '100%', padding: 12, fontSize: 14,
+          ...(!email.trim() || selected.size === 0 ? { background: 'var(--border-color)', opacity: 0.6, cursor: 'not-allowed' } : {}),
         }} onClick={sendInvite} disabled={sending || !email.trim() || selected.size === 0}>
           {sending ? 'Sending...' : `📨 Invite ${email.trim() ? email.trim().split('@')[0] : 'User'} to ${selected.size} entit${selected.size !== 1 ? 'ies' : 'y'}`}
         </button>
@@ -365,7 +365,7 @@ export default function CustomerEntitiesPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
           <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
@@ -390,7 +390,7 @@ export default function CustomerEntitiesPage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -419,7 +419,7 @@ export default function CustomerEntitiesPage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -446,7 +446,7 @@ export default function CustomerEntitiesPage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             >

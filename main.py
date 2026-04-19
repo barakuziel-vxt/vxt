@@ -1104,22 +1104,35 @@ def delete_entity_type(id: int):
 
 # Entity Type Attribute Endpoints
 @app.get("/entitytypeattributes")
-def get_entity_type_attributes():
-    """Get all entity type attributes"""
+def get_entity_type_attributes(entityTypeId: int = None):
+    """Get all entity type attributes, optionally filtered by entityTypeId"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
-            SELECT eta.entityTypeAttributeId, eta.entityTypeId, eta.protocolId, eta.entityTypeAttributeCode, 
-                   eta.entityTypeAttributeName, eta.entityTypeAttributeTimeAspect, eta.entityTypeAttributeUnit, 
-                   eta.providerId, eta.providerEventType, eta.active, eta.createDate, eta.lastUpdateTimestamp, eta.lastUpdateUser,
-                   pa.component, eta.defaultInGraph
-            FROM EntityTypeAttribute eta
-            LEFT JOIN ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
-                AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-            WHERE eta.active = 'Y'
-            ORDER BY eta.entityTypeAttributeName
-        """)
+        if entityTypeId:
+            cur.execute("""
+                SELECT eta.entityTypeAttributeId, eta.entityTypeId, eta.protocolId, eta.entityTypeAttributeCode, 
+                       eta.entityTypeAttributeName, eta.entityTypeAttributeTimeAspect, eta.entityTypeAttributeUnit, 
+                       eta.providerId, eta.providerEventType, eta.active, eta.createDate, eta.lastUpdateTimestamp, eta.lastUpdateUser,
+                       pa.component, eta.defaultInGraph
+                FROM EntityTypeAttribute eta
+                LEFT JOIN ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+                    AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
+                WHERE eta.active = 'Y' AND eta.entityTypeId = ?
+                ORDER BY eta.entityTypeAttributeName
+            """, (entityTypeId,))
+        else:
+            cur.execute("""
+                SELECT eta.entityTypeAttributeId, eta.entityTypeId, eta.protocolId, eta.entityTypeAttributeCode, 
+                       eta.entityTypeAttributeName, eta.entityTypeAttributeTimeAspect, eta.entityTypeAttributeUnit, 
+                       eta.providerId, eta.providerEventType, eta.active, eta.createDate, eta.lastUpdateTimestamp, eta.lastUpdateUser,
+                       pa.component, eta.defaultInGraph
+                FROM EntityTypeAttribute eta
+                LEFT JOIN ProtocolAttribute pa ON eta.protocolId = pa.protocolId 
+                    AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
+                WHERE eta.active = 'Y'
+                ORDER BY eta.entityTypeAttributeName
+            """)
         attributes = []
         for row in cur.fetchall():
             attributes.append({
@@ -1194,19 +1207,30 @@ def create_entity_type_attribute(data: dict):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        # Convert empty strings to None for optional fields
+        protocol_id = data.get("protocolId")
+        if protocol_id == "":
+            protocol_id = None
+        provider_id = data.get("providerId")
+        if provider_id == "":
+            provider_id = None
+        
         cur.execute("""
             INSERT INTO EntityTypeAttribute 
             (entityTypeId, protocolId, entityTypeAttributeCode, entityTypeAttributeName, 
-             entityTypeAttributeTimeAspect, entityTypeAttributeUnit, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+             entityTypeAttributeTimeAspect, entityTypeAttributeUnit, active, providerId, providerEventType, defaultInGraph)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get("entityTypeId"),
-            data.get("protocolId"),
+            protocol_id,
             data.get("entityTypeAttributeCode"),
             data.get("entityTypeAttributeName"),
             data.get("entityTypeAttributeTimeAspect", "Pt"),
             data.get("entityTypeAttributeUnit"),
-            data.get("active", "Y")
+            data.get("active", "Y"),
+            provider_id,
+            data.get("providerEventType") or None,
+            data.get("defaultInGraph", "N")
         ))
         conn.commit()
         cur.close()
@@ -1222,24 +1246,32 @@ def update_entity_type_attribute(id: int, data: dict):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        # Convert empty strings to None for optional fields
+        protocol_id = data.get("protocolId")
+        if protocol_id == "":
+            protocol_id = None
+        provider_id = data.get("providerId")
+        if provider_id == "":
+            provider_id = None
+        
         cur.execute("""
             UPDATE EntityTypeAttribute
             SET entityTypeId = ?, protocolId = ?, entityTypeAttributeCode = ?, 
                 entityTypeAttributeName = ?, entityTypeAttributeTimeAspect = ?, 
                 entityTypeAttributeUnit = ?, active = ?, defaultInGraph = ?, 
-                providerId = ?, providerEventType = ?
+                providerId = ?, providerEventType = ?, lastUpdateTimestamp = GETDATE()
             WHERE entityTypeAttributeId = ?
         """, (
             data.get("entityTypeId"),
-            data.get("protocolId"),
+            protocol_id,
             data.get("entityTypeAttributeCode"),
             data.get("entityTypeAttributeName"),
             data.get("entityTypeAttributeTimeAspect", "Pt"),
             data.get("entityTypeAttributeUnit"),
             data.get("active", "Y"),
             data.get("defaultInGraph", "N"),
-            data.get("providerId"),
-            data.get("providerEventType"),
+            provider_id,
+            data.get("providerEventType") or None,
             id
         ))
         conn.commit()
@@ -3410,6 +3442,11 @@ def create_customer_subscription(data: dict):
                         continue
             return val
 
+        # If subscriptionStartDate is not provided or empty, default to today
+        start_date = parse_date(data.get("subscriptionStartDate"))
+        if start_date is None:
+            start_date = datetime.now()
+
         cur.execute("""
             INSERT INTO CustomerSubscriptions (customerId, entityId, eventId, subscriptionStartDate, subscriptionEndDate, active)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -3417,7 +3454,7 @@ def create_customer_subscription(data: dict):
             customer_id,
             data.get("entityId"),
             event_id,
-            parse_date(data.get("subscriptionStartDate")),
+            start_date,
             parse_date(data.get("subscriptionEndDate")),
             data.get("active", "Y")
         ))
@@ -3469,7 +3506,11 @@ def update_customer_subscription(id: int, data: dict):
 
         if "subscriptionStartDate" in data:
             update_fields.append("subscriptionStartDate = ?")
-            update_values.append(parse_date(data["subscriptionStartDate"]))
+            start_date = parse_date(data["subscriptionStartDate"])
+            # If subscriptionStartDate is empty, default to today
+            if start_date is None:
+                start_date = datetime.now()
+            update_values.append(start_date)
         if "subscriptionEndDate" in data:
             update_fields.append("subscriptionEndDate = ?")
             update_values.append(parse_date(data["subscriptionEndDate"]))
@@ -4259,8 +4300,9 @@ def _get_device_config(entity_id: str) -> dict:
                 fence["attribute"] = attr_code.replace(".", "/")
             geofences.append(fence)
 
-        # 5. Events – map attribute paths to event codes (driven entirely from DB)
-        #    a) Events with explicit EventAttribute links (e.g. GEOFENCE_BREACH → navigation.position)
+        # 5. Events – map event codes to attribute arrays (group attributes per event)
+        #    Only include events that the customer has subscribed to for this entity.
+        #    a) Events with explicit EventAttribute links (e.g. GEOFENCE_BREACH → [latitude, longitude])
         event_attr_rows = _query_as_dicts(conn, """
             SELECT ev.eventCode, ev.eventId,
                    eta.entityTypeAttributeCode
@@ -4269,26 +4311,48 @@ def _get_device_config(entity_id: str) -> dict:
             JOIN EntityTypeAttribute eta ON eta.entityTypeAttributeId = ea.entityTypeAttributeId
                                         AND eta.active = 'Y'
             WHERE ev.entityTypeId = ? AND ev.active = 'Y'
-        """, (entity_type_id,))
+              AND EXISTS (
+                  SELECT 1 FROM CustomerSubscriptions cs
+                  WHERE cs.customerId = ?
+                    AND cs.entityId = ?
+                    AND cs.eventId = ev.eventId
+                    AND cs.active = 'Y'
+              )
+            ORDER BY ev.eventCode, eta.entityTypeAttributeCode
+        """, (entity_type_id, customer_id, entity_id))
 
+        # Group attributes by eventCode
         events = {}
         for row in event_attr_rows:
-            path = row["entityTypeAttributeCode"].replace(".", "/")
-            events[path] = {
-                "eventCode": row["eventCode"],
-                "eventId": row["eventId"],
-            }
+            event_code = row["eventCode"]
+            event_id = row["eventId"]
+            attr_path = row["entityTypeAttributeCode"].replace(".", "/")
+            
+            if event_code not in events:
+                events[event_code] = {
+                    "eventCode": event_code,
+                    "eventId": event_id,
+                    "attributes": []
+                }
+            events[event_code]["attributes"].append(attr_path)
 
         #    b) Events without EventAttribute links → apply to all scored attributes
         unlinked_rows = _query_as_dicts(conn, """
             SELECT ev.eventCode, ev.eventId
             FROM Event ev
             WHERE ev.entityTypeId = ? AND ev.active = 'Y'
+              AND EXISTS (
+                  SELECT 1 FROM CustomerSubscriptions cs
+                  WHERE cs.customerId = ?
+                    AND cs.entityId = ?
+                    AND cs.eventId = ev.eventId
+                    AND cs.active = 'Y'
+              )
               AND NOT EXISTS (
                   SELECT 1 FROM EventAttribute ea
                   WHERE ea.eventId = ev.eventId AND ea.active = 'Y'
               )
-        """, (entity_type_id,))
+        """, (entity_type_id, customer_id, entity_id))
 
         if unlinked_rows:
             scored_attrs = _query_as_dicts(conn, """
@@ -4299,13 +4363,20 @@ def _get_device_config(entity_id: str) -> dict:
                 WHERE eta.entityTypeId = ? AND eta.active = 'Y' AND s.active = 'Y'
             """, (entity_type_id,))
             alarm_event = unlinked_rows[0]
+            event_code = alarm_event["eventCode"]
+            event_id = alarm_event["eventId"]
+            
+            if event_code not in events:
+                events[event_code] = {
+                    "eventCode": event_code,
+                    "eventId": event_id,
+                    "attributes": []
+                }
+            
             for attr_row in scored_attrs:
                 path = attr_row["entityTypeAttributeCode"].replace(".", "/")
-                if path not in events:
-                    events[path] = {
-                        "eventCode": alarm_event["eventCode"],
-                        "eventId": alarm_event["eventId"],
-                    }
+                if path not in events[event_code]["attributes"]:
+                    events[event_code]["attributes"].append(path)
 
         return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences, "events": events}
     finally:

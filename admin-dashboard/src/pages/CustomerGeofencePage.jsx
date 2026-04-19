@@ -350,7 +350,7 @@ export default function CustomerGeofencePage() {
 
       <div
         style={{
-          backgroundColor: '#252525',
+          backgroundColor: '#161b22',
           padding: '15px',
           borderRadius: '6px',
           marginBottom: '20px',
@@ -385,7 +385,7 @@ export default function CustomerGeofencePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -414,7 +414,7 @@ export default function CustomerGeofencePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -441,7 +441,7 @@ export default function CustomerGeofencePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             >
@@ -479,7 +479,7 @@ export default function CustomerGeofencePage() {
             }}
           >
             <thead>
-              <tr style={{ backgroundColor: '#252525', borderBottom: '1px solid var(--border-color)' }}>
+              <tr style={{ backgroundColor: '#161b22', borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: 'var(--text-color)' }}>
                   Customer
                 </th>
@@ -631,7 +631,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                   }}
@@ -661,7 +661,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                     boxSizing: 'border-box',
@@ -683,7 +683,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                   }}
@@ -706,7 +706,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                   }}
@@ -734,7 +734,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                   }}
@@ -767,7 +767,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '12px',
                     fontFamily: 'monospace',
@@ -791,7 +791,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                     minHeight: '60px',
@@ -813,7 +813,7 @@ export default function CustomerGeofencePage() {
                     padding: '8px',
                     borderRadius: '4px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: '#252525',
+                    backgroundColor: '#161b22',
                     color: 'var(--text-color)',
                     fontSize: '14px',
                   }}

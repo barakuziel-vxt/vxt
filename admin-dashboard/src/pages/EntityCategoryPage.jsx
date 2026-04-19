@@ -103,18 +103,14 @@ export default function EntityCategoryPage() {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h2>Entity Categories</h2>
-        <p>Manage entity categories (Yacht, Person, Stock, Vehicle)</p>
-      </div>
+      <h2>Entity Categories</h2>
+      <p className="page-subtitle">Manage entity categories (Yacht, Person, Stock, Vehicle)</p>
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="action-bar">
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + Add New Category
-        </button>
-      </div>
+      <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginBottom: '20px' }}>
+        + Add New Category
+      </button>
 
       {loading ? (
         <div className="empty-state">
@@ -153,13 +149,13 @@ export default function EntityCategoryPage() {
                   <td>
                     <div className="table-actions">
                       <button
-                        className="btn btn-secondary btn-small"
+                        className="btn btn-sm btn-secondary"
                         onClick={() => handleOpenModal(category)}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn btn-danger btn-small"
+                        className="btn btn-sm btn-danger"
                         onClick={() => handleDelete(category.entityCategoryId)}
                       >
                         Delete

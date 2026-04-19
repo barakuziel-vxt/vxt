@@ -4,7 +4,6 @@ import {
 } from 'recharts';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import '../styles/ManagementPage.css';
 import LocationMap from '../components/LocationMap';
 import { convertValue, getUnit, getAttributeColor } from '../utils/unitConversion';
 
@@ -425,7 +424,7 @@ export default function EntityTelemetryAnalyticsPage() {
       
       return (
         <div style={{ 
-          backgroundColor: '#2d2d2d', 
+          backgroundColor: '#0d1117', 
           border: '1px solid var(--border-color)', 
           borderRadius: '4px', 
           padding: '10px',
@@ -772,7 +771,7 @@ export default function EntityTelemetryAnalyticsPage() {
   };
 
   return (
-    <div className="management-page">
+    <div className="page">
       <div className="page-header">
         <div className="page-header-title">
           <h2>📊 Telemetry & Events</h2>
@@ -805,8 +804,8 @@ export default function EntityTelemetryAnalyticsPage() {
 
       <div id="telemetry-content">
       {/* Filters Section */}
-      <div className="filter-section">
-        <div className="filter-group">
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <label>
             Entity:
             <select 
@@ -824,7 +823,7 @@ export default function EntityTelemetryAnalyticsPage() {
           </label>
         </div>
 
-        <div className="filter-group">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <label>
             Start Date:
             <input 
@@ -836,7 +835,7 @@ export default function EntityTelemetryAnalyticsPage() {
           </label>
         </div>
 
-        <div className="filter-group">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <label>
             End Date:
             <input 
@@ -909,7 +908,7 @@ export default function EntityTelemetryAnalyticsPage() {
         <h3>📈 Telemetry Metrics ({getMetricsFromTelemetry().length} metrics)</h3>
         {telemetryData.length > 0 ? (
           <div className="chart-container">
-            <div style={{ fontSize: '10px', color: 'var(--text-light)', marginBottom: '0px', padding: '2px 3px', backgroundColor: '#353535', borderRadius: '4px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-light)', marginBottom: '0px', padding: '2px 3px', backgroundColor: '#0d1117', borderRadius: '4px' }}>
               <strong>Data Points:</strong> Displaying {decimatedTelemetryData.length} / {telemetryData.length} points (optimized for performance)
             </div>
             <ResponsiveContainer width="100%" height={378}>
@@ -1061,7 +1060,7 @@ export default function EntityTelemetryAnalyticsPage() {
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: '#2d2d2d',
+            backgroundColor: '#0d1117',
             borderRadius: '8px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
             maxWidth: '800px',
@@ -1095,7 +1094,7 @@ export default function EntityTelemetryAnalyticsPage() {
               <>
                 {/* Event Header Information */}
                 <div style={{
-                  backgroundColor: '#353535',
+                  backgroundColor: '#0d1117',
                   padding: '15px',
                   borderRadius: '6px',
                   marginBottom: '20px',
@@ -1175,7 +1174,7 @@ export default function EntityTelemetryAnalyticsPage() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                   {metadata.baselineAnalysis && (
                                     <div style={{ 
-                                      backgroundColor: '#2d2d2d', 
+                                      backgroundColor: '#0d1117', 
                                       padding: '12px', 
                                       borderRadius: '4px',
                                       borderLeft: '4px solid #66bbff',
@@ -1196,7 +1195,7 @@ export default function EntityTelemetryAnalyticsPage() {
                                   
                                   {metadata.currentAnalysis && (
                                     <div style={{ 
-                                      backgroundColor: '#2d2d2d', 
+                                      backgroundColor: '#0d1117', 
                                       padding: '12px', 
                                       borderRadius: '4px',
                                       borderLeft: '4px solid #ffaa44',
@@ -1223,17 +1222,17 @@ export default function EntityTelemetryAnalyticsPage() {
                                   
                                   {metadata.detectionMetadata && (
                                     <div style={{ 
-                                      backgroundColor: '#2d2d2d', 
+                                      backgroundColor: '#0d1117', 
                                       padding: '12px', 
                                       borderRadius: '4px',
-                                      borderLeft: '4px solid #44dd44',
+                                      borderLeft: '4px solid #3fb950',
                                       color: 'var(--text-color)'
                                     }}>
-                                      <strong style={{ fontSize: '13px', color: '#44dd44' }}>✓ Detection Results</strong>
+                                      <strong style={{ fontSize: '13px', color: '#3fb950' }}>✓ Detection Results</strong>
                                       <div style={{ marginTop: '8px', fontSize: '13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                         <div>Method: <strong>{metadata.detectionMetadata.method}</strong></div>
                                         <div>Z-Score: <strong>{Number(metadata.detectionMetadata.z_score).toFixed(2)}σ</strong></div>
-                                        <div>Drift: <strong style={{ color: '#ff6666' }}>{Number(metadata.detectionMetadata.drift_percentage).toFixed(1)}%</strong></div>
+                                        <div>Drift: <strong style={{ color: '#f85149' }}>{Number(metadata.detectionMetadata.drift_percentage).toFixed(1)}%</strong></div>
                                         <div>Sensitivity: <strong>{metadata.detectionMetadata.sensitivity}</strong></div>
                                       </div>
                                     </div>
@@ -1245,7 +1244,7 @@ export default function EntityTelemetryAnalyticsPage() {
                               {analysisType !== 'DriftDetector' && (
                                 <div style={{ fontSize: '13px' }}>
                                   <pre style={{
-                                    backgroundColor: '#2d2d2d',
+                                    backgroundColor: '#0d1117',
                                     padding: '12px',
                                     borderRadius: '4px',
                                     overflow: 'auto',
@@ -1271,7 +1270,7 @@ export default function EntityTelemetryAnalyticsPage() {
                           );
                         } catch (e) {
                           return (
-                            <div style={{ color: '#ff6666', fontSize: '13px' }}>
+                            <div style={{ color: '#f85149', fontSize: '13px' }}>
                               ⚠️ Error parsing analysis metadata: {e.message}
                             </div>
                           );
@@ -1291,7 +1290,7 @@ export default function EntityTelemetryAnalyticsPage() {
                       fontSize: '13px',
                       border: '1px solid #e0e0e0'
                     }}>
-                      <thead style={{ backgroundColor: '#3a3a3a' }}>
+                      <thead style={{ backgroundColor: '#21262d' }}>
                         <tr>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #e0e0e0', fontWeight: 'bold' }}>Attribute</th>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #e0e0e0', fontWeight: 'bold' }}>Code</th>
@@ -1334,8 +1333,8 @@ export default function EntityTelemetryAnalyticsPage() {
                                 style={{
                                   padding: '3px 8px',
                                   borderRadius: '3px',
-                                  backgroundColor: detail.withinRange === 'Y' ? '#1a3a1a' : '#3a1a1a',
-                                  color: detail.withinRange === 'Y' ? '#44dd44' : '#ff6666',
+                                  backgroundColor: detail.withinRange === 'Y' ? 'rgba(63, 185, 80, 0.1)' : 'rgba(218, 54, 51, 0.1)',
+                                  color: detail.withinRange === 'Y' ? '#3fb950' : '#f85149',
                                   fontSize: '12px',
                                   fontWeight: 'bold'
                                 }}
@@ -1428,7 +1427,7 @@ export default function EntityTelemetryAnalyticsPage() {
               <>
                 {/* Attribute Details */}
                 <div style={{
-                  backgroundColor: '#252525',
+                  backgroundColor: '#161b22',
                   padding: '15px',
                   borderRadius: '6px',
                   marginBottom: '20px',
@@ -1467,7 +1466,7 @@ export default function EntityTelemetryAnalyticsPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
                           {selectedScoreDetail.analysisMetadata.baselineAnalysis && (
                             <div style={{ 
-                              backgroundColor: '#3a3a3a', 
+                              backgroundColor: '#21262d', 
                               padding: '12px', 
                               borderRadius: '4px',
                               borderLeft: '4px solid #6db3f2',
@@ -1481,7 +1480,7 @@ export default function EntityTelemetryAnalyticsPage() {
                           
                           {selectedScoreDetail.analysisMetadata.currentAnalysis && (
                             <div style={{ 
-                              backgroundColor: '#3a3a3a', 
+                              backgroundColor: '#21262d', 
                               padding: '12px', 
                               borderRadius: '4px',
                               borderLeft: '4px solid #ffaa44',
@@ -1495,10 +1494,10 @@ export default function EntityTelemetryAnalyticsPage() {
                           
                           {selectedScoreDetail.analysisMetadata.detectionMetadata && (
                             <div style={{ 
-                              backgroundColor: '#3a3a3a', 
+                              backgroundColor: '#21262d', 
                               padding: '12px', 
                               borderRadius: '4px',
-                              borderLeft: '4px solid #44dd44',
+                              borderLeft: '4px solid #3fb950',
                               color: 'var(--text-color)'
                             }}>
                               <strong>Detection Results</strong>
@@ -1524,7 +1523,7 @@ export default function EntityTelemetryAnalyticsPage() {
                       border: '1px solid var(--border-color)',
                       backgroundColor: 'var(--white-bg)'
                     }}>
-                      <thead style={{ backgroundColor: '#3a3a3a' }}>
+                      <thead style={{ backgroundColor: '#21262d' }}>
                         <tr>
                           <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid var(--border-color)', fontWeight: 'bold', color: 'var(--text-color)' }}>Score</th>
                           <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid var(--border-color)', fontWeight: 'bold', color: 'var(--text-color)' }}>Min Value</th>
@@ -1566,8 +1565,8 @@ export default function EntityTelemetryAnalyticsPage() {
                                   <span style={{
                                     padding: '3px 8px',
                                     borderRadius: '3px',
-                                    backgroundColor: '#1a3a1a',
-                                    color: '#44dd44',
+                                    backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                                    color: '#3fb950',
                                     fontSize: '11px',
                                     fontWeight: 'bold'
                                   }}>

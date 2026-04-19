@@ -69,7 +69,7 @@ export default function UserAuthorizationPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>User</label>
           <input
@@ -77,7 +77,7 @@ export default function UserAuthorizationPage() {
             value={filterEmail}
             onChange={(e) => setFilterEmail(e.target.value)}
             placeholder="Search email or name..."
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           />
         </div>
         <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
@@ -85,7 +85,7 @@ export default function UserAuthorizationPage() {
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           >
             <option value="">All Roles</option>
             <option value="owner">Owner</option>
@@ -98,7 +98,7 @@ export default function UserAuthorizationPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           >
             <option value="">All</option>
             <option value="Y">Active</option>
@@ -148,7 +148,7 @@ export default function UserAuthorizationPage() {
                     <select
                       value={a.role}
                       onChange={(e) => handleUpdateRole(a.userAuthorizationId, e.target.value)}
-                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
                     >
                       <option value="viewer">Viewer</option>
                       <option value="admin">Admin</option>

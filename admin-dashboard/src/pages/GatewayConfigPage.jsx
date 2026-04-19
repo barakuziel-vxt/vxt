@@ -9,7 +9,6 @@
  * by ReportManuallyPage when building the POST /api/manual-report payload.
  */
 import React, { useState, useEffect } from 'react';
-import '../styles/ManagementPage.css';
 
 const STORAGE_KEY = 'vxt_gateway_config';
 
@@ -93,10 +92,8 @@ export default function GatewayConfigPage() {
   }
 
   return (
-    <div className="management-page">
-      <div className="page-header">
-        <h2>⚡ Gateway Configuration</h2>
-      </div>
+    <div className="page">
+      <h2>⚡ Gateway Configuration</h2>
 
       <p style={{ color: '#8b949e', marginBottom: 20, fontSize: 13 }}>
         Configure the message broker that receives manual telemetry reports from the PC dashboard.
@@ -199,7 +196,7 @@ export default function GatewayConfigPage() {
           padding: '8px 12px',
           borderRadius: 6,
           fontSize: 13,
-          background: testResult.ok ? '#1a3a1a' : '#3a1a1a',
+          background: testResult.ok ? 'rgba(63, 185, 80, 0.1)' : 'rgba(218, 54, 51, 0.1)',
           border: `1px solid ${testResult.ok ? '#3fb950' : '#f85149'}`,
           color:  testResult.ok ? '#3fb950' : '#f85149',
         }}>
@@ -209,7 +206,7 @@ export default function GatewayConfigPage() {
 
       {/* ── Saved feedback ── */}
       {saved && (
-        <div style={{ marginTop: 16, padding: '8px 12px', borderRadius: 6, fontSize: 13, background: '#1a3a1a', border: '1px solid #3fb950', color: '#3fb950' }}>
+        <div style={{ marginTop: 16, padding: '8px 12px', borderRadius: 6, fontSize: 13, background: 'rgba(63, 185, 80, 0.1)', border: '1px solid #3fb950', color: '#3fb950' }}>
           ✅ Gateway configuration saved.
         </div>
       )}

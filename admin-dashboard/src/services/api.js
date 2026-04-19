@@ -73,8 +73,9 @@ export const entityTypeAPI = {
 
 // EntityTypeAttribute APIs
 export const entityTypeAttributeAPI = {
-  getAll: async () => {
-    const response = await api.get('/entitytypeattributes');
+  getAll: async (entityTypeId = null) => {
+    const params = entityTypeId ? { entityTypeId } : {};
+    const response = await api.get('/entitytypeattributes', { params });
     return response.data;
   },
   getById: async (id) => {

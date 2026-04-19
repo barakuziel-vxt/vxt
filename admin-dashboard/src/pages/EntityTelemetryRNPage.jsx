@@ -75,7 +75,7 @@ function formatDate(iso) {
 
 // ─── Tooltip styling ────────────────────────────────────────────────────────
 const TOOLTIP_STYLE = {
-  backgroundColor: '#2d2d2d',
+  backgroundColor: '#0d1117',
   border: '1px solid #555',
   borderRadius: '4px',
   boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
@@ -467,7 +467,7 @@ export default function EntityTelemetryRNPage() {
                 value={selectedEntity ?? ''}
                 onChange={e => setSelectedEntity(e.target.value)}
                 disabled={loading}
-                style={{ width: '100%', padding: '8px 12px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px', fontSize: '14px' }}
+                style={{ width: '100%', padding: '8px 12px', backgroundColor: '#0d1117', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px', fontSize: '14px' }}
               >
                 <option value="">-- Select Entity --</option>
                 {entities.map(e => (
@@ -513,7 +513,7 @@ export default function EntityTelemetryRNPage() {
             value={startDate} 
             onChange={e => setStartDate(e.target.value)}
             disabled={loading}
-            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
+            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#0d1117', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
             title="Start date and time"
           />
         </div>
@@ -524,7 +524,7 @@ export default function EntityTelemetryRNPage() {
             value={endDate} 
             onChange={e => setEndDate(e.target.value)}
             disabled={loading}
-            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#353535', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
+            style={{ width: '100%', fontSize: '12px', padding: IS_EMBEDDED ? '4px 4px' : '5px 6px', backgroundColor: '#0d1117', color: '#e0e0e0', border: '1px solid #444', borderRadius: '3px' }}
             title="End date and time"
           />
         </div>
@@ -710,7 +710,7 @@ export default function EntityTelemetryRNPage() {
         onClick={() => setSelectedScoreDetail(null)}
         >
           <div style={{
-            backgroundColor: '#2d2d2d', borderRadius: '8px',
+            backgroundColor: '#0d1117', borderRadius: '8px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
             maxWidth: '700px', maxHeight: '80vh', overflow: 'auto',
             padding: '25px', width: '90%', color: '#e6edf3',
@@ -729,7 +729,7 @@ export default function EntityTelemetryRNPage() {
             ) : (
               <>
                 {/* Attribute info */}
-                <div style={{ backgroundColor: '#353535', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
+                <div style={{ backgroundColor: '#0d1117', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '14px' }}>
                     <div><strong>Attribute:</strong> {selectedScoreDetail.attributeName || 'Unknown'}</div>
                     <div><strong>Code:</strong> {selectedScoreDetail.attributeCode}</div>
@@ -757,21 +757,21 @@ export default function EntityTelemetryRNPage() {
                     {selectedScoreDetail.analysisMetadata ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
                         {selectedScoreDetail.analysisMetadata.baselineAnalysis && (
-                          <div style={{ backgroundColor: '#3a3a3a', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #6db3f2' }}>
+                          <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #6db3f2' }}>
                             <strong>Baseline (7 days)</strong>
                             <div>Average: <strong>{selectedScoreDetail.analysisMetadata.baselineAnalysis.avgValue}</strong></div>
                             <div>Samples: {selectedScoreDetail.analysisMetadata.baselineAnalysis.sampleCount}</div>
                           </div>
                         )}
                         {selectedScoreDetail.analysisMetadata.currentAnalysis && (
-                          <div style={{ backgroundColor: '#3a3a3a', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #ffaa44' }}>
+                          <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #ffaa44' }}>
                             <strong>Current Analysis</strong>
                             <div>Average: <strong>{selectedScoreDetail.analysisMetadata.currentAnalysis.avgValue}</strong></div>
                             <div>Samples: {selectedScoreDetail.analysisMetadata.currentAnalysis.sampleCount}</div>
                           </div>
                         )}
                         {selectedScoreDetail.analysisMetadata.detectionMetadata && (
-                          <div style={{ backgroundColor: '#3a3a3a', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #44dd44' }}>
+                          <div style={{ backgroundColor: '#21262d', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #3fb950' }}>
                             <strong>Detection Results</strong>
                             <div>Method: <strong>{selectedScoreDetail.analysisMetadata.detectionMetadata.method}</strong></div>
                             <div>Z-Score: <strong>{selectedScoreDetail.analysisMetadata.detectionMetadata.z_score}σ</strong></div>
@@ -789,7 +789,7 @@ export default function EntityTelemetryRNPage() {
                     <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 'bold' }}>Scoring Ranges</h3>
                     {selectedScoreDetail.scores && selectedScoreDetail.scores.length > 0 ? (
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #555' }}>
-                        <thead style={{ backgroundColor: '#3a3a3a' }}>
+                        <thead style={{ backgroundColor: '#21262d' }}>
                           <tr>
                             <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #555', fontWeight: 'bold' }}>Score</th>
                             <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #555', fontWeight: 'bold' }}>Min Value</th>
@@ -811,7 +811,7 @@ export default function EntityTelemetryRNPage() {
                                   <td style={{ padding: '10px', textAlign: 'right' }}>{rule.maxValue}</td>
                                   <td style={{ padding: '10px', textAlign: 'center' }}>
                                     {isMatched ? (
-                                      <span style={{ padding: '3px 8px', borderRadius: '3px', backgroundColor: '#1a3a1a', color: '#44dd44', fontSize: '11px', fontWeight: 'bold' }}>✓ MATCHED</span>
+                                      <span style={{ padding: '3px 8px', borderRadius: '3px', backgroundColor: 'rgba(63, 185, 80, 0.1)', color: '#3fb950', fontSize: '11px', fontWeight: 'bold' }}>✓ MATCHED</span>
                                     ) : (
                                       <span style={{ color: '#8b949e', fontSize: '11px' }}>—</span>
                                     )}
@@ -855,7 +855,7 @@ export default function EntityTelemetryRNPage() {
         onClick={() => setSelectedEventLog(null)}
         >
           <div style={{
-            backgroundColor: '#2d2d2d',
+            backgroundColor: '#0d1117',
             borderRadius: '8px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
             maxWidth: '800px',
@@ -884,7 +884,7 @@ export default function EntityTelemetryRNPage() {
               <>
                 {/* Summary grid */}
                 <div style={{
-                  backgroundColor: '#353535',
+                  backgroundColor: '#0d1117',
                   padding: '15px',
                   borderRadius: '6px',
                   marginBottom: '20px',
@@ -919,7 +919,7 @@ export default function EntityTelemetryRNPage() {
                   <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 'bold' }}>Attribute Details</h3>
                   {selectedEventLog.details && selectedEventLog.details.length > 0 ? (
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', border: '1px solid #555' }}>
-                      <thead style={{ backgroundColor: '#3a3a3a' }}>
+                      <thead style={{ backgroundColor: '#21262d' }}>
                         <tr>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #555' }}>Attribute</th>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #555' }}>Code</th>
@@ -949,8 +949,8 @@ export default function EntityTelemetryRNPage() {
                               <span style={{
                                 padding: '3px 8px',
                                 borderRadius: '3px',
-                                backgroundColor: detail.withinRange === 'Y' ? '#1a3a1a' : '#3a1a1a',
-                                color: detail.withinRange === 'Y' ? '#44dd44' : '#ff6666',
+                                backgroundColor: detail.withinRange === 'Y' ? 'rgba(63, 185, 80, 0.1)' : 'rgba(218, 54, 51, 0.1)',
+                                color: detail.withinRange === 'Y' ? '#3fb950' : '#f85149',
                                 fontSize: '12px',
                                 fontWeight: 'bold',
                               }}>

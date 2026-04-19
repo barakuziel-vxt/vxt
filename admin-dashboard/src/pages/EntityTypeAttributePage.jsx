@@ -409,7 +409,7 @@ export default function EntityTypeAttributePage() {
 
       {/* Filters Section */}
       <div style={{ 
-        backgroundColor: '#252525', 
+        backgroundColor: '#161b22', 
         padding: '15px 20px', 
         borderRadius: '5px', 
         marginBottom: '20px',
@@ -433,7 +433,7 @@ export default function EntityTypeAttributePage() {
               borderRadius: '4px',
               border: '1px solid var(--border-color)',
               fontSize: '14px',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           />
@@ -454,7 +454,7 @@ export default function EntityTypeAttributePage() {
               borderRadius: '4px',
               border: '1px solid var(--border-color)',
               fontSize: '14px',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           />
@@ -474,7 +474,7 @@ export default function EntityTypeAttributePage() {
               border: '1px solid var(--border-color)',
               fontSize: '14px',
               cursor: 'pointer',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           >
@@ -502,7 +502,7 @@ export default function EntityTypeAttributePage() {
               borderRadius: '4px',
               border: '1px solid var(--border-color)',
               fontSize: '14px',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           />
@@ -522,7 +522,7 @@ export default function EntityTypeAttributePage() {
               border: '1px solid var(--border-color)',
               fontSize: '14px',
               cursor: 'pointer',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           >
@@ -546,7 +546,7 @@ export default function EntityTypeAttributePage() {
               border: '1px solid var(--border-color)',
               fontSize: '14px',
               cursor: 'pointer',
-              backgroundColor: '#353535',
+              backgroundColor: '#0d1117',
               color: 'var(--text-color)'
             }}
           >
@@ -957,7 +957,7 @@ export default function EntityTypeAttributePage() {
                           <td>{c.maxValue}</td>
                           <td>{c.strValue || 'N/A'}</td>
                           <td>
-                            <span style={{ fontWeight: 'bold', color: '#667eea' }}>{stateMap[c.score] || c.score}</span>
+                            <span style={{ fontWeight: 'bold', color: '#388bfd' }}>{stateMap[c.score] || c.score}</span>
                           </td>
                           <td>
                             <button

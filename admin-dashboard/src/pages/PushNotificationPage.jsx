@@ -62,7 +62,7 @@ export default function PushNotificationPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>User</label>
           <input
@@ -70,7 +70,7 @@ export default function PushNotificationPage() {
             value={filterEmail}
             onChange={(e) => setFilterEmail(e.target.value)}
             placeholder="Search email or name..."
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           />
         </div>
         <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
@@ -80,7 +80,7 @@ export default function PushNotificationPage() {
             value={filterEntity}
             onChange={(e) => setFilterEntity(e.target.value)}
             placeholder="Search entity..."
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           />
         </div>
         <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
@@ -88,7 +88,7 @@ export default function PushNotificationPage() {
           <select
             value={filterEnabled}
             onChange={(e) => setFilterEnabled(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#353535', color: 'var(--text-color)' }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
           >
             <option value="">All</option>
             <option value="Y">Enabled</option>

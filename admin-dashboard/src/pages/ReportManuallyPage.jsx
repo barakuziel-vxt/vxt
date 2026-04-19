@@ -218,7 +218,7 @@ export default function ReportManuallyPage() {
       {/* Feedback */}
       {error   && <div className="error-message"   style={embedded ? { margin: '4px', borderRadius: 0 } : undefined}>{error}</div>}
       {success && (
-        <div style={{ background: '#1a3a1a', border: '1px solid #3fb950', borderRadius: 6, padding: '8px 12px', color: '#3fb950', marginBottom: 12, fontSize: 13 }}>
+        <div style={{ background: 'rgba(63, 185, 80, 0.1)', border: '1px solid #3fb950', borderRadius: 6, padding: '8px 12px', color: '#3fb950', marginBottom: 12, fontSize: 13 }}>
           ✅ {success}
         </div>
       )}
@@ -229,7 +229,7 @@ export default function ReportManuallyPage() {
           display: 'flex', flexDirection: 'column', gap: embedded ? 8 : 10,
           padding: embedded ? 4 : 12,
           maxWidth: embedded ? undefined : 480,
-          background: embedded ? 'transparent' : '#252525',
+          background: embedded ? 'transparent' : '#161b22',
           borderRadius: embedded ? 0 : 6,
         }}>
 

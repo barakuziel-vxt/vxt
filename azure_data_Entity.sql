@@ -1,7 +1,0 @@
--- Data for table: Entity
--- Row count: 4
-
-INSERT INTO [Entity] ([entityId], [entityFirstName], [entityLastName], [entityTypeId], [gender], [birthDate], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES ('033114869', 'Barak', 'Uziel', 1, 'M', CAST('1976-08-10' AS DATETIME2), 'Y', CAST('2026-02-07 21:01:58.137000' AS DATETIME2), CAST('2026-02-15 17:33:34.143000' AS DATETIME2), 'sa');
-INSERT INTO [Entity] ([entityId], [entityFirstName], [entityLastName], [entityTypeId], [gender], [birthDate], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES ('033114870', 'Shula', 'Uziel', 1, NULL, CAST('1950-05-01' AS DATETIME2), 'Y', CAST('2026-02-07 21:01:58.143000' AS DATETIME2), CAST('2026-02-07 21:01:58.143000' AS DATETIME2), 'sa');
-INSERT INTO [Entity] ([entityId], [entityFirstName], [entityLastName], [entityTypeId], [gender], [birthDate], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES ('234567890', 'Tomer Refael', 'Elan Impression 40', 4, ' ', CAST('2023-01-01' AS DATETIME2), 'Y', CAST('2026-02-07 21:01:58.120000' AS DATETIME2), CAST('2026-02-23 11:26:39.290000' AS DATETIME2), 'sa');
-INSERT INTO [Entity] ([entityId], [entityFirstName], [entityLastName], [entityTypeId], [gender], [birthDate], [active], [createDate], [lastUpdateTimestamp], [lastUpdateUser]) VALUES ('234567891', 'TinyK', 'LAGOON-380', 5, NULL, CAST('2021-01-01' AS DATETIME2), 'Y', CAST('2026-02-07 21:01:58.133000' AS DATETIME2), CAST('2026-02-12 16:15:38.830000' AS DATETIME2), 'sa');

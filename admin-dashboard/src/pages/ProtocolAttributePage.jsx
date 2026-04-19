@@ -162,7 +162,7 @@ export default function ProtocolAttributePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ backgroundColor: '#252525', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
           <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
             <label
@@ -187,7 +187,7 @@ export default function ProtocolAttributePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -216,7 +216,7 @@ export default function ProtocolAttributePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -244,7 +244,7 @@ export default function ProtocolAttributePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -273,7 +273,7 @@ export default function ProtocolAttributePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />
@@ -302,7 +302,7 @@ export default function ProtocolAttributePage() {
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 fontSize: '14px',
-                backgroundColor: '#353535',
+                backgroundColor: '#0d1117',
                 color: 'var(--text-color)',
               }}
             />

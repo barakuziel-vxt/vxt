@@ -145,46 +145,51 @@ export default function EntityTypePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="filter-bar">
-        <div className="filter-group">
-          <label htmlFor="filterName">Entity Type Name</label>
-          <input
-            type="text"
-            id="filterName"
-            name="entityTypeName"
-            value={filters.entityTypeName}
-            onChange={handleFilterChange}
-            placeholder="Search by type name..."
-          />
-        </div>
-        <div className="filter-group">
-          <label htmlFor="filterCategory">Category</label>
-          <select
-            id="filterCategory"
-            name="entityCategoryId"
-            value={filters.entityCategoryId}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category.entityCategoryId} value={category.entityCategoryId}>
-                {category.entityCategoryName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label htmlFor="filterStatus">Status</label>
-          <select
-            id="filterStatus"
-            name="active"
-            value={filters.active}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Status</option>
-            <option value="Y">Active</option>
-            <option value="N">Inactive</option>
-          </select>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label htmlFor="filterName" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>Entity Type Name</label>
+            <input
+              type="text"
+              id="filterName"
+              name="entityTypeName"
+              value={filters.entityTypeName}
+              onChange={handleFilterChange}
+              placeholder="Search by type name..."
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
+            />
+          </div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label htmlFor="filterCategory" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>Category</label>
+            <select
+              id="filterCategory"
+              name="entityCategoryId"
+              value={filters.entityCategoryId}
+              onChange={handleFilterChange}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category.entityCategoryId} value={category.entityCategoryId}>
+                  {category.entityCategoryName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label htmlFor="filterStatus" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>Status</label>
+            <select
+              id="filterStatus"
+              name="active"
+              value={filters.active}
+              onChange={handleFilterChange}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
+            >
+              <option value="">All Status</option>
+              <option value="Y">Active</option>
+              <option value="N">Inactive</option>
+            </select>
+          </div>
         </div>
         <button className="btn btn-sm btn-secondary" onClick={() => handleOpenModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
           + Add New
@@ -233,13 +238,13 @@ export default function EntityTypePage() {
                   <td>
                     <div className="table-actions">
                       <button
-                        className="btn btn-secondary btn-small"
+                        className="btn btn-sm btn-secondary"
                         onClick={() => handleOpenModal(type)}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn btn-danger btn-small"
+                        className="btn btn-sm btn-danger"
                         onClick={() => handleDelete(type.entityTypeId)}
                       >
                         Delete

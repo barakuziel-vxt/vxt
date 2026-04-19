@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { entityAPI } from '../services/eventApi';
 import { entityTypeAPI } from '../services/api';
-import '../styles/ManagementPage.css';
 
 export default function EntityPage() {
   // State for entities
@@ -170,40 +169,38 @@ export default function EntityPage() {
   ];
 
   return (
-    <div className="management-page">
-      <div className="page-header">
-        <h2>Entity Management</h2>
-        <p>Manage entities (boats, people, etc.) in the system</p>
-      </div>
+    <div className="page">
+      <h2>Entity Management</h2>
 
       {error && (
-        <div style={{ padding: '10px', backgroundColor: '#3a1a1a', color: '#ff6666', borderRadius: '4px', marginBottom: '15px' }}>
+        <div style={{ padding: '10px', backgroundColor: 'rgba(218, 54, 51, 0.1)', color: '#f85149', borderRadius: '4px', marginBottom: '15px' }}>
           <strong>Error:</strong> {error}
         </div>
       )}
 
-      {/* Filter Section */}
-      <div className="filter-section">
-        <label htmlFor="entityTypeFilter">Filter by Entity Type:</label>
-        <select
-          id="entityTypeFilter"
-          value={filterEntityTypeId}
-          onChange={(e) => setFilterEntityTypeId(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">All Entity Types</option>
-          {entityTypes.map((type) => (
-            <option key={type.entityTypeId} value={type.entityTypeId}>
-              {type.entityTypeName}
-            </option>
-          ))}
-        </select>
+      <div style={{ backgroundColor: '#161b22', padding: '15px', borderRadius: '6px', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end', flex: '1' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+            <label htmlFor="entityTypeFilter" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: 'var(--text-color)' }}>Entity Type</label>
+            <select
+              id="entityTypeFilter"
+              value={filterEntityTypeId}
+              onChange={(e) => setFilterEntityTypeId(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: '#0d1117', color: 'var(--text-color)' }}
+            >
+              <option value="">All Entity Types</option>
+              {entityTypes.map((type) => (
+                <option key={type.entityTypeId} value={type.entityTypeId}>
+                  {type.entityTypeName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEntityModal()} style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-end' }}>
+          + Add New Entity
+        </button>
       </div>
-
-      {/* Add New Entity Button */}
-      <button className="add-button" onClick={() => handleOpenEntityModal()}>
-        + Add New Entity
-      </button>
 
       {/* Entities Table */}
       <div className="table-container">
@@ -213,7 +210,7 @@ export default function EntityPage() {
         {filteredEntities.length === 0 ? (
           <p className="empty-state">No entities found. Create your first entity!</p>
         ) : (
-          <table className="data-table">
+          <table className="table">
             <thead>
               <tr>
                 <th>ID</th>
@@ -238,14 +235,14 @@ export default function EntityPage() {
                   <td className="date-column">{entity.birthDate ? entity.birthDate.split('T')[0] : '-'}</td>
                   <td className="actions-column">
                     <button
-                      className="action-button edit-button"
+                      className="btn btn-sm btn-secondary"
                       onClick={() => handleOpenEntityModal(entity)}
                       title="Edit entity"
                     >
                       ✏️ Edit
                     </button>
                     <button
-                      className="action-button delete-button"
+                      className="btn btn-sm btn-danger"
                       onClick={() => handleDeleteEntity(entity.entityId)}
                       title="Delete entity"
                     >
@@ -261,13 +258,10 @@ export default function EntityPage() {
 
       {/* Entity Modal */}
       {showEntityModal && (
-        <div className="modal-overlay" onClick={handleCloseEntityModal}>
+        <div className="modal" onClick={handleCloseEntityModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{modalMode === 'add' ? 'Add New Entity' : 'Edit Entity'}</h3>
-              <button className="close-button" onClick={handleCloseEntityModal}>
-                ✕
-              </button>
             </div>
 
             <div className="modal-body">
@@ -356,11 +350,11 @@ export default function EntityPage() {
             </div>
 
             <div className="modal-footer">
-              <button className="button-save" onClick={handleSaveEntity}>
-                💾 Save
+              <button className="btn btn-secondary" onClick={handleCloseEntityModal}>
+                Cancel
               </button>
-              <button className="button-cancel" onClick={handleCloseEntityModal}>
-                ✕ Cancel
+              <button className="btn btn-primary" onClick={handleSaveEntity}>
+                Save
               </button>
             </div>
           </div>
