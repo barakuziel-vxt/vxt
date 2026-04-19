@@ -1934,6 +1934,7 @@ def get_event(id: int):
 @app.post("/events")
 def create_event(data: dict):
     """Create a new event"""
+    print(f"[POST /events] payload: {data}", flush=True)
     try:
         def to_int(v):
             try: return int(v) if v not in (None, '', 'null') else None
@@ -1966,8 +1967,11 @@ def create_event(data: dict):
         conn.commit()
         cur.close()
         return_db_connection(conn)
+        print("[POST /events] created successfully", flush=True)
         return {"message": "Event created successfully"}
     except Exception as e:
+        print(f"[POST /events] ERROR: {e}", flush=True)
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
