@@ -3,30 +3,14 @@ import { MapContainer, TileLayer, WMSTileLayer, Polyline, Marker, Popup, useMap,
 import { DivIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Component to recenter map
+// Component to recenter map — always centers on latest (yacht) position at zoom 15
 function RecenterMap({ positions }) {
   const map = useMap();
   
   useEffect(() => {
     if (!positions || positions.length === 0) return;
-    
-    const lats = positions.map(p => p.lat).filter(l => l != null);
-    const lons = positions.map(p => p.lon).filter(l => l != null);
-    
-    if (lats.length === 0 || lons.length === 0) return;
-    
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLon = Math.min(...lons);
-    const maxLon = Math.max(...lons);
-    
-    const latPad = (maxLat - minLat) * 0.1 || 0.05;
-    const lonPad = (maxLon - minLon) * 0.1 || 0.05;
-    
-    map.fitBounds([
-      [minLat - latPad, minLon - lonPad],
-      [maxLat + latPad, maxLon + lonPad]
-    ], { padding: [50, 50] });
+    const latest = positions[positions.length - 1];
+    map.setView([latest.lat, latest.lon], 15);
   }, [positions, map]);
   
   return null;
@@ -117,7 +101,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
     <div className="analytics-section">
       <h3>📍 {title}</h3>
       <div style={{
-        height: '500px',
+        height: '350px',
         width: '100%',
         borderRadius: '8px',
         overflow: 'hidden',
@@ -125,7 +109,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
       }}>
         <MapContainer
           center={[centerPoint.lat, centerPoint.lon]}
-          zoom={12}
+          zoom={15}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={true}
         >
@@ -156,16 +140,16 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
               />
             </LayersControl.Overlay>
 
-            {/* GEBCO bathymetric depth overlay (global ocean floor data) */}
-            <LayersControl.Overlay name="🔵 Ocean Depth (GEBCO)">
+            {/* EMODnet bathymetric depth contour lines (Mediterranean coverage) */}
+            <LayersControl.Overlay name="🔵 Ocean Depth (EMODnet)">
               <WMSTileLayer
-                url="https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?"
-                layers="GEBCO_LATEST"
+                url="https://ows.emodnet-bathymetry.eu/wms?"
+                layers="emodnet:contours"
                 format="image/png"
                 transparent={true}
-                opacity={0.55}
-                attribution='&copy; <a href="https://www.gebco.net">GEBCO</a>'
-                version="1.1.1"
+                opacity={0.75}
+                attribution='&copy; <a href="https://www.emodnet-bathymetry.eu">EMODnet Bathymetry</a>'
+                version="1.3.0"
               />
             </LayersControl.Overlay>
           </LayersControl>
@@ -195,7 +179,7 @@ export default function LocationMap({ telemetryData, title = 'Location History' 
         </MapContainer>
       </div>
       <div style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
-        {locationPoints.length} position points • Overlays: OpenSeaMap nautical chart, GEBCO ocean depth
+        {locationPoints.length} position points • Overlays: OpenSeaMap nautical chart, EMODnet depth contours
       </div>
     </div>
   );

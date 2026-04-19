@@ -159,7 +159,7 @@ export default function EntityTelemetryRNPage() {
       }
       setEntities(data);
       if (data.length > 0) {
-        const preferred = data.find(e => e.entityFirstName === 'Shula') ?? data[0];
+        const preferred = data.find(e => e.entityFirstName === 'TinyK' || e.entityName === 'TinyK') ?? data[0];
         setSelectedEntity(preferred.entityId);
       }
     } catch (e) {
