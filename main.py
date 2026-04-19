@@ -1935,6 +1935,13 @@ def get_event(id: int):
 def create_event(data: dict):
     """Create a new event"""
     try:
+        def to_int(v):
+            try: return int(v) if v not in (None, '', 'null') else None
+            except (ValueError, TypeError): return None
+        def to_float(v):
+            try: return float(v) if v not in (None, '', 'null') else None
+            except (ValueError, TypeError): return None
+
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -1945,15 +1952,15 @@ def create_event(data: dict):
         """, (
             data.get("eventCode"),
             data.get("eventDescription"),
-            data.get("entityTypeId"),
-            data.get("minCumulatedScore"),
-            data.get("maxCumulatedScore"),
+            to_int(data.get("entityTypeId")),
+            to_int(data.get("minCumulatedScore")),
+            to_int(data.get("maxCumulatedScore")),
             data.get("risk", "NONE"),
-            data.get("AnalyzeFunctionId"),
-            data.get("LookbackMinutes"),
-            data.get("BaselineDays"),
-            data.get("SensitivityThreshold"),
-            data.get("MinSamplesRequired"),
+            to_int(data.get("AnalyzeFunctionId")),
+            to_int(data.get("LookbackMinutes")),
+            to_int(data.get("BaselineDays")),
+            to_float(data.get("SensitivityThreshold")),
+            to_int(data.get("MinSamplesRequired")),
             data.get("CustomParams")
         ))
         conn.commit()
@@ -1968,6 +1975,13 @@ def create_event(data: dict):
 def update_event(id: int, data: dict):
     """Update an existing event"""
     try:
+        def to_int(v):
+            try: return int(v) if v not in (None, '', 'null') else None
+            except (ValueError, TypeError): return None
+        def to_float(v):
+            try: return float(v) if v not in (None, '', 'null') else None
+            except (ValueError, TypeError): return None
+
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -1979,15 +1993,15 @@ def update_event(id: int, data: dict):
         """, (
             data.get("eventCode"),
             data.get("eventDescription"),
-            data.get("entityTypeId"),
-            data.get("minCumulatedScore"),
-            data.get("maxCumulatedScore"),
+            to_int(data.get("entityTypeId")),
+            to_int(data.get("minCumulatedScore")),
+            to_int(data.get("maxCumulatedScore")),
             data.get("risk", "NONE"),
-            data.get("AnalyzeFunctionId"),
-            data.get("LookbackMinutes"),
-            data.get("BaselineDays"),
-            data.get("SensitivityThreshold"),
-            data.get("MinSamplesRequired"),
+            to_int(data.get("AnalyzeFunctionId")),
+            to_int(data.get("LookbackMinutes")),
+            to_int(data.get("BaselineDays")),
+            to_float(data.get("SensitivityThreshold")),
+            to_int(data.get("MinSamplesRequired")),
             data.get("CustomParams"),
             id
         ))
