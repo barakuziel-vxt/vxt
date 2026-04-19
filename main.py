@@ -1945,6 +1945,9 @@ def create_event(data: dict):
 
         conn = get_db_connection()
         cur = conn.cursor()
+        # FIX: Ensure IDENTITY_INSERT is OFF (default state) to allow IDENTITY auto-generation
+        # This prevents NULL eventId errors when inserting new events (Issue: eventId NOT NULL constraint)
+        cur.execute("SET IDENTITY_INSERT Event OFF")
         cur.execute("""
             INSERT INTO Event (eventCode, eventDescription, entityTypeId, minCumulatedScore, maxCumulatedScore, 
                               risk, AnalyzeFunctionId, LookbackMinutes, BaselineDays, SensitivityThreshold, 
