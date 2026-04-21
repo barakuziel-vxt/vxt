@@ -92,6 +92,11 @@ def process_event_message(event: Dict) -> bool:
 
     # Strip internal transport fields the broker may have injected
     payload_dict = {k: v for k, v in event.items() if k != 'deviceId'}
+
+    # /api/register-event requires 'path' — fall back to eventCode if not present
+    if not payload_dict.get('path'):
+        payload_dict['path'] = event_code
+
     payload = json.dumps(payload_dict)
 
     url = f"{API_BASE_URL}/api/register-event"
