@@ -547,27 +547,30 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                                             "fenceName": fence_name,
                                         })
                                     else:
-                                        # Generic alarm/emergency alert - resolve from events map
-                                        # Events map now contains event_code → {eventCode, eventId, attributes: [...]}
-                                        resolved_event = None
-                                        for event_code, event_info in events_map.items():
-                                            if isinstance(event_info, dict):
-                                                # event_info structure: {eventCode, eventId, attributes: [...]}
-                                                event_attrs = event_info.get("attributes", [])
-                                                # Check if alert_path matches any of the event's attributes
-                                                if alert_path.replace(".", "/") in event_attrs or \
-                                                   any(alert_path in attr for attr in event_attrs):
+                                        # Generic alarm/emergency alert - resolve from events map.
+                                        # Twin structure: {"propulsion/main/oilPressure": {"eventCode": "...", "eventId": N}}
+                                        # The key IS the SK path (slash-separated); match alert_path against it directly.
+                                        alert_path_slash = alert_path.replace(".", "/")
+                                        resolved_event = events_map.get(alert_path_slash)
+                                        if resolved_event is None:
+                                            # Fallback: partial match (e.g. twin key is a prefix of the path)
+                                            for twin_key, event_info in events_map.items():
+                                                if isinstance(event_info, dict) and (
+                                                    alert_path_slash.startswith(twin_key) or
+                                                    twin_key.startswith(alert_path_slash)
+                                                ):
                                                     resolved_event = event_info
                                                     break
-                                        
+
                                         if not resolved_event:
                                             log.warning("No event mapping in twin for alert %s, skipping", alert_path)
                                             continue
-                                        
+
                                         alert_msg = json.dumps({
                                             "eventCode": resolved_event.get("eventCode", ""),
                                             "eventId": resolved_event.get("eventId", 0),
-                                            "attributes": {alert_path.replace(".", "/"): value},
+                                            "path": alert_path,
+                                            "attributes": {alert_path_slash: value},
                                             "state": state,
                                             "message": value.get("message", "") if isinstance(value, dict) else str(value),
                                             "timestamp": ts,
