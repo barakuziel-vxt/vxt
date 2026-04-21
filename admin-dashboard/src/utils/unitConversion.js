@@ -48,7 +48,13 @@ const UNIVERSAL_CONVERSIONS = {
   's→ms': (value) => value * 1000,
   'h→s': (value) => value * 3600,
   's→h': (value) => value / 3600,
-  
+
+  // ===== ROTATION CONVERSIONS =====
+  'Hz→rpm': (value) => value * 60,      // revolutions/s → revolutions/min
+
+  // ===== RATIO CONVERSIONS =====
+  'ratio→%': (value) => value * 100,    // 0–1 ratio → percentage
+
   // ===== SMALL DISTANCE CONVERSIONS =====
   'mm/s→cm/s': (value) => value / 10,
   'mm/s→m/s': (value) => value / 1000,
@@ -97,10 +103,20 @@ const UNIVERSAL_CONVERSIONS = {
  * Especially useful for custom yacht attributes and non-protocol-mapped data
  */
 const SOURCE_UNIT_ASSUMPTIONS = {
-  // Yacht propulsion - always in Pa from SignalK
+  // Yacht propulsion - always in Pa/K/Hz from SignalK
   'propulsion.main.oilPressure': 'Pa',
   'propulsion.main.temperature': 'K',
-  'propulsion.main.revolutions': 'rpm',
+  'propulsion.main.revolutions': 'Hz',           // SignalK: revolutions per second
+  'propulsion.main.coolantTemperature': 'K',
+  'propulsion.main.oilTemperature': 'K',
+  'propulsion.main.exhaustTemperature': 'K',
+  'propulsion.main.transmission.oilTemperature': 'K',
+  'propulsion.main.runTime': 's',                // SignalK: seconds
+  'propulsion.main.engineLoad': 'ratio',         // SignalK: 0–1 ratio
+  'tanks.freshWater.0.currentLevel': 'ratio',
+  'tanks.wasteWater.0.currentLevel': 'ratio',
+  'tanks.fuel.0.currentLevel': 'ratio',
+  'navigation.courseOverGroundTrue': 'rad',
   
   // Yacht tanks - assuming liters (level in L)
   'tanks.freshWaterTank.level': 'L',
@@ -190,7 +206,17 @@ const DISPLAY_UNIT_PREFERENCES = {
   // Propulsion
   'propulsion.main.temperature': '°C',
   'propulsion.main.oilPressure': 'Bar',
-  'propulsion.main.revolutions': 'rpm',
+  'propulsion.main.revolutions': 'rpm',          // converted from Hz
+  'propulsion.main.coolantTemperature': '°C',
+  'propulsion.main.oilTemperature': '°C',
+  'propulsion.main.exhaustTemperature': '°C',
+  'propulsion.main.transmission.oilTemperature': '°C',
+  'propulsion.main.runTime': 'h',                // converted from seconds
+  'propulsion.main.engineLoad': '%',             // converted from 0–1 ratio
+  'tanks.freshWater.0.currentLevel': '%',
+  'tanks.wasteWater.0.currentLevel': '%',
+  'tanks.fuel.0.currentLevel': '%',
+  'navigation.courseOverGroundTrue': '°',
   
   // Tanks - Water and Fuel (displayed as percentage)
   'tanks.freshWaterTank.level': '%',
