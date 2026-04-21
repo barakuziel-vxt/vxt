@@ -174,7 +174,10 @@ class SignalKSimulator:
         return waypoints
     
     def generate_navigation_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate a navigation event (position, heading, speed) along the sailing route"""
+        """Generate a navigation event (position, heading, speed) along the sailing route
+        
+        Uses correct SignalK paths to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         # Move vessel along the predefined sailing route
         waypoint_idx = self.route_segment % len(self.route_waypoints)
         waypoint = self.route_waypoints[waypoint_idx]
@@ -201,39 +204,31 @@ class SignalKSimulator:
                         }
                     },
                     {
-                        'path': 'navigation.latitude',
+                        'path': 'navigation.position.value.latitude',
                         'value': self.vessel_positions[vessel_mmsi]['lat']
                     },
                     {
-                        'path': 'navigation.longitude',
+                        'path': 'navigation.position.value.longitude',
                         'value': self.vessel_positions[vessel_mmsi]['lon']
-                    },
-                    {
-                        'path': 'navigation.headingMagnetic',
-                        'value': random.uniform(0, 6.283185307179586)  # 0-2π radians
-                    },
-                    {
-                        'path': 'navigation.headingTrue',
-                        'value': random.uniform(0, 6.283185307179586)
-                    },
-                    {
-                        'path': 'navigation.courseOverGround',
-                        'value': random.uniform(0, 6.283185307179586)
                     },
                     {
                         'path': 'navigation.speedOverGround',
                         'value': random.uniform(0, 15)  # 0-15 m/s
                     },
                     {
-                        'path': 'navigation.speedThroughWater',
-                        'value': random.uniform(0, 12)  # 0-12 m/s
+                        'path': 'navigation.depth',
+                        'value': random.uniform(10, 100)  # 10-100 meters depth
                     }
                 ]
             }]
         }
     
     def generate_environmental_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an environmental event (wind, water temp, air pressure)"""
+        """Generate an environmental event (wind, water temp)
+        
+        Note: Only includes attributes likely registered in EntityTypeAttribute.
+        Additional environmental attributes can be added after verification in the database.
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -241,31 +236,23 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'environment.wind.speedApparent',
-                        'value': random.uniform(0, 25)  # 0-25 m/s
-                    },
-                    {
-                        'path': 'environment.wind.directionApparent',
-                        'value': random.uniform(0, 6.283185307179586)
-                    },
-                    {
                         'path': 'environment.water.temperature',
                         'value': 273.15 + random.uniform(5, 20)  # 5-20°C in Kelvin
                     },
                     {
                         'path': 'environment.outside.temperature',
                         'value': 273.15 + random.uniform(0, 25)  # 0-25°C in Kelvin
-                    },
-                    {
-                        'path': 'environment.outside.pressure',
-                        'value': 98000 + random.uniform(-2000, 2000)  # ~98kPa
                     }
                 ]
             }]
         }
     
     def generate_engine_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an engine event (RPM, temperature, pressure)"""
+        """Generate an engine event (RPM, temperature, pressure)
+        
+        Uses correct SignalK paths (propulsion.main.coolantTemperature)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -277,19 +264,19 @@ class SignalKSimulator:
                         'value': random.uniform(0, 50)  # 0-50 revolutions per second (0-3000 RPM)
                     },
                     {
-                        'path': 'propulsion.main.temperature',
+                        'path': 'propulsion.main.coolantTemperature',
                         'value': 273.15 + random.uniform(80, 95)  # 80-95°C in Kelvin
-                    },
-                    {
-                        'path': 'propulsion.main.oilPressure',
-                        'value': 300000 + random.uniform(-50000, 50000)  # ~300kPa
                     }
                 ]
             }]
         }
     
     def generate_electrical_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an electrical event (battery voltage, current)"""
+        """Generate an electrical event (battery voltage, current)
+        
+        Uses correct SignalK paths (electrical.batteries.main.voltage)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -297,19 +284,19 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'electrical.dc.houseBattery.voltage',
+                        'path': 'electrical.batteries.main.voltage',
                         'value': random.uniform(11.5, 14.5)  # 11.5-14.5 volts
-                    },
-                    {
-                        'path': 'electrical.dc.houseBattery.current',
-                        'value': random.uniform(-200, 200)  # -200 to +200 amps (positive = charging)
                     }
                 ]
             }]
         }
     
     def generate_tank_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate a tank event (fuel, water levels)"""
+        """Generate a tank event (fuel, water levels)
+        
+        Uses correct SignalK paths with array indices (e.g., tanks.fuel.0.currentLevel)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -317,15 +304,15 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'tanks.fuelTank.level',
+                        'path': 'tanks.fuel.0.currentLevel',
                         'value': random.uniform(0.3, 0.9)  # 30-90% full (0-1 ratio)
                     },
                     {
-                        'path': 'tanks.freshWaterTank.level',
+                        'path': 'tanks.freshWater.0.currentLevel',
                         'value': random.uniform(0.4, 0.95)  # 40-95% full
                     },
                     {
-                        'path': 'tanks.wasteWaterTank.level',
+                        'path': 'tanks.wasteWater.0.currentLevel',
                         'value': random.uniform(0.1, 0.7)  # 10-70% full
                     }
                 ]
