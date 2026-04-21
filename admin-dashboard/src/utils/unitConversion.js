@@ -103,7 +103,7 @@ const UNIVERSAL_CONVERSIONS = {
  * Especially useful for custom yacht attributes and non-protocol-mapped data
  */
 const SOURCE_UNIT_ASSUMPTIONS = {
-  // Yacht propulsion - always in Pa/K/Hz from SignalK
+  // Yacht propulsion - Pa/K/Hz from SignalK
   'propulsion.main.oilPressure': 'Pa',
   'propulsion.main.temperature': 'K',
   'propulsion.main.revolutions': 'Hz',           // SignalK: revolutions per second
@@ -113,16 +113,15 @@ const SOURCE_UNIT_ASSUMPTIONS = {
   'propulsion.main.transmission.oilTemperature': 'K',
   'propulsion.main.runTime': 's',                // SignalK: seconds
   'propulsion.main.engineLoad': 'ratio',         // SignalK: 0–1 ratio
+
+  // Yacht tanks - 0–1 ratio from SignalK
   'tanks.freshWater.0.currentLevel': 'ratio',
   'tanks.wasteWater.0.currentLevel': 'ratio',
   'tanks.fuel.0.currentLevel': 'ratio',
-  'navigation.courseOverGroundTrue': 'rad',
-  
-  // Yacht tanks - assuming liters (level in L)
   'tanks.freshWaterTank.level': 'L',
   'tanks.wasteWaterTank.level': 'L',
   'tanks.fuelTank.level': 'L',
-  
+
   // Yacht environment - from SignalK
   'environment.outside.pressure': 'Pa',
   'environment.outside.temperature': 'K',
@@ -131,15 +130,16 @@ const SOURCE_UNIT_ASSUMPTIONS = {
   'environment.wind.speedTrue': 'm/s',
   'environment.wind.directionApparent': 'rad',
   'environment.wind.directionTrue': 'rad',
-  
+
   // Yacht navigation
   'navigation.speedOverGround': 'm/s',
   'navigation.speedThroughWater': 'm/s',
   'navigation.courseOverGround': 'rad',
+  'navigation.courseOverGroundTrue': 'rad',
   'navigation.courseOverGroundMagnetic': 'rad',
   'navigation.headingTrue': 'rad',
   'navigation.headingMagnetic': 'rad',
-  
+
   // Yacht electrical - no conversion needed
   'electrical.dc.houseBattery.voltage': 'V',
   'electrical.dc.houseBattery.current': 'A',
@@ -221,12 +221,11 @@ const DISPLAY_UNIT_PREFERENCES = {
   'propulsion.main.transmission.oilTemperature': '°C',
   'propulsion.main.runTime': 'h',                // converted from seconds
   'propulsion.main.engineLoad': '%',             // converted from 0–1 ratio
+
+  // Tanks - Water and Fuel (displayed as percentage)
   'tanks.freshWater.0.currentLevel': '%',
   'tanks.wasteWater.0.currentLevel': '%',
   'tanks.fuel.0.currentLevel': '%',
-  'navigation.courseOverGroundTrue': '°',
-  
-  // Tanks - Water and Fuel (displayed as percentage)
   'tanks.freshWaterTank.level': '%',
   'tanks.wasteWaterTank.level': '%',
   'tanks.fuelTank.level': '%',
@@ -252,6 +251,7 @@ const DISPLAY_UNIT_PREFERENCES = {
   'navigation.speedOverGround': 'kn',
   'navigation.speedThroughWater': 'kn',
   'navigation.courseOverGround': '°',
+  'navigation.courseOverGroundTrue': '°',
   'navigation.courseOverGroundMagnetic': '°',
   'navigation.headingTrue': '°',
   'navigation.headingMagnetic': '°',
