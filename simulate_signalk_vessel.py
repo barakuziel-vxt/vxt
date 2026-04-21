@@ -63,11 +63,40 @@ class SignalKSimulator:
             logger.error(f"Failed to connect to Kafka: {e}")
             raise
     
+    def _interpolate_waypoints(self, waypoints_raw, divisions=5):
+        """Interpolate waypoints to create smoother path with more points.
+        
+        Args:
+            waypoints_raw: List of (lon, lat) tuples
+            divisions: Number of segments to divide each pair into (5 = add 4 intermediate points)
+        
+        Returns:
+            List of interpolated waypoints as (lon, lat) tuples
+        """
+        if divisions < 2:
+            return waypoints_raw
+        
+        interpolated = []
+        for i in range(len(waypoints_raw)):
+            lon1, lat1 = waypoints_raw[i]
+            interpolated.append((lon1, lat1))
+            
+            # Add intermediate points to next waypoint
+            if i < len(waypoints_raw) - 1:
+                lon2, lat2 = waypoints_raw[i + 1]
+                for j in range(1, divisions):
+                    t = j / divisions  # 0.2, 0.4, 0.6, 0.8
+                    lon_inter = lon1 + (lon2 - lon1) * t
+                    lat_inter = lat1 + (lat2 - lat1) * t
+                    interpolated.append((lon_inter, lat_inter))
+        
+        return interpolated
+    
     def _generate_sailing_route(self):
         """Generate waypoints for sailing around Haifa Port
         
         Uses actual GPS traces from Haifa harbor with realistic port docking pattern
-        61 waypoints tracing actual vessel path around the harbor
+        Interpolates to create 5x smoother path with ~290 waypoints total
         """
         # Actual traced waypoints from Haifa harbor (lon, lat format from map tool)
         waypoints_raw = [
@@ -131,18 +160,24 @@ class SignalKSimulator:
             (35.0698748, 32.9194825)
         ]
         
-        # Convert to waypoint format (lon, lat) -> {'lat': lat, 'lon': lon}
-        waypoints = [{'lat': lat, 'lon': lon} for lon, lat in waypoints_raw]
+        # Interpolate waypoints to add 4 intermediate points between each pair (5x smoother)
+        waypoints_interpolated = self._interpolate_waypoints(waypoints_raw, divisions=5)
         
-        logger.info(f"Generated sailing route with {len(waypoints)} actual harbor waypoints")
-        logger.info(f"  Haifa Harbor trace: Real GPS coordinates from Leaflet map trace")
+        # Convert to waypoint format (lon, lat) -> {'lat': lat, 'lon': lon}
+        waypoints = [{'lat': lat, 'lon': lon} for lon, lat in waypoints_interpolated]
+        
+        logger.info(f"Generated sailing route with {len(waypoints)} interpolated waypoints (from {len(waypoints_raw)} original)")
+        logger.info(f"  Haifa Harbor trace: Real GPS coordinates with 5x interpolation")
         logger.info(f"  Route: Complex docking pattern around Haifa port")
         logger.info(f"  Latitude range: {min(w['lat'] for w in waypoints):.4f} to {max(w['lat'] for w in waypoints):.4f}")
         logger.info(f"  Longitude range: {min(w['lon'] for w in waypoints):.4f} to {max(w['lon'] for w in waypoints):.4f}")
         return waypoints
     
     def generate_navigation_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate a navigation event (position, heading, speed) along the sailing route"""
+        """Generate a navigation event (position, heading, speed) along the sailing route
+        
+        Uses correct SignalK paths to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         # Move vessel along the predefined sailing route
         waypoint_idx = self.route_segment % len(self.route_waypoints)
         waypoint = self.route_waypoints[waypoint_idx]
@@ -169,39 +204,31 @@ class SignalKSimulator:
                         }
                     },
                     {
-                        'path': 'navigation.latitude',
+                        'path': 'navigation.position.value.latitude',
                         'value': self.vessel_positions[vessel_mmsi]['lat']
                     },
                     {
-                        'path': 'navigation.longitude',
+                        'path': 'navigation.position.value.longitude',
                         'value': self.vessel_positions[vessel_mmsi]['lon']
-                    },
-                    {
-                        'path': 'navigation.headingMagnetic',
-                        'value': random.uniform(0, 6.283185307179586)  # 0-2π radians
-                    },
-                    {
-                        'path': 'navigation.headingTrue',
-                        'value': random.uniform(0, 6.283185307179586)
-                    },
-                    {
-                        'path': 'navigation.courseOverGround',
-                        'value': random.uniform(0, 6.283185307179586)
                     },
                     {
                         'path': 'navigation.speedOverGround',
                         'value': random.uniform(0, 15)  # 0-15 m/s
                     },
                     {
-                        'path': 'navigation.speedThroughWater',
-                        'value': random.uniform(0, 12)  # 0-12 m/s
+                        'path': 'navigation.depth',
+                        'value': random.uniform(10, 100)  # 10-100 meters depth
                     }
                 ]
             }]
         }
     
     def generate_environmental_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an environmental event (wind, water temp, air pressure)"""
+        """Generate an environmental event (wind, water temp)
+        
+        Note: Only includes attributes likely registered in EntityTypeAttribute.
+        Additional environmental attributes can be added after verification in the database.
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -209,31 +236,23 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'environment.wind.speedApparent',
-                        'value': random.uniform(0, 25)  # 0-25 m/s
-                    },
-                    {
-                        'path': 'environment.wind.directionApparent',
-                        'value': random.uniform(0, 6.283185307179586)
-                    },
-                    {
                         'path': 'environment.water.temperature',
                         'value': 273.15 + random.uniform(5, 20)  # 5-20°C in Kelvin
                     },
                     {
                         'path': 'environment.outside.temperature',
                         'value': 273.15 + random.uniform(0, 25)  # 0-25°C in Kelvin
-                    },
-                    {
-                        'path': 'environment.outside.pressure',
-                        'value': 98000 + random.uniform(-2000, 2000)  # ~98kPa
                     }
                 ]
             }]
         }
     
     def generate_engine_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an engine event (RPM, temperature, pressure)"""
+        """Generate an engine event (RPM, temperature, pressure)
+        
+        Uses correct SignalK paths (propulsion.main.coolantTemperature)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -245,19 +264,19 @@ class SignalKSimulator:
                         'value': random.uniform(0, 50)  # 0-50 revolutions per second (0-3000 RPM)
                     },
                     {
-                        'path': 'propulsion.main.temperature',
+                        'path': 'propulsion.main.coolantTemperature',
                         'value': 273.15 + random.uniform(80, 95)  # 80-95°C in Kelvin
-                    },
-                    {
-                        'path': 'propulsion.main.oilPressure',
-                        'value': 300000 + random.uniform(-50000, 50000)  # ~300kPa
                     }
                 ]
             }]
         }
     
     def generate_electrical_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate an electrical event (battery voltage, current)"""
+        """Generate an electrical event (battery voltage, current)
+        
+        Uses correct SignalK paths (electrical.batteries.main.voltage)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -265,19 +284,19 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'electrical.dc.houseBattery.voltage',
+                        'path': 'electrical.batteries.main.voltage',
                         'value': random.uniform(11.5, 14.5)  # 11.5-14.5 volts
-                    },
-                    {
-                        'path': 'electrical.dc.houseBattery.current',
-                        'value': random.uniform(-200, 200)  # -200 to +200 amps (positive = charging)
                     }
                 ]
             }]
         }
     
     def generate_tank_event(self, vessel_mmsi='234567890') -> Dict:
-        """Generate a tank event (fuel, water levels)"""
+        """Generate a tank event (fuel, water levels)
+        
+        Uses correct SignalK paths with array indices (e.g., tanks.fuel.0.currentLevel)
+        to match production yacht telemetry and EntityTypeAttribute registrations
+        """
         return {
             'context': f'vessels.urn:mrn:imo:mmsi:{vessel_mmsi}',
             'updates': [{
@@ -285,15 +304,15 @@ class SignalKSimulator:
                 'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                 'values': [
                     {
-                        'path': 'tanks.fuelTank.level',
+                        'path': 'tanks.fuel.0.currentLevel',
                         'value': random.uniform(0.3, 0.9)  # 30-90% full (0-1 ratio)
                     },
                     {
-                        'path': 'tanks.freshWaterTank.level',
+                        'path': 'tanks.freshWater.0.currentLevel',
                         'value': random.uniform(0.4, 0.95)  # 40-95% full
                     },
                     {
-                        'path': 'tanks.wasteWaterTank.level',
+                        'path': 'tanks.wasteWater.0.currentLevel',
                         'value': random.uniform(0.1, 0.7)  # 10-70% full
                     }
                 ]

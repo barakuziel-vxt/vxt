@@ -181,7 +181,7 @@ export default function EntityTelemetryRNPage() {
       if (IS_EMBEDDED) {
         // Bridge: request data from RN native layer (driver APIs or HTTP proxy)
         const [latest, tel, ev] = await Promise.all([
-          driverRequest('loadLatest', { entityId: String(selectedEntity) }),
+          driverRequest('loadLatest', { entityId: String(selectedEntity), startDate: start, endDate: end }),
           driverRequest('loadRange',  { entityId: String(selectedEntity), startDate: start, endDate: end }),
           driverRequest('loadEvents', { entityId: String(selectedEntity), startDate: start, endDate: end }),
         ]);
@@ -190,7 +190,7 @@ export default function EntityTelemetryRNPage() {
         setEvents(ev || []);
       } else {
         const [latestRes, telRes, evRes] = await Promise.all([
-          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}`),
+          fetch(`${BASE}/api/telemetry/latest/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
           fetch(`${BASE}/api/telemetry/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
           fetch(`${BASE}/api/events/range/${selectedEntity}?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
         ]);

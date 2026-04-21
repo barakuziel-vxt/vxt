@@ -2779,58 +2779,125 @@ def post_register_event(data: dict):
 # ============================================================================
 
 @app.get("/api/telemetry/latest/{entity_id}")
-def get_latest_telemetry(entity_id: str):
-    """Get the latest telemetry value for each attribute for an entity"""
+def get_latest_telemetry(entity_id: str, startDate: str = None, endDate: str = None):
+    """Get the latest telemetry value for each attribute for an entity.
+    
+    If startDate and endDate are provided, returns the latest values WITHIN that range.
+    Otherwise, returns the absolute latest values.
+    """
     try:
         import re
+        from datetime import datetime as dt_class
+        
         if not re.match(r'^[a-zA-Z0-9_-]+$', entity_id):
             raise HTTPException(status_code=400, detail="Invalid entity_id")
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
+        # Parse date range if provided
+        start_sql = None
+        end_sql = None
+        if startDate and endDate:
+            try:
+                start_str = startDate.replace('Z', '') if startDate.endswith('Z') else startDate
+                end_str = endDate.replace('Z', '') if endDate.endswith('Z') else endDate
+                start_dt = dt_class.fromisoformat(start_str)
+                end_dt = dt_class.fromisoformat(end_str)
+                start_sql = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+                end_sql = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+                print(f"[LATESTTEL] Filtering by date range: {start_sql} to {end_sql}")
+            except Exception as parse_err:
+                print(f"[LATESTTEL] Date parsing error (will use all data): {parse_err}")
+        
         # Use ? placeholder with varargs execute (matches working endpoint pattern)
         # ✅ FIX: Join with Entity to get entity's entityTypeId and filter attributes by type
-        query = """
-        WITH LatestPerAttribute AS (
-          SELECT
-            eta.entityTypeAttributeId,
-            eta.entityTypeAttributeCode,
-            eta.entityTypeAttributeName,
-            eta.entityTypeAttributeUnit,
-            eta.defaultInGraph,
-            et.numericValue,
-            et.stringValue,
-            et.endTimestampUTC,
-            pa.protocolAttributeCode,
-            pa.description,
-            ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
-          FROM dbo.Entity e WITH (NOLOCK)
-          JOIN dbo.EntityTelemetry et WITH (NOLOCK) ON et.entityId = e.entityId
-          JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
-            AND eta.entityTypeId = e.entityTypeId
-          LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
-            AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
-          WHERE e.entityId = ?
-            AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
-        )
-        SELECT 
-          entityTypeAttributeId,
-          entityTypeAttributeCode,
-          entityTypeAttributeName,
-          entityTypeAttributeUnit,
-          defaultInGraph,
-          numericValue,
-          stringValue,
-          endTimestampUTC,
-          protocolAttributeCode,
-          description
-        FROM LatestPerAttribute 
-        WHERE rn = 1
-        ORDER BY entityTypeAttributeCode
-        """
+        # ✅ NEW: If date range provided, only return latest within that range
+        if start_sql and end_sql:
+            query = """
+            WITH LatestPerAttribute AS (
+              SELECT
+                eta.entityTypeAttributeId,
+                eta.entityTypeAttributeCode,
+                eta.entityTypeAttributeName,
+                eta.entityTypeAttributeUnit,
+                eta.defaultInGraph,
+                et.numericValue,
+                et.stringValue,
+                et.endTimestampUTC,
+                pa.protocolAttributeCode,
+                pa.description,
+                ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
+              FROM dbo.Entity e WITH (NOLOCK)
+              JOIN dbo.EntityTelemetry et WITH (NOLOCK) ON et.entityId = e.entityId
+              JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+                AND eta.entityTypeId = e.entityTypeId
+              LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
+                AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
+              WHERE e.entityId = ?
+                AND et.endTimestampUTC >= ?
+                AND et.endTimestampUTC <= ?
+                AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
+            )
+            SELECT 
+              entityTypeAttributeId,
+              entityTypeAttributeCode,
+              entityTypeAttributeName,
+              entityTypeAttributeUnit,
+              defaultInGraph,
+              numericValue,
+              stringValue,
+              endTimestampUTC,
+              protocolAttributeCode,
+              description
+            FROM LatestPerAttribute 
+            WHERE rn = 1
+            ORDER BY entityTypeAttributeCode
+            """
+            print(f"[LATESTTEL] entity_id={entity_id!r} (with date range)")
+            cur.execute(query, entity_id, start_sql, end_sql)
+        else:
+            query = """
+            WITH LatestPerAttribute AS (
+              SELECT
+                eta.entityTypeAttributeId,
+                eta.entityTypeAttributeCode,
+                eta.entityTypeAttributeName,
+                eta.entityTypeAttributeUnit,
+                eta.defaultInGraph,
+                et.numericValue,
+                et.stringValue,
+                et.endTimestampUTC,
+                pa.protocolAttributeCode,
+                pa.description,
+                ROW_NUMBER() OVER (PARTITION BY eta.entityTypeAttributeId ORDER BY et.endTimestampUTC DESC) AS rn
+              FROM dbo.Entity e WITH (NOLOCK)
+              JOIN dbo.EntityTelemetry et WITH (NOLOCK) ON et.entityId = e.entityId
+              JOIN dbo.EntityTypeAttribute eta WITH (NOLOCK) ON et.entityTypeAttributeId = eta.entityTypeAttributeId
+                AND eta.entityTypeId = e.entityTypeId
+              LEFT JOIN dbo.ProtocolAttribute pa WITH (NOLOCK) ON eta.protocolId = pa.protocolId 
+                AND eta.entityTypeAttributeCode = pa.protocolAttributeCode
+              WHERE e.entityId = ?
+                AND (et.numericValue IS NOT NULL OR et.stringValue IS NOT NULL)
+            )
+            SELECT 
+              entityTypeAttributeId,
+              entityTypeAttributeCode,
+              entityTypeAttributeName,
+              entityTypeAttributeUnit,
+              defaultInGraph,
+              numericValue,
+              stringValue,
+              endTimestampUTC,
+              protocolAttributeCode,
+              description
+            FROM LatestPerAttribute 
+            WHERE rn = 1
+            ORDER BY entityTypeAttributeCode
+            """
+            print(f"[LATESTTEL] entity_id={entity_id!r} (all time)")
+            cur.execute(query, entity_id)
         
-        print(f"[LATESTTEL] entity_id={entity_id!r}")
-        cur.execute(query, entity_id)
         rows = cur.fetchall()
         cur.close()
         return_db_connection(conn)
@@ -2850,6 +2917,7 @@ def get_latest_telemetry(entity_id: str):
                 "description": row[9]
             })
         
+        print(f"[LATESTTEL] Returning {len(results)} attributes")
         return results
         
     except Exception as e:
