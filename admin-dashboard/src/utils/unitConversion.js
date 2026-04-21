@@ -48,7 +48,13 @@ const UNIVERSAL_CONVERSIONS = {
   's→ms': (value) => value * 1000,
   'h→s': (value) => value * 3600,
   's→h': (value) => value / 3600,
-  
+
+  // ===== ROTATION CONVERSIONS =====
+  'Hz→rpm': (value) => value * 60,      // revolutions/s → revolutions/min
+
+  // ===== RATIO CONVERSIONS =====
+  'ratio→%': (value) => value * 100,    // 0–1 ratio → percentage
+
   // ===== SMALL DISTANCE CONVERSIONS =====
   'mm/s→cm/s': (value) => value / 10,
   'mm/s→m/s': (value) => value / 1000,
@@ -97,16 +103,25 @@ const UNIVERSAL_CONVERSIONS = {
  * Especially useful for custom yacht attributes and non-protocol-mapped data
  */
 const SOURCE_UNIT_ASSUMPTIONS = {
-  // Yacht propulsion - always in Pa from SignalK
+  // Yacht propulsion - Pa/K/Hz from SignalK
   'propulsion.main.oilPressure': 'Pa',
   'propulsion.main.temperature': 'K',
-  'propulsion.main.revolutions': 'rpm',
-  
-  // Yacht tanks - assuming liters (level in L)
+  'propulsion.main.revolutions': 'Hz',           // SignalK: revolutions per second
+  'propulsion.main.coolantTemperature': 'K',
+  'propulsion.main.oilTemperature': 'K',
+  'propulsion.main.exhaustTemperature': 'K',
+  'propulsion.main.transmission.oilTemperature': 'K',
+  'propulsion.main.runTime': 's',                // SignalK: seconds
+  'propulsion.main.engineLoad': 'ratio',         // SignalK: 0–1 ratio
+
+  // Yacht tanks - 0–1 ratio from SignalK
+  'tanks.freshWater.0.currentLevel': 'ratio',
+  'tanks.wasteWater.0.currentLevel': 'ratio',
+  'tanks.fuel.0.currentLevel': 'ratio',
   'tanks.freshWaterTank.level': 'L',
   'tanks.wasteWaterTank.level': 'L',
   'tanks.fuelTank.level': 'L',
-  
+
   // Yacht environment - from SignalK
   'environment.outside.pressure': 'Pa',
   'environment.outside.temperature': 'K',
@@ -115,15 +130,16 @@ const SOURCE_UNIT_ASSUMPTIONS = {
   'environment.wind.speedTrue': 'm/s',
   'environment.wind.directionApparent': 'rad',
   'environment.wind.directionTrue': 'rad',
-  
+
   // Yacht navigation
   'navigation.speedOverGround': 'm/s',
   'navigation.speedThroughWater': 'm/s',
   'navigation.courseOverGround': 'rad',
+  'navigation.courseOverGroundTrue': 'rad',
   'navigation.courseOverGroundMagnetic': 'rad',
   'navigation.headingTrue': 'rad',
   'navigation.headingMagnetic': 'rad',
-  
+
   // Yacht electrical - no conversion needed
   'electrical.dc.houseBattery.voltage': 'V',
   'electrical.dc.houseBattery.current': 'A',
@@ -198,9 +214,18 @@ const DISPLAY_UNIT_PREFERENCES = {
   // Propulsion
   'propulsion.main.temperature': '°C',
   'propulsion.main.oilPressure': 'Bar',
-  'propulsion.main.revolutions': 'rpm',
-  
+  'propulsion.main.revolutions': 'rpm',          // converted from Hz
+  'propulsion.main.coolantTemperature': '°C',
+  'propulsion.main.oilTemperature': '°C',
+  'propulsion.main.exhaustTemperature': '°C',
+  'propulsion.main.transmission.oilTemperature': '°C',
+  'propulsion.main.runTime': 'h',                // converted from seconds
+  'propulsion.main.engineLoad': '%',             // converted from 0–1 ratio
+
   // Tanks - Water and Fuel (displayed as percentage)
+  'tanks.freshWater.0.currentLevel': '%',
+  'tanks.wasteWater.0.currentLevel': '%',
+  'tanks.fuel.0.currentLevel': '%',
   'tanks.freshWaterTank.level': '%',
   'tanks.wasteWaterTank.level': '%',
   'tanks.fuelTank.level': '%',
@@ -226,6 +251,7 @@ const DISPLAY_UNIT_PREFERENCES = {
   'navigation.speedOverGround': 'kn',
   'navigation.speedThroughWater': 'kn',
   'navigation.courseOverGround': '°',
+  'navigation.courseOverGroundTrue': '°',
   'navigation.courseOverGroundMagnetic': '°',
   'navigation.headingTrue': '°',
   'navigation.headingMagnetic': '°',
