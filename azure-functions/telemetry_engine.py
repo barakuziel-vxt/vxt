@@ -14,6 +14,7 @@ Processing flow:
     → get_adapter(protocol).parse()  normalise to NormalizedEvent list
     → SimpleEventProcessor            EntityTypeAttribute lookup + INSERT
 """
+# Deployment timestamp: 2026-04-21 13:00 UTC - Forced redeploy after function downtime
 
 import json
 import os
