@@ -123,7 +123,7 @@ export const METRIC_DEFS: MetricDef[] = [
   
   // ── Engine & Yacht Health Attributes (Full SignalK Paths) ────────────────────
   // Propulsion attributes
-  { key: 'propulsion.main.revolutions',                label: 'Engine RPM',           unit: 'rpm',    color: VC.orange,    defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(0) },
+  { key: 'propulsion.main.revolutions',                label: 'Engine RPM',           unit: 'rpm',    color: VC.orange,    defaultOn: true,  rangeColor: neutralColor, format: (v) => (v * 60).toFixed(0) },
   { key: 'propulsion.main.temperature',                label: 'Engine Temp',          unit: '°C',     color: VC.coral,     defaultOn: true,  rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   { key: 'propulsion.main.oilTemperature',             label: 'Oil Temp',             unit: '°C',     color: VC.orange,    defaultOn: true,  rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   { key: 'propulsion.main.oilPressure',                label: 'Oil Pressure',         unit: 'bar',    color: VC.orange,    defaultOn: true,  rangeColor: neutralColor, format: (v) => (v / 100000).toFixed(2) },
@@ -131,10 +131,15 @@ export const METRIC_DEFS: MetricDef[] = [
   { key: 'propulsion.main.coolantTemperature',         label: 'Coolant Temp',         unit: '°C',     color: VC.coral,     defaultOn: true,  rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   { key: 'propulsion.main.load',                       label: 'Engine Load',          unit: '%',      color: VC.yellow,    defaultOn: true,  rangeColor: neutralColor, format: (v) => (v * 100).toFixed(0) },
   { key: 'propulsion.main.fuel.pressure',              label: 'Fuel Pressure',        unit: 'bar',    color: VC.gold,      defaultOn: false, rangeColor: neutralColor, format: (v) => (v / 100000).toFixed(2) },
-  { key: 'propulsion.main.fuel.rate',                  label: 'Fuel Rate',            unit: '%',      color: VC.gold,      defaultOn: false, rangeColor: neutralColor, format: (v) => (v * 100).toFixed(1) },
-  { key: 'propulsion.main.runTime',                    label: 'Engine Run Time',       unit: 'h',      color: VC.muted,     defaultOn: true,  rangeColor: neutralColor, format: (v) => (v / 3600).toFixed(1) },
+  { key: 'propulsion.main.fuel.rate',                  label: 'Fuel Rate',            unit: 'L/h',    color: VC.gold,      defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'propulsion.main.runTime',                    label: 'Engine Run Time',       unit: 'h',      color: VC.muted,     defaultOn: true,  rangeColor: neutralColor, format: (v) => (v / 3600).toFixed(0) },
   { key: 'propulsion.main.transmission.oilTemperature',label: 'Trans Oil Temp',        unit: '°C',     color: VC.coral,     defaultOn: true,  rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   
+  // Tank level attributes (SignalK ratio 0-1 → %)
+  { key: 'tanks.fuel.0.currentLevel',      label: 'Fuel Tank Level',       unit: '%',   color: VC.gold,      defaultOn: false, rangeColor: neutralColor, format: (v) => (v * 100).toFixed(0) },
+  { key: 'tanks.freshWater.0.currentLevel', label: 'Fresh Water Level',     unit: '%',   color: VC.skyblue,   defaultOn: false, rangeColor: neutralColor, format: (v) => (v * 100).toFixed(0) },
+  { key: 'tanks.wasteWater.0.currentLevel', label: 'Waste Water Level',     unit: '%',   color: VC.muted,     defaultOn: false, rangeColor: neutralColor, format: (v) => (v * 100).toFixed(0) },
+
   // Navigation attributes
   { key: 'navigation.speedOverGround',                 label: 'SOG',                  unit: 'kn',     color: VC.blue,      defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(2) },
   { key: 'navigation.speedThroughWater',               label: 'STW',                  unit: 'kn',     color: VC.blue,      defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(2) },
@@ -144,7 +149,7 @@ export const METRIC_DEFS: MetricDef[] = [
   { key: 'electrical.alternators.main.voltage',        label: 'Alternator Voltage',   unit: 'V',      color: VC.yellow,    defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(2) },
   
   // Legacy/fallback short keys (for backward compatibility)
-  { key: 'revolutions',                       label: 'Engine RPM',         unit: 'rpm',    color: VC.orange,    defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(0) },
+  { key: 'revolutions',                       label: 'Engine RPM',         unit: 'rpm',    color: VC.orange,    defaultOn: false, rangeColor: neutralColor, format: (v) => (v * 60).toFixed(0) },
   { key: 'main.temperature',                  label: 'Engine Temp',        unit: '°C',     color: VC.coral,     defaultOn: false, rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   { key: 'main.coolantTemperature',           label: 'Coolant Temp',       unit: '°C',     color: VC.coral,     defaultOn: false, rangeColor: tempColor,    format: (v) => v.toFixed(1) },
   { key: 'coolantTemperature',                label: 'Coolant Temp',       unit: '°C',     color: VC.coral,     defaultOn: false, rangeColor: tempColor,    format: (v) => v.toFixed(1) },

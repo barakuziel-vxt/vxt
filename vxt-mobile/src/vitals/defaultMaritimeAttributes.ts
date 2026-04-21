@@ -21,6 +21,8 @@ export const MARITIME_DEFAULT_KEYS: string[] = [
   'propulsion.main.transmission.oilTemperature',
   'propulsion.main.exhaustTemperature',
   'propulsion.main.temperature',
+  'tanks.fuel.0.currentLevel',
+  'tanks.freshWater.0.currentLevel',
 ];
 
 /**
