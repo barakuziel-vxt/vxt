@@ -543,7 +543,9 @@ export default function EntityTelemetryRNPage() {
             {latestValues.map((v, idx) => {
               const isSelected = selectedMetrics[v.attributeCode] || false;
               const color = isSelected ? (colorMap[v.attributeCode] || '#60a5fa') : 'inherit';
-              
+              const displayValue = v.numericValue != null ? convertValue(v.numericValue, v.attributeCode, v.attributeUnit) : null;
+              const isCOG = v.attributeCode?.toLowerCase().includes('courseoverground');
+
               return (
                 <div 
                   key={idx} 
@@ -568,7 +570,20 @@ export default function EntityTelemetryRNPage() {
                       fontWeight: 'bold'
                     }}
                   >
-                    {v.numericValue != null ? convertValue(v.numericValue, v.attributeCode, v.attributeUnit) : '—'}
+                    {displayValue != null ? displayValue : '—'}
+                    {displayValue != null && isCOG && (
+                      <span
+                        title={`${displayValue}°`}
+                        style={{
+                          display: 'inline-block',
+                          marginLeft: '6px',
+                          fontSize: '18px',
+                          lineHeight: 1,
+                          transform: `rotate(${displayValue}deg)`,
+                          transformOrigin: 'center',
+                        }}
+                      >↑</span>
+                    )}
                     <span style={{ fontSize: '14px', marginLeft: '4px', color: '#aaa' }}>
                       {getUnit(v.attributeCode) || v.attributeUnit || ''}
                     </span>

@@ -176,6 +176,14 @@ const INTEGER_DISPLAY_ATTRIBUTES = new Set([
   
   // Other health metrics
   'BMI', 'BloodPressure', 'HeartRateVariability',
+
+  // ===== MARITIME / PROPULSION =====
+  'propulsion.main.revolutions',            // RPM (converted from Hz)
+  'propulsion.main.coolantTemperature',     // °C
+  'propulsion.main.oilTemperature',         // °C
+  'propulsion.main.exhaustTemperature',     // °C
+  'propulsion.main.transmission.oilTemperature', // °C
+  'propulsion.main.engineLoad',             // % (converted from ratio)
 ]);
 
 /**
