@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import CorrelationChart from '../components/CorrelationChart';
 import type { ChartSeries } from '../components/CorrelationChart';
@@ -17,6 +18,7 @@ import { driverManager } from '../core/DriverManager';
 import { useGatewayStore } from '../store/gatewayStore';
 import { METRIC_DEFS, formatMetricValue, buildDynamicDef, VC } from '../vitals/VitalsDefs';
 import type { MetricDef } from '../vitals/VitalsDefs';
+import { getMaritimeDefaults } from '../vitals/defaultMaritimeAttributes';
 import type { SnapshotMap, HistoryMap } from '../core/types';
 
 // ─── Colour palette ────────────────────────────────────────────────────────
@@ -118,8 +120,7 @@ export default function HealthVitalsScreen() {
   const [historyData, setHistoryData] = React.useState<HistoryMap>({});
   const [historyLoad, setHistoryLoad] = React.useState(false);
   const [historyErr,  setHistoryErr]  = React.useState<string | null>(null);
-  const [activePreset, setActivePreset] = React.useState('1h');
-
+  const [activePreset, setActivePreset] = React.useState('1h');  const [metricsLoaded, setMetricsLoaded] = React.useState(false);
   // ── Permissions state ────────────────────────────────────────────────
   const [permGranted,     setPermGranted]     = React.useState<boolean | null>(null);
   const [permBusy,        setPermBusy]        = React.useState(false);
@@ -255,6 +256,49 @@ export default function HealthVitalsScreen() {
     return () => sub.remove();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDriver, permGranted]);
+
+  // ── Load saved metrics from AsyncStorage on mount ─────────────────────
+  // Merges with maritime defaults so newly-added default keys always appear
+  // in the graph even when upgrading from an older saved state.
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem('healthVitals_selectedMetrics');
+        const maritimeDefaults = getMaritimeDefaults();
+        if (saved) {
+          const parsed: Record<string, boolean> = JSON.parse(saved);
+          // Add any maritime default keys that aren't in the saved state yet
+          // (covers upgrades where new attributes were added after last save)
+          const merged: Record<string, boolean> = { ...parsed };
+          for (const [key, val] of Object.entries(maritimeDefaults)) {
+            if (!(key in parsed)) {
+              merged[key] = val;
+            }
+          }
+          setSelectedMetrics(merged);
+        } else {
+          // Fresh install or cleared storage — use maritime defaults
+          setSelectedMetrics(maritimeDefaults);
+        }
+      } catch (e) {
+        console.warn('[HealthVitals] Failed to load saved metrics:', e);
+        setSelectedMetrics(getMaritimeDefaults());
+      }
+      setMetricsLoaded(true);
+    })();
+  }, []);
+
+  // ── Save metrics to AsyncStorage whenever they change ──────────────────
+  React.useEffect(() => {
+    if (!metricsLoaded) return; // Skip first mount
+    (async () => {
+      try {
+        await AsyncStorage.setItem('healthVitals_selectedMetrics', JSON.stringify(selectedMetrics));
+      } catch (e) {
+        console.warn('[HealthVitals] Failed to save metrics:', e);
+      }
+    })();
+  }, [selectedMetrics, metricsLoaded]);
 
   async function onRefresh() {
     setRefreshing(true);
