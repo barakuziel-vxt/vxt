@@ -187,7 +187,10 @@ export default function EntityTelemetryRN() {
             break;
           }
           case 'loadLatest': {
-            const res = await fetch(`${apiBase}/api/telemetry/latest/${entityId}`);
+            const latestQs = startDate && endDate
+              ? `?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+              : '';
+            const res = await fetch(`${apiBase}/api/telemetry/latest/${entityId}${latestQs}`);
             responseData = res.ok ? await res.json() : [];
             break;
           }
