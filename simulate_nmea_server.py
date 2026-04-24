@@ -37,21 +37,24 @@ Simulated NMEA sentences (Navigation & Environment):
     $GPGGA  - GPS Fix — latitude, longitude, altitude
     $SDDBT  - Depth below transducer — 18.7m
 
-Simulated NMEA Engine Monitoring Attributes:
-    $YXXDR  - Engine RPM (1500-1900 RPM cruise range)
-    $YXXDR  - Engine Oil Temperature (75±8°C)
-    $YXXDR  - Engine Water Temperature (82±6°C)
-    $YXXDR  - Engine Oil Pressure (45±10 PSI)
-    $YXXDR  - Fuel Rate/Flow (10±6 L/h)
-    $YXXDR  - Fuel Pressure (40±5 kPa)
-    $YXXDR  - Alternator Output (13.8±0.4 V)
-    $YXXDR  - Gearbox Oil Temperature (65±5°C)
-    $YXXDR  - Engine Load (0-1.0 ratio)
-    $YXXDR  - Exhaust Temperature (480±40°C)
-    $YXXDR  - Engine Run Time (cumulative hours)
-    $YXXDR  - Fuel Tank Level (60-70%)
-    $YXXDR  - Fresh Water Tank Level (40-50%)
-    $YXXDR  - Battery Voltage (12.8±0.5 V)
+Simulated NMEA Engine Monitoring Attributes (EntityTypeAttribute Registered):
+    $YXXDR  - Engine Oil Temperature (75-95°C, correlated with RPM/SOG)
+    $YXXDR  - Engine Coolant Temperature (82-102°C, correlated with RPM/SOG)
+    $YXXDR  - Transmission Oil Temperature (65-85°C, correlated with RPM/SOG)
+    $YXXDR  - Exhaust Temperature (480-580°C, correlated with RPM/SOG)
+    $YXXDR  - Engine Load (0-1.0 ratio, correlated with RPM/SOG)
+    $YXXDR  - Engine Run Time (cumulative seconds, updated continuously)
+    $YXXDR  - Fuel Rate/Flow (8-15 L/h, varies with throttle)
+    $YXXDR  - Fuel Pressure (35-45 kPa)
+    $YXXDR  - Alternator Output Voltage (13.5-14.5 V)
+
+NOT SIMULATED (not in EntityTypeAttribute for standard boat types):
+    - Engine RPM (propulsion.main.revolutions)
+    - Engine Oil Pressure (propulsion.main.oilPressure)
+    - Speed Over Ground / Speed Through Water
+    - Battery Voltage (electrical.batteries.main.voltage)
+    - Fuel Tank Level (tanks.fuel.0.currentLevel)
+    - Fresh Water Tank Level (tanks.freshWater.0.currentLevel)
 """
 
 import argparse
@@ -199,16 +202,34 @@ def generate_sentences(t: float) -> list:
     # Total engine hours (cumulative, slow drift)
     engine_hours = 2450 + (t / 3600)  # increases by 1 hour every hour
     
-    # Oil pressure: 45 PSI nominal, varies with RPM and load
-    engine_oil_pressure_psi = 45 + math.sin(t / 60) * 10 + math.sin(t / 20) * 5
+    # ─── TEMPERATURE CORRELATIONS ───────────────────────────────────────────
+    # Create correlation factor based on RPM and SOG (0-1 scale)
+    # Higher RPM and higher SOG → higher temperatures
+    rpm_factor = (engine_rpm - 1000) / 1500  # 0 at idle (1000), ~1 at cruise (2500)
+    rpm_factor = max(0, min(1.0, rpm_factor))
+    sog_factor = (sog_knots - 1.0) / 6.0  # 0 at low speed, ~1 at 7+ knots
+    sog_factor = max(0, min(1.0, sog_factor))
+    combined_load_factor = (rpm_factor * 0.7) + (sog_factor * 0.3)  # RPM weighted heavier
     
-    # Oil temperature: 75°C nominal cruise, oscillates with load (K)
-    engine_oil_temp_c = 75 + math.sin(t / 150) * 8
+    # Oil temperature: Base 75°C + correlation to RPM/SOG (75-95°C range)
+    oil_temp_base = 75 + combined_load_factor * 15
+    engine_oil_temp_c = oil_temp_base + math.sin(t / 150) * 5
     engine_oil_temp_k = engine_oil_temp_c + 273.15
     
-    # Water/coolant temperature: 82°C nominal, tight range (K)
-    engine_water_temp_c = 82 + math.sin(t / 200) * 6
-    engine_water_temp_k = engine_water_temp_c + 273.15
+    # Coolant/Engine temperature: Base 82°C + correlation (82-102°C range)
+    coolant_temp_base = 82 + combined_load_factor * 15
+    engine_coolant_temp_c = coolant_temp_base + math.sin(t / 200) * 4
+    engine_coolant_temp_k = engine_coolant_temp_c + 273.15
+    
+    # Transmission oil temperature: Base 65°C + correlation (65-85°C range)
+    trans_oil_temp_base = 65 + combined_load_factor * 12
+    trans_oil_temp_c = trans_oil_temp_base + math.sin(t / 180) * 3
+    trans_oil_temp_k = trans_oil_temp_c + 273.15
+    
+    # Exhaust temperature: Base 480°C + strong correlation (480-580°C range)
+    exhaust_temp_base = 480 + combined_load_factor * 80
+    exhaust_temp_c = exhaust_temp_base + math.sin(t / 100) * 30
+    exhaust_temp_k = exhaust_temp_c + 273.15
     
     # Fuel flow rate: 8-15 L/h depending on throttle/RPM
     fuel_rate_lh = 10.0 + math.sin(t / 80) * 4.0 + math.sin(t / 30) * 2.0
@@ -220,22 +241,16 @@ def generate_sentences(t: float) -> list:
     # Alternator output: 13.5-14.5 V nominal, dips when high load
     alternator_output_v = 13.8 + math.sin(t / 90) * 0.4
     
-    # Gearbox oil temperature: 60-70°C (K)
-    gearbox_oil_temp_c = 65 + math.sin(t / 180) * 5
-    gearbox_oil_temp_k = gearbox_oil_temp_c + 273.15
+    # Engine load: 0-1 ratio, related to RPM and throttle
+    engine_load_ratio = combined_load_factor  # already 0-1 from combined factors
+    engine_load_ratio = max(0, min(1.0, engine_load_ratio))
     
-    # Engine load: 0-1.0 (ratio), related to RPM and throttle
-    engine_load = (engine_rpm - 1000) / 2000  # normalize to ~0-0.75
-    engine_load = max(0, min(1.0, engine_load))
+    # COMMENTED OUT: Fuel and Fresh Water Tank simulations (not in EntityTypeAttribute for standard boats)
+    # fuel_tank_pct = 65 + math.sin(t / 600) * 5  # 65% full
+    # water_tank_pct = 45 + math.sin(t / 800) * 3  # 45% full
     
-    # Exhaust temperature: 450-550°C at cruise (K)
-    exhaust_temp_c = 480 + math.sin(t / 100) * 40
-    exhaust_temp_k = exhaust_temp_c + 273.15
-    
-    # Fuel and water tank levels
-    fuel_tank_pct = 65 + math.sin(t / 600) * 5  # 65% full
-    water_tank_pct = 45 + math.sin(t / 800) * 3  # 45% full
-    battery_voltage = 12.8 + math.sin(t / 180) * 0.5
+    # COMMENTED OUT: Battery voltages (not in EntityTypeAttribute for standard boats)
+    # battery_voltage = 12.8 + math.sin(t / 180) * 0.5
 
     lat_nmea, ns = dd_to_nmea_lat(lat)
     lon_nmea, ew = dd_to_nmea_lon(lon)
@@ -264,70 +279,61 @@ def generate_sentences(t: float) -> list:
     dbt = "SDDBT,%.1f,f,%.1f,M,%.1f,F" % (depth_ft, depth_m, depth_fathom)
     sentences.append(nmea(dbt))
 
-    # ── XDR - Engine RPM ────────────────────────────────────────────────────
-    # $YXXDR,T,rpm,,EngineRPM → propulsion.main.revolutions
-    xdr_rpm = "YXXDR,T,%.0f,,EngineRPM" % engine_rpm
-    sentences.append(nmea(xdr_rpm))
-
     # ── XDR - Engine Hours (Run Time) ───────────────────────────────────────
-    # $YXXDR,T,hours,,EngineHours → propulsion.main.runTime (as seconds)
-    xdr_hours = "YXXDR,T,%.1f,,EngineHours" % engine_hours
+    # $YXXDR,T,seconds,,EngineHours → propulsion.main.runTime
+    xdr_hours = "YXXDR,T,%.0f,,EngineHours" % (engine_hours * 3600)  # Convert hours to seconds
     sentences.append(nmea(xdr_hours))
 
-    # ── XDR - Engine Oil Pressure ──────────────────────────────────────────
-    # $YXXDR,P,psi,B,OilPressure → propulsion.main.oilPressure
-    xdr_oil = "YXXDR,P,%.1f,B,OilPressure" % engine_oil_pressure_psi
-    sentences.append(nmea(xdr_oil))
+    # ── XDR - Engine Load (as ratio 0-1, NOT percentage) ────────────────────
+    # $YXXDR,R,ratio,,EngineLoad → propulsion.main.load (stored as 0-1 ratio)
+    engine_load_ratio = combined_load_factor  # already 0-1
+    xdr_load = "YXXDR,R,%.3f,,EngineLoad" % engine_load_ratio
+    sentences.append(nmea(xdr_load))
 
     # ── XDR - Engine Oil Temperature ────────────────────────────────────────
     # $YXXDR,C,celsius,C,OilTemperature → propulsion.main.oilTemperature
     xdr_oil_temp = "YXXDR,C,%.1f,C,OilTemperature" % engine_oil_temp_c
     sentences.append(nmea(xdr_oil_temp))
 
-    # ── XDR - Fuel Rate (Flow) ──────────────────────────────────────────────
-    # $YXXDR,R,liter_per_hour,,FuelRate → propulsion.main.fuelRate
-    xdr_fuel_rate = "YXXDR,R,%.2f,,FuelRate" % fuel_rate_lh
-    sentences.append(nmea(xdr_fuel_rate))
+    # ── XDR - Engine Coolant/Main Temperature ───────────────────────────────
+    # $YXXDR,C,celsius,C,CoolantTemperature → propulsion.main.coolantTemperature
+    xdr_coolant_temp = "YXXDR,C,%.1f,C,CoolantTemperature" % engine_coolant_temp_c
+    sentences.append(nmea(xdr_coolant_temp))
 
-    # ── XDR - Fuel Pressure ────────────────────────────────────────────────
-    # $YXXDR,P,kPa,B,FuelPressure → propulsion.main.fuelPressure
-    xdr_fuel_press = "YXXDR,P,%.1f,B,FuelPressure" % fuel_pressure_kpa
-    sentences.append(nmea(xdr_fuel_press))
-
-    # ── XDR - Alternator Output (Voltage) ───────────────────────────────────
-    # $YXXDR,U,volts,V,AlternatorOutput → propulsion.main.alternatorOutput
-    xdr_alt = "YXXDR,U,%.2f,V,AlternatorOutput" % alternator_output_v
-    sentences.append(nmea(xdr_alt))
-
-    # ── XDR - Gearbox Oil Temperature ───────────────────────────────────────
-    # $YXXDR,C,celsius,C,GearboxOilTemp → propulsion.main.gearboxOilTemperature
-    xdr_gearbox_temp = "YXXDR,C,%.1f,C,GearboxOilTemp" % gearbox_oil_temp_c
-    sentences.append(nmea(xdr_gearbox_temp))
-
-    # ── XDR - Engine Load (as ratio 0-1) ────────────────────────────────────
-    # $YXXDR,R,ratio,,EngineLoad → propulsion.main.load
-    xdr_load = "YXXDR,R,%.2f,,EngineLoad" % engine_load
-    sentences.append(nmea(xdr_load))
+    # ── XDR - Transmission Oil Temperature ──────────────────────────────────
+    # $YXXDR,C,celsius,C,TransmissionOilTemp → propulsion.main.transmission.oilTemperature
+    xdr_trans_oil_temp = "YXXDR,C,%.1f,C,TransmissionOilTemp" % trans_oil_temp_c
+    sentences.append(nmea(xdr_trans_oil_temp))
 
     # ── XDR - Exhaust Temperature ───────────────────────────────────────────
     # $YXXDR,C,celsius,C,ExhaustTemp → propulsion.main.exhaustTemperature
     xdr_exhaust = "YXXDR,C,%.1f,C,ExhaustTemp" % exhaust_temp_c
     sentences.append(nmea(xdr_exhaust))
 
-    # ── XDR - Fuel Tank Level ──────────────────────────────────────────────
-    # $YXXDR,R,percent,,FuelLevel
-    xdr_fuel_level = "YXXDR,R,%.1f,,FuelLevel" % fuel_tank_pct
-    sentences.append(nmea(xdr_fuel_level))
+    # ── XDR - Fuel Rate (Flow) ──────────────────────────────────────────────
+    # $YXXDR,R,liter_per_hour,,FuelRate → propulsion.main.fuel.rate
+    xdr_fuel_rate = "YXXDR,R,%.2f,,FuelRate" % fuel_rate_lh
+    sentences.append(nmea(xdr_fuel_rate))
 
-    # ── XDR - Water Tank Level ─────────────────────────────────────────────
-    # $YXXDR,R,percent,,WaterLevel
-    xdr_water_level = "YXXDR,R,%.1f,,WaterLevel" % water_tank_pct
-    sentences.append(nmea(xdr_water_level))
+    # ── XDR - Fuel Pressure ────────────────────────────────────────────────
+    # $YXXDR,P,kPa,B,FuelPressure → propulsion.main.fuel.pressure
+    xdr_fuel_press = "YXXDR,P,%.1f,B,FuelPressure" % fuel_pressure_kpa
+    sentences.append(nmea(xdr_fuel_press))
 
-    # ── XDR - Battery Voltage ──────────────────────────────────────────────
-    # $YXXDR,U,voltage,V,BatteryMain
-    xdr_batt = "YXXDR,U,%.1f,V,BatteryMain" % battery_voltage
-    sentences.append(nmea(xdr_batt))
+    # ── XDR - Alternator Output (Voltage) ───────────────────────────────────
+    # $YXXDR,U,volts,V,AlternatorOutput → electrical.alternators.main.voltage
+    xdr_alt = "YXXDR,U,%.2f,V,AlternatorOutput" % alternator_output_v
+    sentences.append(nmea(xdr_alt))
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # COMMENTED OUT - Attributes NOT registered in EntityTypeAttribute table:
+    # ──────────────────────────────────────────────────────────────────────────
+    # - Engine RPM (propulsion.main.revolutions) - not in 0178 sync
+    # - Oil Pressure (propulsion.main.oilPressure) - not in 0178 sync
+    # - Speed Over Ground / Speed Through Water - not in 0178 sync
+    # - Battery Voltage (electrical.batteries.main.voltage) - not in 0178 sync
+    # - Fuel Tank Level (tanks.fuel.0.currentLevel) - not in 0178 sync
+    # - Water/Fresh Water Tank Levels - not in standard boat packages
 
     return sentences
 
@@ -433,15 +439,15 @@ def run_udp_sender(args):
     print("  VXT / YachtSense AI — NMEA 0183 UDP Sender")
     print("=" * 64)
     print(f"  Target : {args.target} ({target_ip}:{args.port})")
-    print(f"  Interval: {args.interval}s (22 NMEA sentences per burst)")
+    print(f"  Interval: {args.interval}s (18 NMEA sentences per burst)")
     print()
-    print("  Transmitted Attributes:")
-    print("  ──────────────────────")
+    print("  Transmitted Attributes (Registered in EntityTypeAttribute):")
+    print("  ──────────────────────────────────────────────────────────────")
     print("  Navigation: Position + SOG/COG (RMC), GPS Fix (GGA), Depth (DBT)")
-    print("  Propulsion: RPM, Fuel Rate, Oil/Water/Exhaust Temps,")
-    print("              Oil/Fuel Pressure, Alternator, Gearbox Temp, Load, Runtime")
-    print("  Tanks: Fuel Level, Fresh Water Level")
-    print("  Electrical: Battery Voltage")
+    print("  Propulsion: Temps (Oil/Coolant/Exhaust/Transmission),")
+    print("              Fuel (Rate/Pressure), Load (ratio), RunTime")
+    print("  Electrical: Alternator Voltage")
+    print("  NOTE: Temperatures correlated with RPM and SOG (0-1 scale)")
     print()
     print("  SignalK Setup (one-time):")
     print("  ─────────────────────────")
@@ -469,18 +475,24 @@ def run_udp_sender(args):
             lat_disp = wp['lat']
             lon_disp = wp['lon']
             sog = 5.5 + math.sin(t / 90) * 2.0
-            depth = 18.7 + math.sin(t / 180) * 0.3
             rpm = 1500 + math.sin(t / 60) * 400
-            fuel_rate = 10.0 + math.sin(t / 80) * 4.0 + math.sin(t / 30) * 2.0
-            oil_temp = 75 + math.sin(t / 150) * 8
-            water_temp = 82 + math.sin(t / 200) * 6
+            # Recalculate load factor for display
+            rpm_factor = (rpm - 1000) / 1500
+            rpm_factor = max(0, min(1.0, rpm_factor))
+            sog_factor = (sog - 1.0) / 6.0
+            sog_factor = max(0, min(1.0, sog_factor))
+            combined_load_factor = (rpm_factor * 0.7) + (sog_factor * 0.3)
+            oil_temp = 75 + combined_load_factor * 15 + math.sin(t / 150) * 5
+            coolant_temp = 82 + combined_load_factor * 15 + math.sin(t / 200) * 4
+            exhaust_temp = 480 + combined_load_factor * 80 + math.sin(t / 100) * 30
             ts = datetime.now().strftime("%H:%M:%S")
 
             print(
                 f"  [{ts}] #{burst_count:>4d}  "
                 f"Pos={lat_disp:.4f},{lon_disp:.4f}  SOG={sog:.1f}kn  "
-                f"RPM={rpm:.0f}  FuelRate={fuel_rate:.1f}L/h  "
-                f"OilTemp={oil_temp:.0f}°C  WaterTemp={water_temp:.0f}°C  "
+                f"RPM={rpm:.0f}  Load={combined_load_factor:.2f}  "
+                f"OilT={oil_temp:.0f}°C  CoolT={coolant_temp:.0f}°C  "
+                f"ExhT={exhaust_temp:.0f}°C  "
                 f"→ {args.target}:{args.port} ({len(sentences)} sentences)"
             )
 
@@ -509,15 +521,15 @@ def run_tcp_server(args):
     print("=" * 64)
     print(f"  Listen : {args.bind}:{args.port}")
     print(f"  LAN IP : {local_ip}")
-    print(f"  Interval: {args.interval}s (22 NMEA sentences per burst)")
+    print(f"  Interval: {args.interval}s (18 NMEA sentences per burst)")
     print()
-    print("  Transmitted Attributes:")
-    print("  ──────────────────────")
+    print("  Transmitted Attributes (Registered in EntityTypeAttribute):")
+    print("  ──────────────────────────────────────────────────────────────")
     print("  Navigation: Position + SOG/COG (RMC), GPS Fix (GGA), Depth (DBT)")
-    print("  Propulsion: RPM, Fuel Rate, Oil/Water/Exhaust Temps,")
-    print("              Oil/Fuel Pressure, Alternator, Gearbox Temp, Load, Runtime")
-    print("  Tanks: Fuel Level, Fresh Water Level")
-    print("  Electrical: Battery Voltage")
+    print("  Propulsion: Temps (Oil/Coolant/Exhaust/Transmission),")
+    print("              Fuel (Rate/Pressure), Load (ratio), RunTime")
+    print("  Electrical: Alternator Voltage")
+    print("  NOTE: Temperatures correlated with RPM and SOG (0-1 scale)")
     print()
     print("  SignalK Setup (one-time):")
     print("  ─────────────────────────")
@@ -572,17 +584,22 @@ def run_tcp_server(args):
 
                 # Show summary of engine monitoring values
                 rpm = 1500 + math.sin(t / 60) * 400
-                fuel_rate = 10.0 + math.sin(t / 80) * 4.0 + math.sin(t / 30) * 2.0
-                oil_temp = 75 + math.sin(t / 150) * 8
-                water_temp = 82 + math.sin(t / 200) * 6
-                oil_pressure_psi = 45 + math.sin(t / 60) * 10 + math.sin(t / 20) * 5
+                sog = 5.5 + math.sin(t / 90) * 2.0
+                # Recalculate load factor for display
+                rpm_factor = (rpm - 1000) / 1500
+                rpm_factor = max(0, min(1.0, rpm_factor))
+                sog_factor = (sog - 1.0) / 6.0
+                sog_factor = max(0, min(1.0, sog_factor))
+                combined_load_factor = (rpm_factor * 0.7) + (sog_factor * 0.3)
+                oil_temp = 75 + combined_load_factor * 15 + math.sin(t / 150) * 5
+                coolant_temp = 82 + combined_load_factor * 15 + math.sin(t / 200) * 4
+                exhaust_temp = 480 + combined_load_factor * 80 + math.sin(t / 100) * 30
                 ts = datetime.now().strftime("%H:%M:%S")
 
                 print(
                     f"  [{ts}] #{burst_count:>4d}  "
-                    f"RPM={rpm:.0f}  FuelRate={fuel_rate:.1f}L/h  "
-                    f"OilTemp={oil_temp:.0f}°C  WaterTemp={water_temp:.0f}°C  "
-                    f"OilPres={oil_pressure_psi:.0f}psi  "
+                    f"RPM={rpm:.0f}  Load={combined_load_factor:.2f}  SOG={sog:.1f}kn  "
+                    f"OilT={oil_temp:.0f}°C  CoolT={coolant_temp:.0f}°C  ExhT={exhaust_temp:.0f}°C  "
                     f"({len(sentences)} sentences → {n_clients} client{'s' if n_clients != 1 else ''})"
                 )
             else:

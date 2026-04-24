@@ -4,12 +4,19 @@ import {
   Text,
   Animated,
   TouchableOpacity,
+  ScrollView,
   StatusBar,
   Dimensions,
   StyleSheet,
   Platform,
   I18nManager,
+  LogBox,
 } from 'react-native';
+
+LogBox.ignoreLogs([
+  'This method is deprecated (as well as all React Native Firebase',
+  'setBackgroundMessageHandler',
+]);
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
@@ -31,11 +38,13 @@ import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen
 import UserAuthorizationScreen from './src/screens/UserAuthorizationScreen';
 import EntityAttributeScreen from './src/screens/EntityAttributeScreen';
 import CustomerEntitiesScreen from './src/screens/CustomerEntitiesScreen';
+import CustomerGeofencesScreen from './src/screens/CustomerGeofencesScreen';
 import { driverManager } from './src/core/DriverManager';
 import { SamsungHealthDriver } from './src/drivers/SamsungHealthDriver';
 import { HealthConnectDriver } from './src/drivers/HealthConnectDriver';
 import { SignalKDriver } from './src/drivers/SignalKDriver';
 import { AppleHealthDriver } from './src/drivers/AppleHealthDriver';
+import { ELM327Driver } from './src/drivers/ELM327Driver';
 
 // ─── Driver bootstrap (runs once at module load) ────────────────────────────
 // userId is set to '' here — the real value is loaded from User Profile
@@ -43,13 +52,14 @@ import { AppleHealthDriver } from './src/drivers/AppleHealthDriver';
 if (Platform.OS === 'android') {
   driverManager.register(new SamsungHealthDriver('', 60_000));
   driverManager.register(new HealthConnectDriver('', 60_000));
+  driverManager.register(new ELM327Driver('', ''));   // ELM327 OBD-II automotive
 }
 driverManager.register(new SignalKDriver('', 60_000));
 driverManager.register(new AppleHealthDriver());
 // ────────────────────────────────────────────────────────────────────────────
 
 
-type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'CustomerEntities' | 'PushNotifications' | 'UserAuthorizations' | 'EntityAttributes';
+type Screen = 'Vitals' | 'Status' | 'Driver' | 'Telemetry' | 'ReportManually' | 'DataSource' | 'UserProfile' | 'Subscriptions' | 'CustomerEntities' | 'CustomerGeofences' | 'PushNotifications' | 'UserAuthorizations' | 'EntityAttributes';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.round(SCREEN_W * 0.72);
@@ -74,6 +84,7 @@ const MENU_ITEMS: { key: Screen; label: string; icon: string }[] = [
   { key: 'DataSource',     label: 'API Endpoints',    icon: '🌐' },
   { key: 'Subscriptions',  label: 'Subscriptions',    icon: '📋' },
   { key: 'CustomerEntities', label: 'Entities', icon: '🏢' },
+  { key: 'CustomerGeofences', label: 'Geofences', icon: '🗺️' },
   { key: 'EntityAttributes', label: 'Entity Attributes', icon: '⚙️' },
   { key: 'PushNotifications', label: 'Push Notifications', icon: '🔔' },
   { key: 'UserAuthorizations', label: 'User Authorizations', icon: '🔑' },
@@ -135,7 +146,7 @@ function PushNotificationsWrapper() {
   React.useEffect(() => {
     (async () => {
       const [ds, profile] = await Promise.all([loadDataSource(), loadUserProfile()]);
-      setBaseUrl(ds.baseUrl);
+      setBaseUrl(ds.baseUrl || '');
       let resolvedUserId = profile.userId;
       // If no userId in profile, look it up from AppUser by Firebase email
       if (!resolvedUserId && ds.baseUrl) {
@@ -237,7 +248,7 @@ function AppShell() {
   }
 
   function navigateTo(screen: string) {
-    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','CustomerEntities','PushNotifications','UserAuthorizations','EntityAttributes'];
+    const validScreens: Screen[] = ['Vitals','Status','Driver','Telemetry','ReportManually','DataSource','UserProfile','Subscriptions','CustomerEntities','CustomerGeofences','PushNotifications','UserAuthorizations','EntityAttributes'];
     if (validScreens.includes(screen as Screen)) {
       setActive(screen as Screen);
     }
@@ -253,6 +264,7 @@ function AppShell() {
     active === 'UserProfile'    ? UserProfileScreen :
     active === 'Subscriptions'  ? SubscriptionManagementScreen :
     active === 'CustomerEntities' ? CustomerEntitiesScreen :
+    active === 'CustomerGeofences' ? CustomerGeofencesScreen :
     active === 'EntityAttributes' ? EntityAttributeScreen :
     active === 'PushNotifications' ? PushNotificationsWrapper :
     active === 'UserAuthorizations' ? UserAuthorizationScreen :
@@ -292,37 +304,44 @@ function AppShell() {
             </TouchableOpacity>
           </View>
 
-          {/* Menu items */}
-          {MENU_ITEMS
-            .filter(item => {
-              if (item.key === 'UserAuthorizations' && userRole === 'viewer') return false;
-              return true;
-            })
-            .map(item => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.menuItem, active === item.key && styles.menuItemActive]}
-              onPress={() => navigate(item.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
-              <Text style={[styles.menuLabel, active === item.key && styles.menuLabelActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {/* Scrollable menu area */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            {/* Menu items */}
+            {MENU_ITEMS
+              .filter(item => {
+                if (item.key === 'UserAuthorizations' && userRole === 'viewer') return false;
+                return true;
+              })
+              .map(item => (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.menuItem, active === item.key && styles.menuItemActive]}
+                onPress={() => navigate(item.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuIcon}>{item.icon}</Text>
+                <Text style={[styles.menuLabel, active === item.key && styles.menuLabelActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
-          {/* Sign out */}
-          <View style={{ borderTopWidth: 1, borderTopColor: C.border, marginTop: 12, paddingTop: 12 }}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => { closeDrawer(); useAuthStore.getState().signOut(); }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuIcon}>🚪</Text>
-              <Text style={[styles.menuLabel, { color: '#da3633' }]}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Sign out */}
+            <View style={{ borderTopWidth: 1, borderTopColor: C.border, marginTop: 12, paddingTop: 12 }}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => { closeDrawer(); useAuthStore.getState().signOut(); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuIcon}>🚪</Text>
+                <Text style={[styles.menuLabel, { color: '#da3633' }]}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </Animated.View>
 
       </View>

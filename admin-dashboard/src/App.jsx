@@ -11,7 +11,7 @@ import ProtocolAttributePage from './pages/ProtocolAttributePage';
 import ProviderPage from './pages/ProviderPage';
 import ProviderEventPage from './pages/ProviderEventPage';
 import CustomerEntitiesPage from './pages/CustomerEntitiesPage';
-import CustomerGeofencePage from './pages/CustomerGeofencePage';
+import CustomerGeofenceRNPage from './pages/CustomerGeofenceRNPage';
 import EntityTelemetryRNPage from './pages/EntityTelemetryRNPage';
 import ReportManuallyRNPage from './pages/ReportManuallyRNPage';
 import GatewayConfigPage from './pages/GatewayConfigPage';
@@ -108,7 +108,7 @@ export default function App() {
       case 'customerEntities':
         return <CustomerEntitiesPage />;
       case 'customerGeofence':
-        return <CustomerGeofencePage />;
+        return <CustomerGeofenceRNPage />;
       case 'pushNotification':
         return <PushNotificationRNPage />;
       case 'userAuthorization':
@@ -235,7 +235,7 @@ export default function App() {
               className={`nav-button ${currentPage === 'customerGeofence' ? 'active' : ''}`}
               onClick={() => handlePageChange('customerGeofence')}
             >
-              🗺️ Customer Geofences
+              🗺️ Geofences
             </button>
           </div>
 

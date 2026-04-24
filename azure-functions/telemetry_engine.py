@@ -52,9 +52,12 @@ def auto_detect_provider(event: Dict) -> str:
     SamsungHealth events:  { "sourceDriver": "SamsungHealth", "measurements": {...}, "entityId": "..." }
     Event (orchestrator):  { "eventCode": "...", "path": "...", "entityId": "...", ... }
     """
-    # SamsungHealth (VXT Mobile gateway, device SW5) — check FIRST, most specific
+    # SARJ1979 / ELM327 OBD-II automotive — check before generic SamsungHealth
     if 'sourceDriver' in event and 'measurements' in event:
-        return 'SamsungHealth'
+        driver_tag = event.get('sourceDriver', '')
+        if driver_tag in ('SARJ1979', 'ELM327'):
+            return 'SARJ1979'
+        return 'SamsungHealth'  # VXT Mobile gateway (device SW5)
     # Junction health vitals
     if 'user' in event and 'event_type' in event:
         return 'Junction'

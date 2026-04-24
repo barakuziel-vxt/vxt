@@ -166,6 +166,22 @@ export const METRIC_DEFS: MetricDef[] = [
   { key: 'tanks.fuel.level',                  label: 'Fuel Level',    unit: '%',     color: VC.gold,      defaultOn: false, rangeColor: neutralColor },
   { key: 'tanks.water.level',                 label: 'Water Level',   unit: '%',     color: VC.skyblue,   defaultOn: false, rangeColor: neutralColor },
   { key: 'electrical.battery.voltage',        label: 'Battery Volt',  unit: 'V',     color: VC.yellow,    defaultOn: false, rangeColor: neutralColor },
+
+  // ── ELM327 OBD-II Automotive PIDs ─────────────────────────────────────────
+  { key: 'obd.engineRpm',        label: 'Engine RPM',         unit: 'rpm',  color: VC.orange,    defaultOn: true,  rangeColor: neutralColor },
+  { key: 'obd.vehicleSpeed',     label: 'Vehicle Speed',      unit: 'km/h', color: VC.blue,      defaultOn: true,  rangeColor: neutralColor },
+  { key: 'obd.coolantTemp',      label: 'Coolant Temp',       unit: '°C',   color: VC.coral,     defaultOn: true,  rangeColor: tempColor,    format: (v) => v.toFixed(1) },
+  { key: 'obd.throttlePos',      label: 'Throttle',           unit: '%',    color: VC.green,     defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'obd.fuelLevel',        label: 'Fuel Level',         unit: '%',    color: VC.gold,      defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'obd.engineLoad',       label: 'Engine Load',        unit: '%',    color: VC.purple,    defaultOn: true,  rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'obd.oilTemp',          label: 'Oil Temp',           unit: '°C',   color: VC.red,       defaultOn: false, rangeColor: tempColor,    format: (v) => v.toFixed(1) },
+  { key: 'obd.mafRate',          label: 'MAF Rate',           unit: 'g/s',  color: VC.teal,      defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(2) },
+  { key: 'obd.intakeAirTemp',    label: 'Intake Air Temp',    unit: '°C',   color: VC.skyblue,   defaultOn: false, rangeColor: tempColor,    format: (v) => v.toFixed(1) },
+  { key: 'obd.manifoldPressure', label: 'Manifold Pressure',  unit: 'kPa',  color: VC.steel,     defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'obd.timingAdvance',    label: 'Timing Advance',     unit: '°',    color: VC.muted,     defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(1) },
+  { key: 'obd.moduleVoltage',    label: 'Module Voltage',     unit: 'V',    color: VC.yellow,    defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(2) },
+  { key: 'obd.fuelRate',         label: 'Fuel Rate',          unit: 'L/h',  color: VC.sand,      defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(2) },
+  { key: 'obd.accelPedalPos',    label: 'Accel Pedal',        unit: '%',    color: VC.lime,      defaultOn: false, rangeColor: neutralColor, format: (v) => v.toFixed(1) },
 ];
 
 /** Look up a MetricDef by key.  Returns undefined if the key is from a REST

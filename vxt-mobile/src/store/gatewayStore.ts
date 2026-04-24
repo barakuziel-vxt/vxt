@@ -5,6 +5,7 @@ import { driverManager } from '../core/DriverManager';
 import { gatewayService } from '../services/GatewayService';
 import { SamsungHealthDriver }  from '../drivers/SamsungHealthDriver';
 import { HealthConnectDriver }  from '../drivers/HealthConnectDriver';
+import { ELM327Driver } from '../drivers/ELM327Driver';
 import { IOT_HUB_CONNECTION_STRING, DEFAULT_USER_ID } from '../config/secrets';
 import { loadUserProfile } from '../hooks/useUserProfile';
 import type {
@@ -159,6 +160,13 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
             if (!driverRegistry.has('SignalK')) driverRegistry.register('SignalK', skDriver);
             await driverRegistry.setActive('SignalK');
           }
+        } else if (config.activeDriver === 'ELM327') {
+          // Reuse the singleton ELM327 instance from driverManager
+          const elmDriver = driverManager.get('ELM327' as DriverType);
+          if (elmDriver) {
+            if (!driverRegistry.has('ELM327' as DriverType)) driverRegistry.register('ELM327' as DriverType, elmDriver);
+            await driverRegistry.setActive('ELM327' as DriverType);
+          }
         } else {
           const driver = new SamsungHealthDriver(config.userId, config.sampleIntervalMs);
           driverRegistry.register('SamsungHealth', driver);
@@ -240,6 +248,12 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
         const skDriver = driverManager.get('SignalK');
         if (skDriver) {
           driverRegistry.register('SignalK', skDriver);
+        }
+      } else if (type === 'ELM327') {
+        // Reuse singleton from driverManager (registered in App.tsx)
+        const elmDriver = driverManager.get('ELM327' as DriverType);
+        if (elmDriver) {
+          driverRegistry.register('ELM327' as DriverType, elmDriver);
         }
       } else {
         // AppleHealth: managed via driverManager only

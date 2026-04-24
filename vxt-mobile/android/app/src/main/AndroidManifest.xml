@@ -40,7 +40,11 @@
 
     <!-- ── Bluetooth (read bonded device names for wearable label) ───────── -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- ACCESS_FINE_LOCATION required for BT scan on Android 6–11 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- ── Wake lock so sampling continues with screen off ──────────────── -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -74,6 +78,11 @@
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity>
+
+        <!-- Google Maps API key (required by react-native-maps even with mapType="none") -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyD-placeholder-maps-key-vxt-mobile" />
 
         <!-- Required for Health Connect to show "Manage app permissions" link in its UI -->
         <activity-alias
