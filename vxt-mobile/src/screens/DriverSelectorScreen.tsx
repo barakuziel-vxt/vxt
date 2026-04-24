@@ -106,6 +106,25 @@ const DRIVERS: DriverEntry[] = [
     available:    false,
     unavailableReason: 'Coming soon',
   },
+  {
+    type:         'ELM327' as DriverType,
+    label:        'ELM327 OBD-II (Automotive)',
+    description:  'Reads live vehicle telemetry from an ELM327 Bluetooth Classic OBD-II dongle via Serial Port Profile (SPP). Requires a paired ELM327 adapter and a running car engine.',
+    capabilities: [
+      'Engine RPM (010C)',
+      'Vehicle Speed (010D)',
+      'Engine Coolant Temp (0105)',
+      'Throttle Position (0111)',
+      'Fuel Level (012F)',
+      'Mass Air Flow (0110)',
+      'Engine Load (0104)',
+      'Oil Temperature (015C)',
+      '14 PIDs total @ 1 Hz',
+    ],
+    platforms:    ['android'],
+    available:    Platform.OS === 'android',
+    unavailableReason: Platform.OS !== 'android' ? 'Android only' : undefined,
+  },
 ];
 
 // ─── Screen ────────────────────────────────────────────────────────────────
@@ -127,6 +146,36 @@ export default function DriverSelectorScreen() {
     signalKDriverRef?.setBaseUrl?.(signalKUrl);
     setUrlSaved(true);
     setTimeout(() => setUrlSaved(false), 2000);
+  }
+
+  // ELM327 BT address management
+  const elm327DriverRef = driverManager.get('ELM327' as DriverType) as any;
+  const [elm327Address, setElm327Address] = React.useState<string>(
+    elm327DriverRef?.btDeviceAddress || 'OBDII',
+  );
+  const [btAddressSaved, setBtAddressSaved] = React.useState(false);
+  const [availableBtDevices, setAvailableBtDevices] = React.useState<Array<{ address: string; name: string }>>([]);
+  const [btScanError, setBtScanError] = React.useState<string | null>(null);
+
+  async function loadAvailableBTDevices() {
+    setBtScanError(null);
+    try {
+      const devices: Array<{ address: string; name: string }> =
+        (await elm327DriverRef?.getAvailableDevices?.()) ?? [];
+      setAvailableBtDevices(devices);
+      if (devices.length === 0) setBtScanError('No paired Bluetooth devices found. Pair your ELM327 dongle in Android Settings first.');
+    } catch (e: any) {
+      setBtScanError(`Scan failed: ${e?.message ?? String(e)}`);
+    }
+  }
+
+  function saveElm327Address() {
+    // Patch the driver instance's btDeviceAddress via a setter that we expose
+    if (elm327DriverRef && typeof elm327DriverRef.setBtAddress === 'function') {
+      elm327DriverRef.setBtAddress(elm327Address);
+    }
+    setBtAddressSaved(true);
+    setTimeout(() => setBtAddressSaved(false), 2000);
   }
 
   async function handleSelect(type: DriverType) {
@@ -261,6 +310,58 @@ export default function DriverSelectorScreen() {
                   • Steps/Calories/Distance: Show cumulative data from last 7 days{'\n'}
                   • Other metrics: Appear only after at least one measurement is recorded
                 </Text>
+              </View>
+            )}
+
+            {/* ELM327 Bluetooth device configuration (shown when ELM327 card is active) */}
+            {d.type === ('ELM327' as DriverType) && isActive && (
+              <View style={styles.warningBanner}>
+                <Text style={styles.warningText}>
+                  🚗 <Text style={{ fontWeight: 'bold' }}>ELM327 Bluetooth Setup:</Text>{'\n'}
+                  1. Pair your ELM327 OBD-II dongle in Android Bluetooth Settings{'\n'}
+                  2. Plug the dongle into your car OBD-II port (turn on ignition){'\n'}
+                  3. Tap <Text style={{ fontWeight: 'bold' }}>Scan Paired Devices</Text> below to find your dongle{' \n'}
+                  4. Tap the device name to fill the MAC address, then tap Save{' \n'}
+                  5. Toggle the driver off then on — it will auto-connect and poll every second
+                </Text>
+                <View style={styles.urlRow}>
+                  <Text style={styles.urlLabel}>BT Address</Text>
+                  <TextInput
+                    style={styles.urlInput}
+                    value={elm327Address}
+                    onChangeText={setElm327Address}
+                    placeholder="00:1D:A5:68:98:8B"
+                    placeholderTextColor={C.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    keyboardType="default"
+                  />
+                  <TouchableOpacity style={styles.urlSaveBtn} onPress={saveElm327Address}>
+                    <Text style={styles.urlSaveText}>{btAddressSaved ? '✓ Saved' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={[styles.urlSaveBtn, { marginTop: 6, alignSelf: 'flex-start' }]}
+                  onPress={loadAvailableBTDevices}
+                >
+                  <Text style={styles.urlSaveText}>Scan Paired Devices</Text>
+                </TouchableOpacity>
+                {btScanError && (
+                  <Text style={[styles.warningText, { color: C.red, marginTop: 4 }]}>{btScanError}</Text>
+                )}
+                {availableBtDevices.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    {availableBtDevices.map(dev => (
+                      <TouchableOpacity
+                        key={dev.address}
+                        onPress={() => setElm327Address(dev.address)}
+                        style={styles.cap}
+                      >
+                        <Text style={styles.capText}>{dev.name} — {dev.address}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
           </View>

@@ -19,6 +19,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\p
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Barak.py" -WindowStyle Normal
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe Simulate_Junction_health_provider_Shula.py" -WindowStyle Normal
 Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_signalk_vessel.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", ".\.venv\Scripts\python.exe simulate_elm327_vehicle.py" -WindowStyle Normal
 
 # 3. Launch FastAPI Web Server
 Write-Host "[3/4] Starting FastAPI API..." -ForegroundColor Yellow
@@ -40,7 +41,7 @@ Write-Host "" -ForegroundColor Green
 Write-Host "Running Services:" -ForegroundColor Cyan
 Write-Host "  - Subscription Analysis Worker: Running (processes subscriptions every 5 min)" -ForegroundColor Yellow
 Write-Host "  - IoT Consumers      : generic_telemetry_consumer.py (all active providers via threads)" -ForegroundColor Yellow
-Write-Host "  - Simulators         : Generating SignalK maritime + Junction health data" -ForegroundColor Yellow
+Write-Host "  - Simulators         : SignalK maritime, Junction health, ELM327 automotive (OBD-II)" -ForegroundColor Yellow
 Write-Host "" -ForegroundColor Green
 Write-Host "Dashboard URLs:" -ForegroundColor Cyan
 Write-Host "  - Admin Dashboard (Local)  : http://localhost:3002" -ForegroundColor Yellow

@@ -59,30 +59,10 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Topic discovery
+# Topic — single unified topic mirrors production (one IoT Hub endpoint)
 # ---------------------------------------------------------------------------
 
-def _get_active_topics() -> list:
-    """Return all distinct TopicName values from active Provider rows."""
-    from mssql_python import connect
-    conn_str = os.environ.get(
-        'SQL_CONNECTION_STRING',
-        f"Server={os.environ['DB_SERVER']},1433;"
-        f"Database={os.environ['DB_NAME']};"
-        f"UID={os.environ['DB_USER']};"
-        f"PWD={os.environ['DB_PASSWORD']};"
-        "Encrypt=no;TrustServerCertificate=yes;",
-    )
-    conn = connect(conn_str)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT DISTINCT TopicName FROM Provider "
-        "WHERE Active = 'Y' AND TopicName IS NOT NULL"
-    )
-    topics = [row[0] for row in cursor.fetchall()]
-    cursor.close()
-    conn.close()
-    return topics
+KAFKA_TOPIC = os.environ.get('KAFKA_TOPIC', 'iot-telemetry')
 
 
 # ---------------------------------------------------------------------------
@@ -90,13 +70,12 @@ def _get_active_topics() -> list:
 # ---------------------------------------------------------------------------
 
 def run_consumer(bootstrap_servers: str = 'localhost:9092') -> None:
-    """Single consumer loop — subscribes to all active topics at once."""
-    topics = _get_active_topics()
-    if not topics:
-        logger.error("[KAFKA] No active topics found in Provider table — exiting")
-        return
-
-    logger.info(f"[KAFKA] Subscribing to topics: {topics}")
+    """Single consumer loop — subscribes to the unified iot-telemetry topic.
+    Mirrors production where all device messages arrive at one IoT Hub endpoint
+    and the Azure Function auto-detects protocol per message.
+    """
+    topics = [KAFKA_TOPIC]
+    logger.info(f"[KAFKA] Subscribing to topic: {KAFKA_TOPIC} (set KAFKA_TOPIC env var to override)")
 
     processor = SimpleEventProcessor(
         db_server=os.environ['DB_SERVER'],

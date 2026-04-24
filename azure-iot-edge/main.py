@@ -224,8 +224,21 @@ def update_geofences(geofences_array: list[dict]) -> int:
             "enabled": True,
         }
         if gf_type == "Polygon":
+            geo_json = gf.get("geoJson")
+            polygon_coords = None
+
+            if isinstance(geo_json, dict) and geo_json.get("type") == "Polygon":
+                polygon_coords = geo_json.get("coordinates")
+
+            if polygon_coords is None:
+                polygon_coords = gf.get("coordinates")
+
+            if not isinstance(polygon_coords, list):
+                log.warning("  Invalid Polygon coordinates for geofence id=%s", gf.get("id"))
+                continue
+
             entry["type"] = "polygon"
-            entry["coordinates"] = gf["coordinates"]
+            entry["coordinates"] = polygon_coords
         elif gf_type == "Circle":
             entry["type"] = "circle"
             entry["center"] = gf["coordinates"]   # [lon, lat]

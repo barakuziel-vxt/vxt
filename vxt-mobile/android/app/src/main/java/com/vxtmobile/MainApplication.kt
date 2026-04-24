@@ -19,6 +19,7 @@ class MainApplication : Application(), ReactApplication {
                 PackageList(this).packages.apply {
                     // Register VXT custom native modules
                     add(VxtPackage())
+                    // RNBluetoothClassicPackage is auto-linked via PackageList — do NOT add manually
                 }
 
             override fun getJSMainModuleName(): String = "index"

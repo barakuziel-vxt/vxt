@@ -296,10 +296,11 @@ class JunctionAdapter:
             # Strip 'user_' prefix if present
             entity_id = user_id.removeprefix('user_')
 
-            # event_type IS the attribute code (LOINC code in Junction protocol)
-            attr_code = str(message.get('event_type', '')).strip()
+            # Use loinc_code as the attribute code when present (matches EntityTypeAttributeCode in DB).
+            # Fall back to event_type for formats that carry the LOINC code there directly.
+            attr_code = str(message.get('loinc_code') or message.get('event_type', '')).strip()
             if not attr_code:
-                logger.warning(f"[Junction] Missing event_type for entity {entity_id}")
+                logger.warning(f"[Junction] Missing loinc_code/event_type for entity {entity_id}")
                 return events
 
             ts = _parse_dt(message.get('timestamp'))
@@ -388,6 +389,75 @@ class SamsungHealthAdapter:
 
 
 # ---------------------------------------------------------------------------
+# SARJ1979 Adapter  (SAE J1979 / ELM327 OBD-II automotive)
+# ---------------------------------------------------------------------------
+
+class SARJ1979Adapter:
+    """
+    Parses SAE J1979 (ELM327 OBD-II) automotive telemetry messages emitted
+    by simulate_elm327_vehicle.py and the React Native ELM327Driver.
+
+    Wire format (same measurement-map shape as SamsungHealthAdapter):
+    {
+      "sourceDriver": "SARJ1979",
+      "entityId":     "KM8J33A41GU000001",   ← VIN or device-assigned ID
+      "timestamp":    "2026-04-21T10:00:00.000Z",
+      "measurements": {
+        "010C": 1250.5,    ← Engine RPM
+        "010D": 65.0,      ← Vehicle Speed km/h
+        "0105": 91.3,      ← Engine Coolant Temperature °C
+        "0111": 22.4,      ← Throttle Position %
+        ...
+      },
+      "metadata": {
+        "protocol": "SARJ1979",
+        "deviceId": "ELM327-BT-001",
+        "vin":      "KM8J33A41GU000001"
+      }
+    }
+
+    Each key in `measurements` maps 1-to-1 to an entityTypeAttributeCode in the
+    database (inserted by migration 0040) — exactly as LOINC codes do for health.
+    """
+
+    def parse(self, message: Dict) -> List[NormalizedEvent]:
+        events: List[NormalizedEvent] = []
+        try:
+            entity_id = str(message.get('entityId', '')).strip()
+            if not entity_id:
+                logger.warning("[SARJ1979] Missing entityId — frame dropped")
+                return events
+
+            ts = _parse_dt(message.get('timestamp'))
+            device = str(message.get('metadata', {}).get('deviceId', 'ELM327'))
+            measurements = message.get('measurements', {})
+
+            if not isinstance(measurements, dict) or not measurements:
+                logger.warning(f"[SARJ1979] Empty measurements for entity {entity_id}")
+                return events
+
+            for attr_code, raw_value in measurements.items():
+                numeric = _safe_float(raw_value)
+                if numeric is None:
+                    continue
+                # Preserve case for dotted keys like 'obd.engineRpm';
+                # only normalise to uppercase for legacy 4-char hex PIDs (e.g. '010c' → '010C').
+                code_str = str(attr_code)
+                normalised_code = code_str.upper() if (len(code_str) == 4 and '.' not in code_str) else code_str
+                events.append(NormalizedEvent(
+                    entity_id=entity_id,
+                    timestamp=ts,
+                    attr_code=normalised_code,
+                    numeric_value=numeric,
+                    provider_device=device,
+                ))
+
+        except Exception as e:
+            logger.error(f"[SARJ1979] Parse error: {e}")
+        return events
+
+
+# ---------------------------------------------------------------------------
 # Adapter registry — add new protocols here
 # ---------------------------------------------------------------------------
 
@@ -397,6 +467,8 @@ ADAPTERS = {
     'junction':      JunctionAdapter(),
     'samsunghealth': SamsungHealthAdapter(), # Samsung Health phone gateway (device SW5)
     'vxtmobile':     SamsungHealthAdapter(), # legacy alias
+    'sarj1979':      SARJ1979Adapter(),      # SAE J1979 OBD-II automotive (ELM327)
+    'elm327':        SARJ1979Adapter(),      # alias used by React Native ELM327Driver
 }
 
 

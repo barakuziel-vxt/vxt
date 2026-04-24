@@ -61,20 +61,16 @@ export class KafkaTransport {
       // If REST API is configured, test connectivity
       if (this.config.apiBase) {
         try {
-          this.log(`Testing REST API connectivity at ${this.config.apiBase}/api/manual-report...`, 'info');
-          const testRes = await fetch(`${this.config.apiBase}/api/manual-report`, {
+          this.log(`Testing REST API connectivity at ${this.config.apiBase}/api/publish-telemetry...`, 'info');
+          const testRes = await fetch(`${this.config.apiBase}/api/publish-telemetry`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              entityId: 'test',
-              entityTypeAttributeCode: 'test',
-              value: 0,
-              timestamp: new Date().toISOString(),
-              source: 'ConnectionTest',
-              gatewayType: 'kafka',
+              sourceDriver:   'ConnectionTest',
+              entityId:       'test',
+              measurements:   {},
               kafkaBootstrap: this.config.bootstrap,
-              kafkaTopic: this.config.topic,
-              _dryRun: true,
+              kafkaTopic:     this.config.topic,
             }),
           });
 
@@ -90,7 +86,6 @@ export class KafkaTransport {
         }
       }
       
-      // Simulate connection delay
       await new Promise(r => setTimeout(r, 500));
       
       this.log(`Connected to Kafka broker successfully (bootstrap=${this.config.bootstrap})`, 'info');
@@ -133,77 +128,58 @@ export class KafkaTransport {
 
   private async sendFrameAsync(frame: TelemetryData): Promise<void> {
     try {
-      // Convert TelemetryData to Junction format (same as /api/manual-report expects)
-      // Iterate over measurements and send each one as a separate report
       const measurements = frame.measurements || {};
       const entityId = frame.entityId || 'unknown';
-      
+
       if (Object.keys(measurements).length === 0) {
         this.log(`Skipping empty frame for entity ${entityId}`, 'warn');
         return;
       }
 
-      for (const [loincCode, value] of Object.entries(measurements)) {
-        if (typeof value !== 'number') {
-          this.log(`Skipping non-numeric value for ${loincCode}: ${typeof value}`, 'warn');
-          continue;
-        }
-        
-        const reportData = {
-          entityId,
-          entityTypeAttributeCode: loincCode,
-          value,
-          timestamp: frame.timestamp || new Date().toISOString(),
-          source: frame.sourceDriver || 'Driver',
-          gatewayType: 'kafka',
-          kafkaBootstrap: this.config.bootstrap,
-          kafkaTopic: this.config.topic,
-        };
-
-        // Send via REST API endpoint
-        if (!this.config.apiBase) {
-          this.log(`No API base configured, skipping REST call for ${loincCode}`, 'warn');
-          throw new Error('API base not configured');
-        }
-
-        try {
-          const endpoint = `${this.config.apiBase}/api/manual-report`;
-          this.log(`Sending ${loincCode}=${value} to ${endpoint}...`, 'info');
-
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(reportData),
-          });
-
-          if (!res.ok) {
-            const errText = await res.text().catch(() => res.statusText);
-            throw new Error(`HTTP ${res.status}: ${errText}`);
-          }
-
-          this.log(`Successfully published ${loincCode}=${value}`, 'info');
-        } catch (fetchErr) {
-          const errMsg = String(fetchErr);
-          this.log(`REST API error for ${loincCode}: ${errMsg}`, 'error');
-          throw fetchErr;
-        }
+      if (!this.config.apiBase) {
+        this.log(`No API base configured, cannot publish`, 'error');
+        throw new Error('API base not configured');
       }
 
-      // Log successful publish only after all measurements sent
+      // Publish the entire frame in one shot via the direct endpoint.
+      // This preserves sourceDriver so the consumer's auto_detect_provider
+      // correctly identifies SARJ1979 / SamsungHealth / etc. without
+      // re-wrapping in SignalK or Junction format.
+      const payload = {
+        sourceDriver:   frame.sourceDriver || 'Driver',
+        entityId,
+        timestamp:      frame.timestamp || new Date().toISOString(),
+        measurements,
+        metadata:       frame.metadata ?? {},
+        kafkaBootstrap: this.config.bootstrap,
+        kafkaTopic:     this.config.topic,
+      };
+
+      const endpoint = `${this.config.apiBase}/api/publish-telemetry`;
+      this.log(`Publishing ${Object.keys(measurements).length} measurements for entity ${entityId} to ${endpoint}`, 'info');
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`HTTP ${res.status}: ${errText}`);
+      }
+
       this.frameCount += 1;
-      const measurements_count = Object.keys(measurements).length;
+      const m_count = Object.keys(measurements).length;
       this.log(
-        `Published frame #${this.frameCount} to topic '${this.config.topic}' (${measurements_count} measurements, entity=${entityId})`,
+        `Published frame #${this.frameCount} to topic '${this.config.topic}' (${m_count} measurements, entity=${entityId}, driver=${frame.sourceDriver})`,
         'info'
       );
     } catch (err) {
       this.errorCount += 1;
       const errMsg = String(err);
       this.lastError = errMsg;
-      this.log(
-        `Publish error #${this.errorCount}: ${errMsg}`,
-        'error'
-      );
+      this.log(`Publish error #${this.errorCount}: ${errMsg}`, 'error');
       throw err;
     }
   }

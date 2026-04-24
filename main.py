@@ -2333,6 +2333,57 @@ def _build_iothub_sas(resource_uri: str, key: str, expiry_s: int = 3600) -> str:
         f"&sig={_urlparse.quote_plus(sig)}&se={expiry}"
     )
 
+@app.post("/api/publish-telemetry")
+def post_publish_telemetry(data: dict):
+    """
+    Direct telemetry publish endpoint — accepts a full TelemetryData frame
+    and publishes it as-is to Kafka without any format transformation.
+
+    Used by KafkaTransport (mobile app) for ELM327/SARJ1979 and other drivers
+    where the frame is already correctly shaped. The consumer's auto_detect_provider
+    identifies the protocol from sourceDriver + measurements.
+
+    Body: {
+      "sourceDriver": "ELM327",
+      "entityId":     "<VIN or userId>",
+      "timestamp":    "<ISO string>",
+      "measurements": { "<code>": <value>, ... },
+      "metadata":     { ... }   (optional)
+    }
+    """
+    try:
+        if not data.get('entityId') or not data.get('measurements'):
+            raise HTTPException(status_code=422, detail="entityId and measurements are required")
+
+        bootstrap = data.pop('kafkaBootstrap', '127.0.0.1:9092')
+        topic     = data.pop('kafkaTopic',     'iot-telemetry')
+
+        # Ensure timestamp is present
+        if not data.get('timestamp'):
+            data['timestamp'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+        try:
+            from confluent_kafka import Producer
+        except ImportError:
+            raise HTTPException(status_code=501, detail="confluent_kafka not available in this environment")
+
+        producer = Producer({'bootstrap.servers': bootstrap, 'socket.timeout.ms': 10000})
+        import json as _json
+        entity_id = str(data['entityId'])
+        producer.produce(topic, value=_json.dumps(data).encode('utf-8'), key=entity_id.encode('utf-8'))
+        producer.flush(timeout=10)
+
+        m_count = len(data.get('measurements', {}))
+        print(f"[INFO] /api/publish-telemetry ✓ entity={entity_id} driver={data.get('sourceDriver')} measurements={m_count} topic={topic}")
+        return {"message": f"Published {m_count} measurements to {topic}", "entity": entity_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] /api/publish-telemetry: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/manual-report")
 def post_manual_report(data: dict):
     """
@@ -4303,6 +4354,34 @@ def _query_as_dicts(conn, sql: str, params: tuple = ()) -> list:
     return rows
 
 
+def _decode_json_maybe(value):
+    """Decode nested JSON strings until a non-string value is reached."""
+    decoded = value
+    while isinstance(decoded, str):
+        decoded = json.loads(decoded)
+    return decoded
+
+
+def _normalize_polygon_coordinates(raw_coords):
+    """Normalize polygon coordinates into GeoJSON ring format: [[[lon, lat], ...]]."""
+    coords = _decode_json_maybe(raw_coords)
+
+    # GeoJSON polygon object
+    if isinstance(coords, dict) and coords.get("type") == "Polygon":
+        ring_set = coords.get("coordinates")
+        if isinstance(ring_set, list) and ring_set:
+            return ring_set
+
+    # Raw ring or nested ring array
+    if isinstance(coords, list):
+        if coords and isinstance(coords[0], list) and coords[0] and isinstance(coords[0][0], list):
+            return coords
+        if coords and isinstance(coords[0], list):
+            return [coords]
+
+    raise ValueError("Unsupported polygon coordinate format")
+
+
 def _get_device_config(entity_id: str) -> dict:
     """Fetch telemetry tiers, alarm scores, and geofences for a device."""
     conn = get_db_connection()
@@ -4370,17 +4449,36 @@ def _get_device_config(entity_id: str) -> dict:
 
         geofences = []
         for row in geo_rows:
+            geo_type = row.get("geoType") or "Polygon"
             coords_raw = row["coordinates"]
-            coords = json.loads(coords_raw) if isinstance(coords_raw, str) else coords_raw
-            # Unwrap any layers of double/triple-encoded JSON strings
-            while isinstance(coords, str):
-                coords = json.loads(coords)
-            fence = {
-                "id": row["customerGeofenceCriteriaId"],
-                "name": row["geofenceName"],
-                "type": row["geoType"],
-                "coordinates": coords,
-            }
+
+            try:
+                if geo_type == "Polygon":
+                    polygon_coords = _normalize_polygon_coordinates(coords_raw)
+                    fence = {
+                        "id": row["customerGeofenceCriteriaId"],
+                        "name": row["geofenceName"],
+                        "type": geo_type,
+                        # Keep legacy shape for edge plugin compatibility.
+                        "coordinates": polygon_coords,
+                        # Explicit GeoJSON for new clients and tooling.
+                        "geoJson": {
+                            "type": "Polygon",
+                            "coordinates": polygon_coords,
+                        },
+                    }
+                else:
+                    coords = _decode_json_maybe(coords_raw)
+                    fence = {
+                        "id": row["customerGeofenceCriteriaId"],
+                        "name": row["geofenceName"],
+                        "type": geo_type,
+                        "coordinates": coords,
+                    }
+            except Exception as ex:
+                print(f"[WARNING] Skipping invalid geofence {row.get('customerGeofenceCriteriaId')}: {ex}")
+                continue
+
             # Include the linked SignalK attribute (e.g. "navigation/position")
             attr_code = row.get("entityTypeAttributeCode")
             if attr_code:

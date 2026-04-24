@@ -52,6 +52,7 @@ export type DriverType =
   | 'HealthConnect'  // Android Health Connect — any wearable
   | 'AppleHealth'    // iOS HealthKit — future
   | 'SignalK'        // Marine telemetry via SignalK REST API
+  | 'ELM327'         // Automotive OBD-II via ELM327 Bluetooth Classic (SAE J1979)
   | 'AzureCloud'     // reserved – future
   | 'Mock';
 

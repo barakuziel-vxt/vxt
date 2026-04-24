@@ -8,7 +8,7 @@
  *   - Multi-series recharts line chart with full tooltip
  *   - Events list with detail modal
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
@@ -102,8 +102,23 @@ export default function EntityTelemetryRNPage() {
   const BASE = getBaseUrl();
 
   // Entity
-  const [entities,       setEntities]       = useState([]);
-  const [selectedEntity, setSelectedEntity] = useState(null);
+  const [entities,            setEntities]            = useState([]);
+  const [selectedEntity,      setSelectedEntity]      = useState(null);
+  const [entitySearch,        setEntitySearch]        = useState('');
+  const [showEntityDropdown,  setShowEntityDropdown]  = useState(false);
+  const entityDropdownRef = useRef(null);
+
+  // Close entity dropdown on outside click
+  useEffect(() => {
+    if (!showEntityDropdown) return;
+    function handleOutside(e) {
+      if (entityDropdownRef.current && !entityDropdownRef.current.contains(e.target)) {
+        setShowEntityDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showEntityDropdown]);
 
   // Date range
   const [startDate, setStartDate] = useState(() => toLocalISOString(new Date(Date.now() - 2 * 3_600_000)));
@@ -427,19 +442,74 @@ export default function EntityTelemetryRNPage() {
         // Embedded mode: entity selector + buttons in one compact row
         <div style={{ display: 'flex', gap: '6px', padding: '4px 4px', alignItems: 'center', borderBottom: '1px solid #30363d', backgroundColor: '#0d1117' }}>
           {!IS_DRIVER_MODE && (
-            <select
-              value={selectedEntity ?? ''}
-              onChange={e => setSelectedEntity(e.target.value)}
-              disabled={loading}
-              style={{ flex: 1, padding: '5px 10px', backgroundColor: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: '4px', fontSize: '12px', minWidth: 0 }}
-            >
-              <option value="">-- Entity --</option>
-              {entities.map(e => (
-                <option key={e.entityId} value={e.entityId}>
-                  {e.entityFirstName || e.entityName}
-                </option>
-              ))}
-            </select>
+            <div ref={entityDropdownRef} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+              <button
+                onClick={() => { setEntitySearch(''); setShowEntityDropdown(d => !d); }}
+                disabled={loading}
+                style={{
+                  width: '100%', padding: '6px 10px',
+                  backgroundColor: '#161b22', color: '#e6edf3',
+                  border: '1px solid #30363d', borderRadius: '6px',
+                  fontSize: '12px', textAlign: 'left', cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedEntity
+                    ? (() => { const e = entities.find(x => String(x.entityId) === String(selectedEntity)); return e ? (e.entityFirstName || e.entityName || selectedEntity) : selectedEntity; })()
+                    : '— Entity —'}
+                </span>
+                <span style={{ marginLeft: 6, color: '#8b949e', fontSize: '10px', flexShrink: 0 }}>▼</span>
+              </button>
+
+              {showEntityDropdown && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                  backgroundColor: '#161b22', border: '1px solid #30363d',
+                  borderRadius: '8px', zIndex: 1000, maxHeight: '280px',
+                  overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Search entity..."
+                    value={entitySearch}
+                    onChange={e => setEntitySearch(e.target.value)}
+                    autoFocus
+                    style={{
+                      padding: '8px 12px', border: 'none', borderBottom: '1px solid #30363d',
+                      backgroundColor: '#0d1117', color: '#e6edf3', fontSize: '13px',
+                      outline: 'none', flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ overflowY: 'auto', maxHeight: '224px' }}>
+                    {entities
+                      .filter(e => {
+                        const name = (e.entityFirstName || e.entityName || '').toLowerCase();
+                        const q = entitySearch.toLowerCase();
+                        return name.includes(q) || String(e.entityId).includes(q);
+                      })
+                      .map(e => (
+                        <button
+                          key={e.entityId}
+                          onClick={() => { setSelectedEntity(e.entityId); setShowEntityDropdown(false); }}
+                          style={{
+                            width: '100%', padding: '9px 14px', textAlign: 'left',
+                            background: String(selectedEntity) === String(e.entityId) ? 'rgba(56,139,253,0.15)' : 'transparent',
+                            border: 'none', borderBottom: '1px solid #21262d',
+                            color: '#e6edf3', fontSize: '13px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>{e.entityFirstName || e.entityName}</span>
+                          <span style={{ color: '#8b949e', fontSize: '11px' }}>({e.entityId})</span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <button
             onClick={exportToPDF}
