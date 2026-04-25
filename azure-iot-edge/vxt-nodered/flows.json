@@ -169,7 +169,7 @@
     "type": "function",
     "z": "tab-vxt-alerts",
     "name": "Sanitize for TTS",
-    "func": "var text = String(msg.payload || '')\n    .replace(/[\"'\\\\;|&$`<>!\\n\\r]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 200);\nif (!text) return null;\nmsg.payload = text;\nreturn msg;",
+    "func": "var text = String(msg.payload || '')\n    .replace(/[\"'\\\\;|&$`<>!\\n\\r]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 200);\nif (!text) return null;\nmsg.payload = '\"' + text + '\"';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
