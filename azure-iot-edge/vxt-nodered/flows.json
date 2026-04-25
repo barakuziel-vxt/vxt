@@ -184,7 +184,7 @@
     "type": "exec",
     "z": "tab-vxt-alerts",
     "name": "espeak-ng TTS",
-    "command": "sh -lc 'ALSA_CARD=2 ALSA_PCM_DEVICE=0 /usr/bin/espeak-ng -v en-us-nyc+f4 -a 165 -s 108 -g 100 \"$*\"' --",
+    "command": "sh -lc 'ALSA_CARD=2 ALSA_PCM_DEVICE=0 /usr/bin/espeak-ng -v en -a 200 -s 108 -p 0 -g 26 \"$*\"' --",
     "addpay": true,
     "append": "",
     "useSpawn": "false",
