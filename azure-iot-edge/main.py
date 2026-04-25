@@ -61,6 +61,8 @@ SIGNALK_TOKEN = os.getenv("SIGNALK_TOKEN", "")
 SK_HEADERS: dict[str, str] = (
     {"Authorization": f"Bearer {SIGNALK_TOKEN}"} if SIGNALK_TOKEN else {}
 )
+# WebSocket URL of the vxt-nodered alert server (same IoT Edge network)
+NODERED_WS_URL = os.getenv("NODERED_WS_URL", "ws://vxt-nodered:1880/ws/vxt-alerts")
 WS_RECONNECT_DELAY = 5  # seconds between WebSocket reconnect attempts
 
 
@@ -435,20 +437,6 @@ async def five_minute_telemetry_loop(client: IoTHubModuleClient) -> None:
 # ---------------------------------------------------------------------------
 # Real-Time Deadband – WebSocket listener with percentage-change filter
 # ---------------------------------------------------------------------------
-def _trigger_siren_gpio(activate: bool) -> None:
-    """PUT to the SignalK Raspberry Pi GPIO plugin to toggle the siren relay."""
-    url = f"{SIGNALK_BASE}/plugins/signalk-raspberry-pi-gpio/config"
-    payload = {"siren": {"state": activate}}
-    try:
-        resp = requests.put(url, json=payload, headers=SK_HEADERS, timeout=5)
-        resp.raise_for_status()
-        log.info("  Siren GPIO %s", "ACTIVATED" if activate else "deactivated")
-    except requests.ConnectionError:
-        log.error("  Cannot reach GPIO plugin at %s", url)
-    except requests.HTTPError as exc:
-        log.error("  GPIO plugin returned %s", exc.response.status_code)
-
-
 async def websocket_listener(client: IoTHubModuleClient) -> None:
     """Background task: connect to SignalK WebSocket stream, subscribe to
     all notification deltas, apply deadband filtering for realtime paths,
@@ -466,10 +454,9 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                 ws_url += f"{sep}token={SIGNALK_TOKEN}"
             log.info("WebSocket listener: connecting to %s", SIGNALK_WS)
             async with websockets.connect(ws_url) as ws:
-                # Build subscription list: notifications + deadband paths
-                subscriptions = [
-                    {"path": "notifications.*", "minPeriod": 1000},
-                ]
+                # Build subscription list: deadband paths only.
+                # notifications.* is now handled exclusively by vxt-nodered.
+                subscriptions: list[dict] = []
                 deadbands = vxt_config.get("telemetry", {}).get(
                     "realtime_deadbands", {}
                 )
@@ -497,128 +484,9 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
                             path = val_entry.get("path", "")
                             value = val_entry.get("value")
 
-                            # ── Alert forwarding for notifications ──
-                            if path.startswith("notifications.") and isinstance(value, dict):
-                                state = value.get("state", "")
-
-                                # Forward alarm / emergency to Azure immediately
-                                if state in ("alarm", "emergency"):
-                                    # Strip 'notifications.' prefix for the alert path
-                                    alert_path = path.removeprefix("notifications.")
-
-                                    # For geofence notifications (navigation.geofence.<id>),
-                                    # send as GEOFENCE_BREACH with all event attributes
-                                    eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
-                                    events_map = vxt_config.get("events", {})
-                                    if alert_path.startswith("navigation.geofence."):
-                                        fence_id_str = alert_path.rsplit(".", 1)[-1]
-                                        gf_data = value.get("data", {})
-                                        fence_name = gf_data.get("fenceName", "")
-                                        fence_id = gf_data.get("fenceId", fence_id_str)
-                                        lat = gf_data.get("lat")
-                                        lon = gf_data.get("lon")
-                                        
-                                        # Find the geofence event in the events map and get its attributes
-                                        geofence_event = None
-                                        for event_code, event_info in events_map.items():
-                                            if isinstance(event_info, dict) and event_info.get("eventCode") == "GEOFENCE_BREACH":
-                                                geofence_event = event_info
-                                                break
-                                        
-                                        if not geofence_event:
-                                            log.warning("No GEOFENCE_BREACH event in twin config, skipping")
-                                            continue
-                                        
-                                        # Build attributes array with actual lat/lon values
-                                        attributes = {}
-                                        event_attrs = geofence_event.get("attributes", [])
-                                        for attr_path in event_attrs:
-                                            if "latitude" in attr_path.lower():
-                                                attributes[attr_path] = lat
-                                            elif "longitude" in attr_path.lower():
-                                                attributes[attr_path] = lon
-                                        
-                                        # Resolve fence name from twin if not in data
-                                        for gf in vxt_config.get("geofences", []):
-                                            if str(gf.get("id", "")) == fence_id_str:
-                                                if not fence_name:
-                                                    fence_name = gf.get("name", "")
-                                                break
-                                        
-                                        event_code = geofence_event.get("eventCode", "GEOFENCE_BREACH")
-                                        event_id = geofence_event.get("eventId", 0)
-                                        
-                                        alert_msg = json.dumps({
-                                            "eventCode": event_code,
-                                            "eventId": event_id,
-                                            "attributes": attributes,
-                                            "state": state,
-                                            "message": value.get("message", ""),
-                                            "timestamp": ts,
-                                            "entityId": eid,
-                                            "fenceId": fence_id,
-                                            "fenceName": fence_name,
-                                        })
-                                    else:
-                                        # Generic alarm/emergency alert - resolve from events map.
-                                        # Twin structure: {"propulsion/main/oilPressure": {"eventCode": "...", "eventId": N}}
-                                        # The key IS the SK path (slash-separated); match alert_path against it directly.
-                                        alert_path_slash = alert_path.replace(".", "/")
-                                        resolved_event = events_map.get(alert_path_slash)
-                                        if resolved_event is None:
-                                            # Fallback: partial match (e.g. twin key is a prefix of the path)
-                                            for twin_key, event_info in events_map.items():
-                                                if isinstance(event_info, dict) and (
-                                                    alert_path_slash.startswith(twin_key) or
-                                                    twin_key.startswith(alert_path_slash)
-                                                ):
-                                                    resolved_event = event_info
-                                                    break
-
-                                        if not resolved_event:
-                                            log.warning("No event mapping in twin for alert %s, skipping", alert_path)
-                                            continue
-
-                                        alert_msg = json.dumps({
-                                            "eventCode": resolved_event.get("eventCode", ""),
-                                            "eventId": resolved_event.get("eventId", 0),
-                                            "path": alert_path,
-                                            "attributes": {alert_path_slash: value},
-                                            "state": state,
-                                            "message": value.get("message", "") if isinstance(value, dict) else str(value),
-                                            "timestamp": ts,
-                                            "entityId": eid,
-                                        })
-                                    try:
-                                        await client.send_message(alert_msg)
-                                        log.warning(
-                                            "⚡ ALERT forwarded: %s [%s] → Azure",
-                                            alert_path, state,
-                                        )
-                                    except Exception:
-                                        log.exception("Alert send failed for %s", path)
-
-                                    # Trigger siren GPIO on emergency
-                                    if state == "emergency":
-                                        siren_on = vxt_config.get("alarms", {}).get(
-                                            "siren_gpio_enabled", False
-                                        )
-                                        if siren_on:
-                                            log.warning(
-                                                "EMERGENCY on %s – triggering siren GPIO",
-                                                path,
-                                            )
-                                            _trigger_siren_gpio(True)
-
-                                elif state == "normal":
-                                    # Clear siren when state returns to normal
-                                    siren_on = vxt_config.get("alarms", {}).get(
-                                        "siren_gpio_enabled", False
-                                    )
-                                    if siren_on:
-                                        _trigger_siren_gpio(False)
-
-                                continue  # notifications handled – skip deadband
+                            # notifications.* are handled by vxt-nodered – skip here
+                            if path.startswith("notifications."):
+                                continue
 
                             # ── Deadband check for realtime telemetry paths ──
                             deadbands = vxt_config.get("telemetry", {}).get(
@@ -651,6 +519,150 @@ async def websocket_listener(client: IoTHubModuleClient) -> None:
             log.warning("WebSocket closed: %s – reconnecting in %ds", exc, WS_RECONNECT_DELAY)
         except OSError as exc:
             log.error("WebSocket connection failed: %s – retrying in %ds", exc, WS_RECONNECT_DELAY)
+
+        await asyncio.sleep(WS_RECONNECT_DELAY)
+
+
+# ---------------------------------------------------------------------------
+# Node-RED Alert Listener – receives RBE-filtered state-change events
+# ---------------------------------------------------------------------------
+async def node_red_alert_listener(client: IoTHubModuleClient) -> None:
+    """Background task: connect to vxt-nodered WebSocket server and receive
+    alarm/normal state-change events that have already been RBE-filtered
+    (no repeated alerts for the same state).
+
+    Expected JSON from Node-RED:
+        {"path": "navigation.geofence.fence1", "state": "alarm",
+         "value": {"message": "Restricted Area In Haifa Port"},
+         "timestamp": "2026-04-25T10:00:00.000Z"}
+
+    Maps the event against vxt_config["events"] (from the device twin) and
+    forwards a structured message to Azure IoT Hub.
+    """
+    log.info("Node-RED alert listener: waiting for twin config …")
+    while "events" not in vxt_config and "telemetry" not in vxt_config:
+        await asyncio.sleep(1)
+
+    while True:
+        try:
+            log.info("Node-RED alert listener: connecting to %s", NODERED_WS_URL)
+            async with websockets.connect(NODERED_WS_URL) as ws:
+                log.info("Node-RED alert listener: connected – awaiting state-change events")
+                async for raw in ws:
+                    try:
+                        msg = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+
+                    path = msg.get("path", "")
+                    state = msg.get("state", "")
+                    value = msg.get("value", {})
+                    ts = msg.get("timestamp", datetime.now(timezone.utc).isoformat())
+
+                    if not path or not state:
+                        continue
+
+                    eid = vxt_config.get("entity_id", os.getenv("ENTITY_ID", "234567891"))
+                    events_map = vxt_config.get("events", {})
+
+                    # ── Geofence breach / clear ──────────────────────────────
+                    if path.startswith("navigation.geofence."):
+                        fence_id_str = path.rsplit(".", 1)[-1]
+                        gf_data = value.get("data", {}) if isinstance(value, dict) else {}
+                        fence_name = (
+                            gf_data.get("fenceName")
+                            or (value.get("message") if isinstance(value, dict) else "")
+                            or ""
+                        )
+                        fence_id = gf_data.get("fenceId", fence_id_str)
+                        lat = gf_data.get("lat")
+                        lon = gf_data.get("lon")
+
+                        # Find GEOFENCE_BREACH event definition in twin
+                        geofence_event: dict | None = None
+                        for event_info in events_map.values():
+                            if isinstance(event_info, dict) and event_info.get("eventCode") == "GEOFENCE_BREACH":
+                                geofence_event = event_info
+                                break
+
+                        # Resolve fence name from twin geofences if not in notification
+                        for gf in vxt_config.get("geofences", []):
+                            if str(gf.get("id", "")) == fence_id_str and not fence_name:
+                                fence_name = gf.get("name", "")
+                                break
+
+                        if geofence_event:
+                            attributes: dict = {}
+                            for attr_path in geofence_event.get("attributes", []):
+                                if "latitude" in attr_path.lower() and lat is not None:
+                                    attributes[attr_path] = lat
+                                elif "longitude" in attr_path.lower() and lon is not None:
+                                    attributes[attr_path] = lon
+                            alert_msg = json.dumps({
+                                "eventCode": geofence_event.get("eventCode", "GEOFENCE_BREACH"),
+                                "eventId": geofence_event.get("eventId", 0),
+                                "attributes": attributes,
+                                "state": state,
+                                "message": fence_name or path,
+                                "timestamp": ts,
+                                "entityId": eid,
+                                "fenceId": fence_id,
+                                "fenceName": fence_name,
+                            })
+                        else:
+                            alert_msg = json.dumps({
+                                "eventCode": "GEOFENCE_BREACH",
+                                "path": path,
+                                "state": state,
+                                "message": fence_name or path,
+                                "timestamp": ts,
+                                "entityId": eid,
+                                "fenceId": fence_id,
+                                "fenceName": fence_name,
+                            })
+
+                    # ── Generic alarm / clear ────────────────────────────────
+                    else:
+                        alert_path_slash = path.replace(".", "/")
+                        resolved_event = events_map.get(alert_path_slash)
+                        if resolved_event is None:
+                            for twin_key, event_info in events_map.items():
+                                if isinstance(event_info, dict) and (
+                                    alert_path_slash.startswith(twin_key)
+                                    or twin_key.startswith(alert_path_slash)
+                                ):
+                                    resolved_event = event_info
+                                    break
+
+                        if not resolved_event:
+                            log.warning("No event mapping in twin for %s – skipping", path)
+                            continue
+
+                        alert_msg = json.dumps({
+                            "eventCode": resolved_event.get("eventCode", ""),
+                            "eventId": resolved_event.get("eventId", 0),
+                            "path": path,
+                            "attributes": {alert_path_slash: value},
+                            "state": state,
+                            "message": (
+                                value.get("message", "") if isinstance(value, dict) else str(value)
+                            ),
+                            "timestamp": ts,
+                            "entityId": eid,
+                        })
+
+                    try:
+                        await client.send_message(alert_msg)
+                        log.warning(
+                            "⚡ Node-RED alert forwarded: %s [%s] → Azure", path, state
+                        )
+                    except Exception:
+                        log.exception("Alert send failed for %s", path)
+
+        except websockets.ConnectionClosedError as exc:
+            log.warning("Node-RED WS closed: %s – retrying in %ds", exc, WS_RECONNECT_DELAY)
+        except OSError as exc:
+            log.info("Node-RED WS not ready (%s) – retrying in %ds", exc, WS_RECONNECT_DELAY)
 
         await asyncio.sleep(WS_RECONNECT_DELAY)
 
@@ -778,6 +790,10 @@ async def main() -> None:
         websocket_listener(client),
         name="websocket-deadband",
     )
+    nodered_task = asyncio.create_task(
+        node_red_alert_listener(client),
+        name="nodered-alerts",
+    )
 
     # ── Keep the module alive until SIGTERM / SIGINT ──
     stop_event = asyncio.Event()
@@ -800,6 +816,7 @@ async def main() -> None:
     # ── Graceful shutdown ──
     telemetry_task.cancel()
     websocket_task.cancel()
+    nodered_task.cancel()
     log.info("Shutting down IoT Hub client …")
     await client.shutdown()
     log.info("VXT Orchestrator stopped.")

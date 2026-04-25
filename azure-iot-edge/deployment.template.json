@@ -61,6 +61,9 @@
               "SIGNALK_TOKEN": {
                 "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiaWF0IjoxNzc1NzU5MjYyfQ.UpuEAvDSuXBjTD5MfSbuzLKO_buyP2Pgp2U253VlTGo"
               },
+              "NODERED_WS_URL": {
+                "value": "ws://vxt-nodered:1880/ws/vxt-alerts"
+              },
               "INFLUXDB_URL": {
                 "value": "http://host.docker.internal:8086"
               },
@@ -74,6 +77,22 @@
                 "value": "signalk_history"
               }
             }
+          },
+          "vxt-nodered": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "imagePullPolicy": "on-create",
+            "settings": {
+              "image": "ghcr.io/barakuziel-vxt/vxt-nodered:__TAG__",
+              "createOptions": "{\"HostConfig\":{\"Devices\":[{\"PathOnHost\":\"/dev/snd\",\"PathInContainer\":\"/dev/snd\",\"CgroupPermissions\":\"rwm\"}],\"Mounts\":[{\"Type\":\"tmpfs\",\"Target\":\"/data\",\"TmpfsOptions\":{\"SizeBytes\":52428800,\"Mode\":511}}],\"PortBindings\":{\"1880/tcp\":[{\"HostPort\":\"1880\"}]},\"ExtraHosts\":[\"host.docker.internal:host-gateway\"]}}"
+            },
+            "env": {
+              "SIGNALK_TOKEN": {
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiaWF0IjoxNzc1NzU5MjYyfQ.UpuEAvDSuXBjTD5MfSbuzLKO_buyP2Pgp2U253VlTGo"
+              }
+            }
           }
         }
       }
@@ -82,7 +101,8 @@
       "properties.desired": {
         "schemaVersion": "1.1",
         "routes": {
-          "orchestratorToCloud": "FROM /messages/modules/vxt-orchestrator/outputs/* INTO $upstream"
+          "orchestratorToCloud": "FROM /messages/modules/vxt-orchestrator/outputs/* INTO $upstream",
+          "noderedToCloud": "FROM /messages/modules/vxt-nodered/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
           "timeToLiveSecs": 7200
@@ -90,6 +110,9 @@
       }
     },
     "vxt-orchestrator": {
+      "properties.desired": {}
+    },
+    "vxt-nodered": {
       "properties.desired": {}
     }
   }
