@@ -559,6 +559,16 @@ async def node_red_alert_listener(client: IoTHubModuleClient) -> None:
             log.info("Node-RED alert listener: connecting to %s", NODERED_WS_URL)
             async with websockets.connect(NODERED_WS_URL) as ws:
                 log.info("Node-RED alert listener: connected – awaiting state-change events")
+                # Push event descriptions so Node-RED can compose proper TTS messages
+                events_map_boot = vxt_config.get("events", {})
+                desc_map = {
+                    ev_code: ev_info["description"]
+                    for ev_code, ev_info in events_map_boot.items()
+                    if isinstance(ev_info, dict) and ev_info.get("description")
+                }
+                if desc_map:
+                    await ws.send(json.dumps({"type": "event_config", "descriptions": desc_map}))
+                    log.info("Pushed event descriptions to Node-RED: %s", list(desc_map.keys()))
                 async for raw in ws:
                     try:
                         msg = json.loads(raw)
