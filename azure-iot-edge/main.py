@@ -168,7 +168,7 @@ def update_influx_filters(paths_array: list[str]) -> bool:
     return False
 
 
-def update_signalk_alarms(alarms_dict: dict) -> int:
+def update_signalk_alarms(alarms_dict: dict, descriptions: dict | None = None) -> int:
     """Translate VXT AttributeScore ranges → SignalK alarm zone metadata.
 
     For each path, builds a zones array and PUTs it to the SignalK meta
@@ -177,6 +177,7 @@ def update_signalk_alarms(alarms_dict: dict) -> int:
     Returns the number of paths successfully updated.
     """
     ok_count = 0
+    descriptions = descriptions or {}
     for sk_path, score_ranges in alarms_dict.items():
         if sk_path == "siren_gpio_enabled":
             continue
@@ -198,7 +199,10 @@ def update_signalk_alarms(alarms_dict: dict) -> int:
                 "lower": lower,
                 "upper": upper,
                 "state": state,
-                "message": f"{sk_path} {state} ({entry['min']}-{entry['max']}{'°C' if is_temperature else ''})",
+                "message": descriptions.get(
+                    sk_path,
+                    f"{sk_path} {state} ({entry['min']}-{entry['max']}{'°C' if is_temperature else ''})",
+                ),
             })
 
         url_path = _sk_path_to_url(sk_path)
@@ -746,6 +750,9 @@ async def _on_events_updated(events: dict) -> None:
         if not isinstance(ev_info, dict):
             continue
         attrs = ev_info.get("attributes", {})
+        if not isinstance(attrs, dict):
+            log.warning("  Event '%s' has non-dict attributes (%s) – skipping", ev_code, type(attrs).__name__)
+            continue
         log.info("  Event '%s' – %d attribute(s)", ev_code, len(attrs))
 
     # --- 1. Threshold attributes → SignalK alarm zones ---
@@ -755,7 +762,10 @@ async def _on_events_updated(events: dict) -> None:
         if not isinstance(ev_info, dict):
             continue
         ev_desc = ev_info.get("description", "")
-        for attr_key, attr_val in ev_info.get("attributes", {}).items():
+        attrs = ev_info.get("attributes", {})
+        if not isinstance(attrs, dict):
+            continue
+        for attr_key, attr_val in attrs.items():
             if "thresholds" in attr_val and attr_key not in alarms_dict:
                 alarms_dict[attr_key] = attr_val["thresholds"]
                 if ev_desc:
@@ -774,7 +784,10 @@ async def _on_events_updated(events: dict) -> None:
     for ev_info in events.values():
         if not isinstance(ev_info, dict):
             continue
-        for attr_val in ev_info.get("attributes", {}).values():
+        attrs = ev_info.get("attributes", {})
+        if not isinstance(attrs, dict):
+            continue
+        for attr_val in attrs.values():
             for gf in attr_val.get("geofences", []):
                 gf_id = gf.get("id")
                 if gf_id not in seen_fence_ids:
