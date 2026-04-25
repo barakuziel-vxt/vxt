@@ -4383,7 +4383,17 @@ def _normalize_polygon_coordinates(raw_coords):
 
 
 def _get_device_config(entity_id: str) -> dict:
-    """Fetch telemetry tiers, alarm scores, and geofences for a device."""
+    """Fetch telemetry tiers and subscription-driven hierarchical events for a device.
+
+    Events are keyed by eventCode and contain:
+      - eventId, eventCode, description (TTS text)
+      - attributes: dict keyed by slash-separated path
+          - numeric paths  → {"thresholds": [{"min","max","score"},...]}
+          - navigation.position → {"geofences": [{"id","name","type","geoJson"},...]}
+
+    Returns empty events if the customer has no active subscriptions.
+    The 'alarms' and 'geofences' top-level keys are no longer generated.
+    """
     conn = get_db_connection()
     try:
         # 1. Resolve entityTypeId and customerId
@@ -4394,12 +4404,12 @@ def _get_device_config(entity_id: str) -> dict:
             WHERE e.entityId = ? AND e.active = 'Y'
         """, (entity_id,))
         if not device_rows:
-            return {"telemetry": {}, "alarms": {}, "geofences": []}
+            return {"telemetry": {}, "events": {}}
 
         entity_type_id = device_rows[0]["entityTypeId"]
-        customer_id = device_rows[0]["customerId"]
+        customer_id    = device_rows[0]["customerId"]
 
-        # 2. Telemetry – tiered SignalK paths
+        # 2. Telemetry – tiered SignalK paths (all attributes for the entity type)
         attr_rows = _query_as_dicts(conn, """
             SELECT entityTypeAttributeCode, entityTypeAttributeTimeAspect
             FROM EntityTypeAttribute
@@ -4409,161 +4419,118 @@ def _get_device_config(entity_id: str) -> dict:
         tiered_paths = defaultdict(list)
         for row in attr_rows:
             tier = str(row["entityTypeAttributeTimeAspect"])
-            path = row["entityTypeAttributeCode"]
-            tiered_paths[tier].append(path)
+            tiered_paths[tier].append(row["entityTypeAttributeCode"])
         telemetry = dict(tiered_paths)
 
-        # 3. Alarms – score ranges per path
-        score_rows = _query_as_dicts(conn, """
-            SELECT a.entityTypeAttributeCode,
-                   s.MinValue, s.MaxValue, s.Score
-            FROM EntityTypeAttributeScore s
-            JOIN EntityTypeAttribute a
-                 ON a.entityTypeAttributeId = s.EntityTypeAttributeId
-            WHERE a.entityTypeId = ? AND a.active = 'Y' AND s.active = 'Y'
-            ORDER BY a.entityTypeAttributeCode, s.MinValue
-        """, (entity_type_id,))
+        # 3. Events – driven by CustomerSubscriptions
+        #    CustomerSubscriptions → Event → EventAttribute → EntityTypeAttribute
+        #    navigation.position attribute → CustomerGeofenceCriteria (geofences)
+        #    all other attributes          → EntityTypeAttributeScore  (thresholds)
+        #    If no active subscriptions exist, events dict will be empty.
+        POSITION_ATTR = "navigation.position"
 
-        alarms = defaultdict(list)
-        for row in score_rows:
-            # Azure IoT Hub twin forbids dots in property names;
-            # replace '.' with '/' so edge module can convert back.
-            path = row["entityTypeAttributeCode"].replace(".", "/")
-            alarms[path].append({
-                "min": float(row["MinValue"]),
-                "max": float(row["MaxValue"]),
-                "score": int(row["Score"]),
-            })
-        alarms = dict(alarms)
+        sub_rows = _query_as_dicts(conn, """
+            SELECT DISTINCT ev.eventId, ev.eventCode, ev.eventDescription
+            FROM CustomerSubscriptions cs
+            JOIN Event ev ON ev.eventId = cs.eventId AND ev.active = 'Y'
+            WHERE cs.customerId = ?
+              AND cs.entityId = ?
+              AND cs.active = 'Y'
+              AND cs.subscriptionStartDate <= GETDATE()
+              AND (cs.subscriptionEndDate IS NULL OR cs.subscriptionEndDate > GETDATE())
+        """, (customer_id, entity_id))
 
-        # 4. Geofences (with linked attribute for event details)
-        geo_rows = _query_as_dicts(conn, """
-            SELECT g.customerGeofenceCriteriaId,
-                   g.geofenceName, g.geoType, g.coordinates,
-                   a.entityTypeAttributeCode
-            FROM CustomerGeofenceCriteria g
-            LEFT JOIN EntityTypeAttribute a
-                 ON a.entityTypeAttributeId = g.entityTypeAttributeId
-            WHERE g.customerId = ? AND g.active = 'Y'
-        """, (customer_id,))
-
-        geofences = []
-        for row in geo_rows:
-            geo_type = row.get("geoType") or "Polygon"
-            coords_raw = row["coordinates"]
-
-            try:
-                if geo_type == "Polygon":
-                    polygon_coords = _normalize_polygon_coordinates(coords_raw)
-                    fence = {
-                        "id": row["customerGeofenceCriteriaId"],
-                        "name": row["geofenceName"],
-                        "type": geo_type,
-                        # Keep legacy shape for edge plugin compatibility.
-                        "coordinates": polygon_coords,
-                        # Explicit GeoJSON for new clients and tooling.
-                        "geoJson": {
-                            "type": "Polygon",
-                            "coordinates": polygon_coords,
-                        },
-                    }
-                else:
-                    coords = _decode_json_maybe(coords_raw)
-                    fence = {
-                        "id": row["customerGeofenceCriteriaId"],
-                        "name": row["geofenceName"],
-                        "type": geo_type,
-                        "coordinates": coords,
-                    }
-            except Exception as ex:
-                print(f"[WARNING] Skipping invalid geofence {row.get('customerGeofenceCriteriaId')}: {ex}")
-                continue
-
-            # Include the linked SignalK attribute (e.g. "navigation/position")
-            attr_code = row.get("entityTypeAttributeCode")
-            if attr_code:
-                fence["attribute"] = attr_code.replace(".", "/")
-            geofences.append(fence)
-
-        # 5. Events – map event codes to attribute arrays (group attributes per event)
-        #    Only include events that the customer has subscribed to for this entity.
-        #    a) Events with explicit EventAttribute links (e.g. GEOFENCE_BREACH → [latitude, longitude])
-        event_attr_rows = _query_as_dicts(conn, """
-            SELECT ev.eventCode, ev.eventId,
-                   eta.entityTypeAttributeCode
-            FROM Event ev
-            JOIN EventAttribute ea ON ea.eventId = ev.eventId AND ea.active = 'Y'
-            JOIN EntityTypeAttribute eta ON eta.entityTypeAttributeId = ea.entityTypeAttributeId
-                                        AND eta.active = 'Y'
-            WHERE ev.entityTypeId = ? AND ev.active = 'Y'
-              AND EXISTS (
-                  SELECT 1 FROM CustomerSubscriptions cs
-                  WHERE cs.customerId = ?
-                    AND cs.entityId = ?
-                    AND cs.eventId = ev.eventId
-                    AND cs.active = 'Y'
-              )
-            ORDER BY ev.eventCode, eta.entityTypeAttributeCode
-        """, (entity_type_id, customer_id, entity_id))
-
-        # Group attributes by eventCode
         events = {}
-        for row in event_attr_rows:
-            event_code = row["eventCode"]
-            event_id = row["eventId"]
-            attr_path = row["entityTypeAttributeCode"].replace(".", "/")
-            
-            if event_code not in events:
-                events[event_code] = {
-                    "eventCode": event_code,
-                    "eventId": event_id,
-                    "attributes": []
-                }
-            events[event_code]["attributes"].append(attr_path)
+        for sub in sub_rows:
+            ev_id   = sub["eventId"]
+            ev_code = sub["eventCode"]
+            ev_desc = sub["eventDescription"] or ev_code
 
-        #    b) Events without EventAttribute links → apply to all scored attributes
-        unlinked_rows = _query_as_dicts(conn, """
-            SELECT ev.eventCode, ev.eventId
-            FROM Event ev
-            WHERE ev.entityTypeId = ? AND ev.active = 'Y'
-              AND EXISTS (
-                  SELECT 1 FROM CustomerSubscriptions cs
-                  WHERE cs.customerId = ?
-                    AND cs.entityId = ?
-                    AND cs.eventId = ev.eventId
-                    AND cs.active = 'Y'
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM EventAttribute ea
-                  WHERE ea.eventId = ev.eventId AND ea.active = 'Y'
-              )
-        """, (entity_type_id, customer_id, entity_id))
-
-        if unlinked_rows:
-            scored_attrs = _query_as_dicts(conn, """
-                SELECT DISTINCT eta.entityTypeAttributeCode
-                FROM EntityTypeAttributeScore s
+            # Get attributes linked to this event via EventAttribute
+            ea_rows = _query_as_dicts(conn, """
+                SELECT eta.entityTypeAttributeCode, eta.entityTypeAttributeId
+                FROM EventAttribute ea
                 JOIN EntityTypeAttribute eta
-                     ON eta.entityTypeAttributeId = s.EntityTypeAttributeId
-                WHERE eta.entityTypeId = ? AND eta.active = 'Y' AND s.active = 'Y'
-            """, (entity_type_id,))
-            alarm_event = unlinked_rows[0]
-            event_code = alarm_event["eventCode"]
-            event_id = alarm_event["eventId"]
-            
-            if event_code not in events:
-                events[event_code] = {
-                    "eventCode": event_code,
-                    "eventId": event_id,
-                    "attributes": []
-                }
-            
-            for attr_row in scored_attrs:
-                path = attr_row["entityTypeAttributeCode"].replace(".", "/")
-                if path not in events[event_code]["attributes"]:
-                    events[event_code]["attributes"].append(path)
+                     ON eta.entityTypeAttributeId = ea.entityTypeAttributeId
+                     AND eta.active = 'Y'
+                WHERE ea.eventId = ? AND ea.active = 'Y'
+            """, (ev_id,))
 
-        return {"telemetry": telemetry, "alarms": alarms, "geofences": geofences, "events": events}
+            attributes = {}
+
+            for ea in ea_rows:
+                attr_code = ea["entityTypeAttributeCode"]
+                attr_id   = ea["entityTypeAttributeId"]
+                attr_key  = attr_code.replace(".", "/")  # dots forbidden in IoT Hub twin keys
+
+                if attr_code == POSITION_ATTR:
+                    # navigation.position → geofence criteria from CustomerGeofenceCriteria
+                    gf_rows = _query_as_dicts(conn, """
+                        SELECT customerGeofenceCriteriaId, geofenceName, geoType, coordinates
+                        FROM CustomerGeofenceCriteria
+                        WHERE customerId = ? AND active = 'Y'
+                          AND entityTypeAttributeId = ?
+                    """, (customer_id, attr_id))
+
+                    geofences = []
+                    for gf in gf_rows:
+                        geo_type   = gf.get("geoType") or "Polygon"
+                        coords_raw = gf["coordinates"]
+                        try:
+                            if geo_type == "Polygon":
+                                polygon_coords = _normalize_polygon_coordinates(coords_raw)
+                                geofences.append({
+                                    "id":      gf["customerGeofenceCriteriaId"],
+                                    "name":    gf["geofenceName"],
+                                    "type":    geo_type,
+                                    "geoJson": {"type": "Polygon", "coordinates": polygon_coords},
+                                })
+                            else:
+                                coords = _decode_json_maybe(coords_raw)
+                                geofences.append({
+                                    "id":          gf["customerGeofenceCriteriaId"],
+                                    "name":        gf["geofenceName"],
+                                    "type":        geo_type,
+                                    "coordinates": coords,
+                                })
+                        except Exception as ex:
+                            print(f"[WARNING] Skipping invalid geofence {gf.get('customerGeofenceCriteriaId')}: {ex}")
+                            continue
+
+                    if geofences:
+                        attributes[attr_key] = {"geofences": geofences}
+
+                else:
+                    # All other attributes → numeric thresholds from EntityTypeAttributeScore
+                    score_rows = _query_as_dicts(conn, """
+                        SELECT MinValue, MaxValue, Score
+                        FROM EntityTypeAttributeScore
+                        WHERE entityTypeAttributeId = ? AND active = 'Y'
+                        ORDER BY MinValue
+                    """, (attr_id,))
+
+                    if score_rows:
+                        attributes[attr_key] = {
+                            "thresholds": [
+                                {
+                                    "min":   float(r["MinValue"]),
+                                    "max":   float(r["MaxValue"]),
+                                    "score": int(r["Score"]),
+                                }
+                                for r in score_rows
+                            ]
+                        }
+
+            # Only include the event if it has at least one attribute with criteria
+            if attributes:
+                events[ev_code] = {
+                    "eventId":     ev_id,
+                    "eventCode":   ev_code,
+                    "description": ev_desc,
+                    "attributes":  attributes,
+                }
+
+        return {"telemetry": telemetry, "events": events}
     finally:
         return_db_connection(conn)
 
@@ -4573,12 +4540,13 @@ def get_device_twin(entity_id: str):
     """Generate the full Device Twin JSON for a given entity."""
     config = _get_device_config(entity_id)
 
-    if not config["telemetry"] and not config["alarms"] and not config["geofences"] and not config["events"]:
+    if not config["telemetry"] and not config["events"]:
         raise HTTPException(status_code=404,
                             detail=f"No configuration found for entity_id '{entity_id}'")
 
-    # Build flat deduplicated list of all SignalK paths across tiers
-    all_paths = list(dict.fromkeys(
+    # influx_allow_paths: all active EntityTypeAttribute paths for this entity's type
+    # (CustomerSubscription → Entity → entityTypeId → EntityTypeAttribute)
+    all_telemetry_paths = list(dict.fromkeys(
         path for paths in config["telemetry"].values() for path in paths
     ))
 
@@ -4594,13 +4562,8 @@ def get_device_twin(entity_id: str):
                     "tiered_paths": test_tiered,
                 },
                 "storage": {
-                    "influx_allow_paths": all_paths,
+                    "influx_allow_paths": all_telemetry_paths,
                 },
-                "alarms": {
-                    "siren_gpio_enabled": True,
-                    **config["alarms"],
-                },
-                "geofences": config["geofences"],
                 "events": config["events"],
             }
         }
@@ -4613,12 +4576,13 @@ def push_device_twin(entity_id: str):
     """Generate twin JSON, save to DB, and push desired properties to Azure IoT Hub."""
     config = _get_device_config(entity_id)
 
-    if not config["telemetry"] and not config["alarms"] and not config["geofences"] and not config["events"]:
+    if not config["telemetry"] and not config["events"]:
         raise HTTPException(status_code=404,
                             detail=f"No configuration found for entity_id '{entity_id}'")
 
-    # Build flat deduplicated list of all SignalK paths across tiers
-    all_paths = list(dict.fromkeys(
+    # influx_allow_paths: all active EntityTypeAttribute paths for this entity's type
+    # (CustomerSubscription → Entity → entityTypeId → EntityTypeAttribute)
+    all_telemetry_paths = list(dict.fromkeys(
         path for paths in config["telemetry"].values() for path in paths
     ))
 
@@ -4632,13 +4596,8 @@ def push_device_twin(entity_id: str):
             "tiered_paths": test_tiered,
         },
         "storage": {
-            "influx_allow_paths": all_paths,
+            "influx_allow_paths": all_telemetry_paths,
         },
-        "alarms": {
-            "siren_gpio_enabled": True,
-            **config["alarms"],
-        },
-        "geofences": config["geofences"],
         "events": config["events"],
     }
 
