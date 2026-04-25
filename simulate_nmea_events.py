@@ -8,8 +8,8 @@
 # Run just geofence violations
 #python simulate_nmea_events.py --target halos.local --scenario geofence
 
-# Run oscillation test for 30 seconds
-#python simulate_nmea_events.py --target halos.local --scenario oscillation --duration 30
+# Run oscillation test for 60 seconds
+#python simulate_nmea_events.py --target halos.local --scenario oscillation --duration 60
 
 """
 Simulate NMEA Events – Alarm Threshold & Geofence Violations
@@ -101,6 +101,16 @@ def dd_to_nmea_lon(dd: float) -> tuple:
     deg = int(dd)
     minutes = (dd - deg) * 60
     return "%03d%07.4f" % (deg, minutes), ew
+
+
+def create_engine_temperature_nmea(temp_celsius: float) -> list[str]:
+    """Create NMEA XDR sentence for engine coolant temperature (Celsius).
+
+    SignalK XDR plugin maps transducer name 'EngineTemp' →
+    propulsion.main.temperature (converted to Kelvin by SignalK).
+    """
+    sentence = "YXXDR,C,%.1f,C,EngineTemp" % temp_celsius
+    return [nmea(sentence)]
 
 
 def send_nmea_sentences(config: Config, sentences: list[str]) -> bool:
@@ -257,6 +267,133 @@ async def scenario_continuous_oscillation(config: Config, duration_seconds: int 
                 break
 
 
+async def scenario_multi_alert_oscillation(config: Config, duration_seconds: int = 60) -> None:
+    """Simulate continuous oscillation of MULTIPLE alert types (oil pressure, engine temp, geofence)
+    to verify TTS triggers for all alert states. Each cycle alternates through different alert types."""
+    log.info(f"\n🚨 SCENARIO: Multi-Alert Oscillation – All Alert Types ({duration_seconds}s)")
+    log.info("=" * 60)
+
+    # Geofence coordinates
+    OUTSIDE_LAT, OUTSIDE_LON = 32.8629, 35.0501  # Outside restricted zone
+    INSIDE_LAT, INSIDE_LON = 32.844, 35.022      # Inside Haifa port geofence
+
+    start = datetime.now(timezone.utc)
+    cycle = 0
+
+    while (datetime.now(timezone.utc) - start).total_seconds() < duration_seconds:
+        cycle += 1
+        
+        # === OIL PRESSURE WARN/NORMAL ===
+        log.info(f"  Cycle {cycle} [Oil Pressure]: Warn → Normal")
+        send_nmea_sentences(config, create_oil_pressure_nmea(2950))  # Warning (should trigger TTS)
+        log.info(f"    → {2950} Pa (Warn) — TTS should announce alert")
+        await asyncio.sleep(2)
+        
+        send_nmea_sentences(config, create_oil_pressure_nmea(2100))  # Normal (should clear alert)
+        log.info(f"    → {2100} Pa (Normal) — TTS alert cleared")
+        await asyncio.sleep(2)
+
+        remaining = duration_seconds - (datetime.now(timezone.utc) - start).total_seconds()
+        if remaining <= 0:
+            break
+
+        # === ENGINE TEMPERATURE WARN/NORMAL ===
+        log.info(f"  Cycle {cycle} [Engine Temp]: Warn → Normal")
+        send_nmea_sentences(config, create_engine_temperature_nmea(90.0))  # Emergency (should trigger TTS)
+        log.info(f"    → 90°C (Emergency) — TTS should announce alert")
+        await asyncio.sleep(2)
+
+        send_nmea_sentences(config, create_engine_temperature_nmea(72.0))  # Normal (should clear alert)
+        log.info(f"    → 72°C (Normal) — TTS alert cleared")
+        await asyncio.sleep(2)
+
+        remaining = duration_seconds - (datetime.now(timezone.utc) - start).total_seconds()
+        if remaining <= 0:
+            break
+
+        # === GEOFENCE ENTRY/EXIT ===
+        log.info(f"  Cycle {cycle} [Geofence]: Entry → Exit")
+        send_nmea_sentences(config, create_position_nmea(INSIDE_LAT, INSIDE_LON))  # Inside (alarm)
+        log.info(f"    → Inside Haifa port (alarm) — TTS should announce alert")
+        await asyncio.sleep(2)
+
+        send_nmea_sentences(config, create_position_nmea(OUTSIDE_LAT, OUTSIDE_LON))  # Outside (normal)
+        log.info(f"    → Outside restricted zone (normal) — TTS alert cleared")
+        await asyncio.sleep(2)
+
+    log.info(f"  ✓ Multi-alert oscillation complete — you should have heard TTS for all 3 alert types")
+
+
+async def scenario_timed_restricted_zone(config: Config, hold_seconds: int = 60) -> None:
+    """Simulate entering a restricted polygon, staying for *hold_seconds*,
+    then exiting.  Designed to verify:
+      1. vxt-nodered forwards one EMERGENCY/ALARM event to vxt-orchestrator
+         as soon as the vessel enters the zone.
+      2. After exit, one NORMAL event is forwarded.
+    """
+    log.info("\n🚫 SCENARIO: Timed Restricted Zone — Haifa Port")
+    log.info("=" * 60)
+
+    # Coordinates clearly outside the fence (open bay north of harbor)
+    OUTSIDE_LAT, OUTSIDE_LON = 32.8629, 35.0501
+    # Centroid of the Haifa port restricted polygon
+    # Polygon vertices (lat): 32.8385, 32.8377, 32.8516, 32.8532, 32.8388
+    # → centroid ≈ lat 32.844, lon 35.022 — clearly inside
+    INSIDE_LAT, INSIDE_LON = 32.844, 35.022
+
+    log.info("  [1/3] Vessel in open water (outside restricted zone)…")
+    send_nmea_sentences(config, create_position_nmea(OUTSIDE_LAT, OUTSIDE_LON))
+    await asyncio.sleep(3)
+
+    log.info("  [2/3] Vessel entering restricted zone — Haifa Port! Holding %ds…", hold_seconds)
+    start = datetime.now(timezone.utc)
+    first = True
+    while (datetime.now(timezone.utc) - start).total_seconds() < hold_seconds:
+        send_nmea_sentences(config, create_position_nmea(INSIDE_LAT, INSIDE_LON))
+        elapsed = int((datetime.now(timezone.utc) - start).total_seconds())
+        if first:
+            log.info(
+                "  ⚠️  ALARM expected → vxt-nodered should announce 'Restricted Area Haifa Port' in TTS loop"
+            )
+            first = False
+        else:
+            log.info("  → Still inside restricted zone (%ds / %ds)…", elapsed, hold_seconds)
+        await asyncio.sleep(2)
+
+    log.info("  [3/3] Vessel exiting restricted zone — returning to open water…")
+    send_nmea_sentences(config, create_position_nmea(OUTSIDE_LAT, OUTSIDE_LON))
+    log.info("  ✓ NORMAL event expected → TTS loop should stop, one 'normal' alert forwarded")
+    await asyncio.sleep(4)
+
+
+async def scenario_engine_temperature_threshold(config: Config, alert_hold_seconds: int = 60) -> None:
+    """Simulate engine coolant temperature crossing an alarm threshold and
+    returning to normal.  Designed to verify:
+      1. vxt-nodered forwards one ALARM/EMERGENCY event when temp rises.
+      2. vxt-nodered forwards one NORMAL event when temp returns to safe range.
+    """
+    log.info("\n🌡️ SCENARIO: Engine Temperature Threshold Crossing")
+    log.info("=" * 60)
+
+    # Twin thresholds: 0-80°C → score 0 (normal), 81-500°C → score 3 (emergency)
+    # SignalK stores temperature in Kelvin; main.py converts zones to Kelvin on write.
+    steps = [
+        (75.0,  "Normal: 75°C — below threshold (score 0, state normal)", 3),
+        (90.0,  "EMERGENCY: 90°C — above 81°C threshold (score 3)", 3),
+        (105.0, "EMERGENCY: 105°C — dangerously overheating (score 3, hold for loop playback)", alert_hold_seconds),
+        (72.0,  "NORMAL: 72°C — cooled below 80°C threshold → alarm clears", 3),
+    ]
+
+    for temp, label, wait_seconds in steps:
+        sentences = create_engine_temperature_nmea(temp)
+        ok = send_nmea_sentences(config, sentences)
+        if ok:
+            log.info("  → Engine temp: %.1f °C – %s", temp, label)
+        await asyncio.sleep(wait_seconds)
+
+    log.info("  ✓ Threshold crossing complete — NORMAL event expected from vxt-orchestrator")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -273,15 +410,30 @@ async def main():
     )
     parser.add_argument(
         "--scenario",
-        choices=["oil_pressure", "geofence", "combined", "oscillation", "all"],
+        choices=[
+            "oil_pressure", "geofence", "combined", "oscillation", "multi_alert_oscillation",
+            "restricted_zone", "engine_temp", "all",
+        ],
         default="all",
         help="Which scenario to run (default: all)",
     )
     parser.add_argument(
         "--duration",
         type=int,
-        default=120,
+        default=60,
         help="Duration for oscillation scenario in seconds (default: 120)",
+    )
+    parser.add_argument(
+        "--hold",
+        type=int,
+        default=60,
+        help="Seconds to hold inside restricted zone (default: 60)",
+    )
+    parser.add_argument(
+        "--alert-hold",
+        type=int,
+        default=60,
+        help="Seconds to keep alert state active for looping TTS tests (default: 60)",
     )
 
     args = parser.parse_args()
@@ -306,6 +458,15 @@ async def main():
 
         if args.scenario in ["oscillation", "all"]:
             await scenario_continuous_oscillation(config, args.duration)
+
+        if args.scenario in ["multi_alert_oscillation", "all"]:
+            await scenario_multi_alert_oscillation(config, args.duration)
+
+        if args.scenario in ["restricted_zone", "all"]:
+            await scenario_timed_restricted_zone(config, hold_seconds=args.hold)
+
+        if args.scenario in ["engine_temp", "all"]:
+            await scenario_engine_temperature_threshold(config, alert_hold_seconds=args.alert_hold)
 
         log.info("\n" + "=" * 80)
         log.info("✓ All scenarios completed!")
