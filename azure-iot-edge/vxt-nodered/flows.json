@@ -4,34 +4,23 @@
     "type": "tab",
     "label": "VXT Alert Engine",
     "disabled": false,
-    "info": "Subscribes to SignalK notifications.*, applies RBE state-change filter,\ndrives espeak-ng TTS in a loop, and forwards filtered events to vxt-orchestrator\nvia WebSocket server at /ws/vxt-alerts."
+    "info": ""
   },
-
-  // ── CONFIG: SignalK WebSocket client ────────────────────────────────────────
   {
     "id": "cfg-sk-ws",
     "type": "websocket-client",
-    "path": "ws://host.docker.internal:3000/signalk/v1/stream?subscribe=none&token=${SIGNALK_TOKEN}",
+    "path": "ws://host.docker.internal:3000/signalk/v1/stream?subscribe=none",
     "tls": "",
     "wholemsg": "false",
     "hb": 30,
     "subprotocol": ""
   },
-
-  // ── CONFIG: Alert WebSocket server (vxt-orchestrator connects here) ─────────
   {
     "id": "cfg-alert-server",
     "type": "websocket-listener",
     "path": "/ws/vxt-alerts",
     "wholemsg": "false"
   },
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // FLOW A — STARTUP SUBSCRIPTION
-  // Send SignalK subscribe on startup. Re-subscribe is handled by detecting the
-  // SignalK hello message in FLOW B (fn-extract-deltas) on reconnects.
-  // ══════════════════════════════════════════════════════════════════════════════
-
   {
     "id": "n-inject-startup",
     "type": "inject",
@@ -49,7 +38,6 @@
     "y": 60,
     "wires": [["n-fn-subscribe"]]
   },
-
   {
     "id": "n-fn-subscribe",
     "type": "function",
@@ -65,7 +53,6 @@
     "y": 60,
     "wires": [["n-ws-out-sk"]]
   },
-
   {
     "id": "n-ws-out-sk",
     "type": "websocket out",
@@ -77,15 +64,6 @@
     "y": 60,
     "wires": []
   },
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // FLOW B — RECEIVE AND PROCESS SIGNALK NOTIFICATIONS
-  // ws-in → json → extract deltas (+ auto re-subscribe on hello) →
-  //   RBE (state-change only, per path) → route alarm/normal →
-  //     output 1: WebSocket to orchestrator
-  //     output 2: immediate TTS trigger
-  // ══════════════════════════════════════════════════════════════════════════════
-
   {
     "id": "n-ws-in-sk",
     "type": "websocket in",
@@ -97,7 +75,6 @@
     "y": 160,
     "wires": [["n-json-parse"]]
   },
-
   {
     "id": "n-json-parse",
     "type": "json",
@@ -110,13 +87,12 @@
     "y": 160,
     "wires": [["n-fn-extract-deltas"]]
   },
-
   {
     "id": "n-fn-extract-deltas",
     "type": "function",
     "z": "tab-vxt-alerts",
     "name": "Extract notification deltas",
-    "func": "var payload = msg.payload;\n\n// Detect SignalK hello / reconnect → re-subscribe\nif (payload && payload.version && payload.self) {\n    var subMsg = {\n        payload: JSON.stringify({\n            context: 'vessels.self',\n            subscribe: [{path: 'notifications.*', minPeriod: 1000}]\n        })\n    };\n    return [subMsg, null];\n}\n\n// Extract notification path/state from delta updates\nvar msgs = [];\nvar updates = payload.updates || [];\nfor (var i = 0; i < updates.length; i++) {\n    var ts = updates[i].timestamp || new Date().toISOString();\n    var values = updates[i].values || [];\n    for (var j = 0; j < values.length; j++) {\n        var entry = values[j];\n        var path = entry.path || '';\n        var value = entry.value;\n        if (typeof path === 'string' && path.startsWith('notifications.') &&\n                value && typeof value === 'object') {\n            msgs.push({\n                topic: path,\n                payload: {\n                    path: path.replace(/^notifications\\./, ''),\n                    state: (value.state || 'normal'),\n                    message: (value.message || path),\n                    timestamp: ts\n                }\n            });\n        }\n    }\n}\nreturn [null, msgs.length > 0 ? msgs : null];",
+    "func": "var payload = msg.payload;\nif (payload && payload.version && payload.self) {\n    var subMsg = {\n        payload: JSON.stringify({\n            context: 'vessels.self',\n            subscribe: [{path: 'notifications.*', minPeriod: 1000}]\n        })\n    };\n    return [subMsg, null];\n}\nvar msgs = [];\nvar updates = payload.updates || [];\nfor (var i = 0; i < updates.length; i++) {\n    var ts = updates[i].timestamp || new Date().toISOString();\n    var values = updates[i].values || [];\n    for (var j = 0; j < values.length; j++) {\n        var entry = values[j];\n        var path = entry.path || '';\n        var value = entry.value;\n        if (typeof path === 'string' && path.startsWith('notifications.') &&\n                value && typeof value === 'object') {\n            msgs.push({\n                topic: path,\n                payload: {\n                    path: path.replace(/^notifications\\./, ''),\n                    state: (value.state || 'normal'),\n                    message: (value.message || path),\n                    timestamp: ts\n                }\n            });\n        }\n    }\n}\nreturn [null, msgs.length > 0 ? msgs : null];",
     "outputs": 2,
     "noerr": 0,
     "initialize": "",
@@ -126,7 +102,6 @@
     "y": 160,
     "wires": [["n-ws-out-sk"], ["n-rbe-state"]]
   },
-
   {
     "id": "n-rbe-state",
     "type": "rbe",
@@ -143,13 +118,12 @@
     "y": 160,
     "wires": [["n-fn-route-state"]]
   },
-
   {
     "id": "n-fn-route-state",
     "type": "function",
     "z": "tab-vxt-alerts",
     "name": "Route state change",
-    "func": "var path    = msg.payload.path;\nvar state   = msg.payload.state;\nvar message = msg.payload.message || path;\nvar ts      = msg.payload.timestamp;\n\n// Maintain active-alert map in flow context (RAM only)\nvar activeAlerts = context.get('activeAlerts') || {};\nif (state === 'alarm' || state === 'emergency') {\n    activeAlerts[path] = {state: state, message: message, since: ts};\n    node.warn('ALERT active: ' + path + ' [' + state + '] ' + message);\n} else if (state === 'normal') {\n    if (activeAlerts[path]) {\n        node.warn('ALERT cleared: ' + path);\n    }\n    delete activeAlerts[path];\n}\ncontext.set('activeAlerts', activeAlerts);\n\n// JSON event for vxt-orchestrator\nvar outMsg = {\n    payload: JSON.stringify({\n        path: path,\n        state: state,\n        value: {message: message},\n        timestamp: ts\n    })\n};\n\n// Trigger immediate TTS only on alarm/emergency\nif (state === 'alarm' || state === 'emergency') {\n    return [outMsg, {payload: message}];\n}\nreturn [outMsg, null];",
+    "func": "var path    = msg.payload.path;\nvar state   = msg.payload.state;\nvar message = msg.payload.message || path;\nvar ts      = msg.payload.timestamp;\nvar activeAlerts = context.get('activeAlerts') || {};\nif (state === 'alarm' || state === 'emergency') {\n    activeAlerts[path] = {state: state, message: message, since: ts};\n    node.warn('ALERT active: ' + path + ' [' + state + '] ' + message);\n} else if (state === 'normal') {\n    if (activeAlerts[path]) {\n        node.warn('ALERT cleared: ' + path);\n    }\n    delete activeAlerts[path];\n}\ncontext.set('activeAlerts', activeAlerts);\nvar outMsg = {\n    payload: JSON.stringify({\n        path: path,\n        state: state,\n        value: {message: message},\n        timestamp: ts\n    })\n};\nif (state === 'alarm' || state === 'emergency') {\n    return [outMsg, {payload: message}];\n}\nreturn [outMsg, null];",
     "outputs": 2,
     "noerr": 0,
     "initialize": "",
@@ -162,7 +136,6 @@
       ["n-fn-sanitize-tts"]
     ]
   },
-
   {
     "id": "n-ws-out-alerts",
     "type": "websocket out",
@@ -174,7 +147,6 @@
     "y": 140,
     "wires": []
   },
-
   {
     "id": "n-debug-log",
     "type": "debug",
@@ -192,19 +164,12 @@
     "y": 190,
     "wires": []
   },
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // FLOW C — TEXT-TO-SPEECH
-  // Immediate trigger (on state change) + repeating loop (every 8 s while active).
-  // Both feed through the same sanitise → espeak-ng exec chain.
-  // ══════════════════════════════════════════════════════════════════════════════
-
   {
     "id": "n-fn-sanitize-tts",
     "type": "function",
     "z": "tab-vxt-alerts",
     "name": "Sanitize for TTS",
-    "func": "// Strip shell-unsafe characters; espeak-ng receives plain unquoted text\nvar text = String(msg.payload || '')\n    .replace(/[\"'\\\\;|&$`<>!\\n\\r]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 200);\nif (!text) return null;\nmsg.payload = text;\nreturn msg;",
+    "func": "var text = String(msg.payload || '')\n    .replace(/[\"'\\\\;|&$`<>!\\n\\r]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 200);\nif (!text) return null;\nmsg.payload = text;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -214,7 +179,6 @@
     "y": 260,
     "wires": [["n-exec-tts"]]
   },
-
   {
     "id": "n-exec-tts",
     "type": "exec",
@@ -231,7 +195,6 @@
     "y": 260,
     "wires": [[], [], []]
   },
-
   {
     "id": "n-inject-tts-loop",
     "type": "inject",
@@ -249,13 +212,12 @@
     "y": 340,
     "wires": [["n-fn-tts-loop"]]
   },
-
   {
     "id": "n-fn-tts-loop",
     "type": "function",
     "z": "tab-vxt-alerts",
     "name": "Loop active alerts",
-    "func": "// Repeat TTS for every currently-active alert\nvar activeAlerts = context.get('activeAlerts') || {};\nvar keys = Object.keys(activeAlerts);\nif (keys.length === 0) return null;\n\nvar msgs = [];\nfor (var k = 0; k < keys.length; k++) {\n    msgs.push({payload: activeAlerts[keys[k]].message});\n}\nreturn [msgs];",
+    "func": "var activeAlerts = context.get('activeAlerts') || {};\nvar keys = Object.keys(activeAlerts);\nif (keys.length === 0) return null;\nvar msgs = [];\nfor (var k = 0; k < keys.length; k++) {\n    msgs.push({payload: activeAlerts[keys[k]].message});\n}\nreturn [msgs];",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
