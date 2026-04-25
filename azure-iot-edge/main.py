@@ -184,14 +184,21 @@ def update_signalk_alarms(alarms_dict: dict) -> int:
             log.warning("  Skipping alarm key '%s' – not a list", sk_path)
             continue
 
+        # Temperature paths: twin stores Celsius but SignalK uses Kelvin
+        is_temperature = "temperature" in sk_path.lower()
         zones = []
         for entry in score_ranges:
             state = _SCORE_TO_STATE.get(entry.get("score", 0), "nominal")
+            lower = entry["min"]
+            upper = entry["max"]
+            if is_temperature:
+                lower = round(lower + 273.15, 2)
+                upper = round(upper + 273.15, 2)
             zones.append({
-                "lower": entry["min"],
-                "upper": entry["max"],
+                "lower": lower,
+                "upper": upper,
                 "state": state,
-                "message": f"{sk_path} {state} ({entry['min']}-{entry['max']})",
+                "message": f"{sk_path} {state} ({entry['min']}-{entry['max']}{'°C' if is_temperature else ''})",
             })
 
         url_path = _sk_path_to_url(sk_path)
@@ -635,21 +642,30 @@ async def node_red_alert_listener(client: IoTHubModuleClient) -> None:
                                     break
 
                         if not resolved_event:
-                            log.warning("No event mapping in twin for %s – skipping", path)
-                            continue
-
-                        alert_msg = json.dumps({
-                            "eventCode": resolved_event.get("eventCode", ""),
-                            "eventId": resolved_event.get("eventId", 0),
-                            "path": path,
-                            "attributes": {alert_path_slash: value},
-                            "state": state,
-                            "message": (
-                                value.get("message", "") if isinstance(value, dict) else str(value)
-                            ),
-                            "timestamp": ts,
-                            "entityId": eid,
-                        })
+                            log.warning("No event mapping in twin for %s – forwarding generic alert", path)
+                            alert_msg = json.dumps({
+                                "eventCode": "ATTRIBUTE_THRESHOLD",
+                                "path": path,
+                                "state": state,
+                                "message": (
+                                    value.get("message", path) if isinstance(value, dict) else str(value)
+                                ),
+                                "timestamp": ts,
+                                "entityId": eid,
+                            })
+                        else:
+                            alert_msg = json.dumps({
+                                "eventCode": resolved_event.get("eventCode", ""),
+                                "eventId": resolved_event.get("eventId", 0),
+                                "path": path,
+                                "attributes": {alert_path_slash: value},
+                                "state": state,
+                                "message": (
+                                    value.get("message", "") if isinstance(value, dict) else str(value)
+                                ),
+                                "timestamp": ts,
+                                "entityId": eid,
+                            })
 
                     try:
                         await client.send_message(alert_msg)
