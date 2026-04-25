@@ -585,86 +585,84 @@ async def node_red_alert_listener(client: IoTHubModuleClient) -> None:
                         lat = gf_data.get("lat")
                         lon = gf_data.get("lon")
 
-                        # Find GEOFENCE_BREACH event definition in twin
+                        # Find event that has navigation/position geofence criteria
                         geofence_event: dict | None = None
-                        for event_info in events_map.values():
-                            if isinstance(event_info, dict) and event_info.get("eventCode") == "GEOFENCE_BREACH":
-                                geofence_event = event_info
+                        for ev_info in events_map.values():
+                            if isinstance(ev_info, dict) and "navigation/position" in ev_info.get("attributes", {}):
+                                geofence_event = ev_info
                                 break
 
-                        # Resolve fence name from twin geofences if not in notification
-                        for gf in vxt_config.get("geofences", []):
-                            if str(gf.get("id", "")) == fence_id_str and not fence_name:
-                                fence_name = gf.get("name", "")
-                                break
+                        # Resolve fence name from event's geofences list if not in notification
+                        if not fence_name and geofence_event:
+                            pos_attr = geofence_event.get("attributes", {}).get("navigation/position", {})
+                            for gf in pos_attr.get("geofences", []):
+                                if str(gf.get("id", "")) == fence_id_str:
+                                    fence_name = gf.get("name", "")
+                                    break
 
                         if geofence_event:
-                            attributes: dict = {}
-                            for attr_path in geofence_event.get("attributes", []):
-                                if "latitude" in attr_path.lower() and lat is not None:
-                                    attributes[attr_path] = lat
-                                elif "longitude" in attr_path.lower() and lon is not None:
-                                    attributes[attr_path] = lon
+                            pos_value: dict = {}
+                            if lat is not None and lon is not None:
+                                pos_value = {"latitude": lat, "longitude": lon}
                             alert_msg = json.dumps({
-                                "eventCode": geofence_event.get("eventCode", "GEOFENCE_BREACH"),
-                                "eventId": geofence_event.get("eventId", 0),
-                                "attributes": attributes,
-                                "state": state,
-                                "message": fence_name or path,
-                                "timestamp": ts,
-                                "entityId": eid,
-                                "fenceId": fence_id,
-                                "fenceName": fence_name,
+                                "eventCode":   geofence_event.get("eventCode", "GEOFENCE_BREACH"),
+                                "eventId":     geofence_event.get("eventId", 0),
+                                "description": geofence_event.get("description", fence_name or path),
+                                "attributes":  {"navigation/position": pos_value},
+                                "state":       state,
+                                "message":     fence_name or path,
+                                "timestamp":   ts,
+                                "entityId":    eid,
+                                "fenceId":     fence_id,
+                                "fenceName":   fence_name,
                             })
                         else:
                             alert_msg = json.dumps({
-                                "eventCode": "GEOFENCE_BREACH",
-                                "path": path,
-                                "state": state,
-                                "message": fence_name or path,
-                                "timestamp": ts,
-                                "entityId": eid,
-                                "fenceId": fence_id,
-                                "fenceName": fence_name,
+                                "eventCode":  "GEOFENCE_BREACH",
+                                "path":       path,
+                                "state":      state,
+                                "message":    fence_name or path,
+                                "timestamp":  ts,
+                                "entityId":   eid,
+                                "fenceId":    fence_id,
+                                "fenceName":  fence_name,
                             })
 
                     # ── Generic alarm / clear ────────────────────────────────
                     else:
-                        alert_path_slash = path.replace(".", "/")
-                        resolved_event = events_map.get(alert_path_slash)
-                        if resolved_event is None:
-                            for twin_key, event_info in events_map.items():
-                                if isinstance(event_info, dict) and (
-                                    alert_path_slash.startswith(twin_key)
-                                    or twin_key.startswith(alert_path_slash)
-                                ):
-                                    resolved_event = event_info
-                                    break
+                        attr_path_slash = path.replace(".", "/")
+                        # Search through event attributes (new hierarchical structure)
+                        resolved_event: dict | None = None
+                        for ev_info in events_map.values():
+                            if isinstance(ev_info, dict) and attr_path_slash in ev_info.get("attributes", {}):
+                                resolved_event = ev_info
+                                break
 
                         if not resolved_event:
                             log.warning("No event mapping in twin for %s – forwarding generic alert", path)
                             alert_msg = json.dumps({
                                 "eventCode": "ATTRIBUTE_THRESHOLD",
-                                "path": path,
-                                "state": state,
+                                "path":      path,
+                                "state":     state,
                                 "message": (
                                     value.get("message", path) if isinstance(value, dict) else str(value)
                                 ),
                                 "timestamp": ts,
-                                "entityId": eid,
+                                "entityId":  eid,
                             })
                         else:
                             alert_msg = json.dumps({
-                                "eventCode": resolved_event.get("eventCode", ""),
-                                "eventId": resolved_event.get("eventId", 0),
-                                "path": path,
-                                "attributes": {alert_path_slash: value},
-                                "state": state,
+                                "eventCode":   resolved_event.get("eventCode", ""),
+                                "eventId":     resolved_event.get("eventId", 0),
+                                "description": resolved_event.get("description", ""),
+                                "path":        path,
+                                "attributes":  {attr_path_slash: value},
+                                "state":       state,
                                 "message": (
                                     value.get("message", "") if isinstance(value, dict) else str(value)
                                 ),
-                                "timestamp": ts,
-                                "entityId": eid,
+                                "timestamp":   ts,
+                                "entityId":    eid,
                             })
 
                     try:
@@ -708,34 +706,96 @@ async def _on_storage_updated(storage: dict) -> None:
 
 
 async def _on_alarms_updated(alarms: dict) -> None:
-    """Translate generic AttributeScores → SignalK alarm zones (PUT)."""
-    log.info("── Updating SignalK Alarm Zones ──")
-    log.info("  Siren GPIO enabled: %s", alarms.get("siren_gpio_enabled"))
-    updated = update_signalk_alarms(alarms)
-    log.info("  Alarm zones updated for %d paths", updated)
+    """Deprecated: 'alarms' section no longer emitted by the twin API.
+    Alarm zones are now derived from events.attributes thresholds in
+    _on_events_updated.  This handler is kept so that stale twin deltas
+    (which may still carry a null alarms key) are silently ignored.
+    """
+    log.info("── [DEPRECATED] 'alarms' twin section received – ignored (now part of events) ──")
 
 
 async def _on_geofences_updated(geofences: list) -> None:
-    """POST geofence definitions to the local SignalK geofence plugin."""
-    log.info("── Geofence config updated ──")
-    for gf in geofences:
-        log.info("  [%s] %s (id=%s)", gf.get("type"), gf.get("name"), gf.get("id"))
-    update_geofences(geofences)
+    """Deprecated: 'geofences' section no longer emitted by the twin API.
+    Geofence criteria are now embedded inside events.attributes for the
+    navigation/position attribute.  This handler is kept so stale twin
+    deltas are silently ignored.
+    """
+    log.info("── [DEPRECATED] 'geofences' twin section received – ignored (now part of events) ──")
 
 
 async def _on_events_updated(events: dict) -> None:
-    """Log the events map received from the twin."""
+    """Handle the hierarchical events section from the device twin.
+
+    Each event entry has the form:
+        {
+          "eventId": int,
+          "eventCode": str,
+          "description": str,         # TTS announcement text
+          "attributes": {
+            "propulsion/main/temperature": {"thresholds": [{"min","max","score"}]},
+            "navigation/position":         {"geofences":  [{"id","name","type","geoJson"}]},
+          }
+        }
+
+    This handler:
+      1. Extracts threshold attributes   → calls update_signalk_alarms (with descriptions)
+      2. Extracts geofence attributes    → calls update_geofences (with geoJson)
+    """
     log.info("── Events config updated ──")
-    for attr_path, info in events.items():
-        log.info("  %s → %s", attr_path, info.get("eventCode", "?"))
+    for ev_code, ev_info in events.items():
+        if not isinstance(ev_info, dict):
+            continue
+        attrs = ev_info.get("attributes", {})
+        log.info("  Event '%s' – %d attribute(s)", ev_code, len(attrs))
+
+    # --- 1. Threshold attributes → SignalK alarm zones ---
+    alarms_dict: dict = {}
+    descriptions: dict = {}
+    for ev_info in events.values():
+        if not isinstance(ev_info, dict):
+            continue
+        ev_desc = ev_info.get("description", "")
+        for attr_key, attr_val in ev_info.get("attributes", {}).items():
+            if "thresholds" in attr_val and attr_key not in alarms_dict:
+                alarms_dict[attr_key] = attr_val["thresholds"]
+                if ev_desc:
+                    descriptions[attr_key] = ev_desc
+
+    if alarms_dict:
+        log.info("── Updating SignalK Alarm Zones ──")
+        updated = update_signalk_alarms(alarms_dict, descriptions)
+        log.info("  Alarm zones updated for %d paths", updated)
+    else:
+        log.info("  No threshold attributes in events – no alarm zones to update")
+
+    # --- 2. Geofence attributes → signalk-geofence plugin ---
+    fences: list = []
+    seen_fence_ids: set = set()
+    for ev_info in events.values():
+        if not isinstance(ev_info, dict):
+            continue
+        for attr_val in ev_info.get("attributes", {}).values():
+            for gf in attr_val.get("geofences", []):
+                gf_id = gf.get("id")
+                if gf_id not in seen_fence_ids:
+                    seen_fence_ids.add(gf_id)
+                    fences.append(gf)
+
+    if fences:
+        log.info("── Updating Geofence Plugin ──")
+        for gf in fences:
+            log.info("  [%s] %s (id=%s)", gf.get("type"), gf.get("name"), gf.get("id"))
+        update_geofences(fences)
+    else:
+        log.info("  No geofence attributes in events – no geofences to update")
 
 
 # Map of top-level twin keys → handler coroutines
 _SECTION_ROUTERS = {
     "telemetry": _on_telemetry_updated,
     "storage":   _on_storage_updated,
-    "alarms":    _on_alarms_updated,
-    "geofences": _on_geofences_updated,
+    "alarms":    _on_alarms_updated,    # kept for backward compat – now a noop
+    "geofences": _on_geofences_updated, # kept for backward compat – now a noop
     "events":    _on_events_updated,
 }
 
